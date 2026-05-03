@@ -18,7 +18,9 @@ export default function Login({ onLogin }: LoginProps) {
       });
       if (res.ok) {
         const data = await res.json();
-        alert(`환영합니다! 토큰: ${data.token.substring(0, 15)}...`);
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
         onLogin(); // 성공 시 대시보드로 이동
       } else {
         alert('로그인 실패: 아이디나 비밀번호를 확인하세요.');

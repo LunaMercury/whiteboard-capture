@@ -15,6 +15,8 @@
 
 ## 3. 개발 방법론 (Harness Engineering)
 *   `.skills` 디렉토리에 각 모듈의 실행 및 테스트 스크립트를 정의하고 단계적으로 활용한다.
+*   **자동 검증 (Auto-Verification)**: 코드를 수정하면(예: `Dashboard.tsx` 수정), 사용자가 명시적으로 요청하지 않더라도 즉시 관련된 `.skills` 스크립트(예: `.skills/verify-web.ps1`)를 실행하여 에러가 없는지 자율적으로 검증한다.
+*   **Skill 자동 생성 (Auto-Skill Creation)**: 새로운 기능이나 시스템(예: 결제 시스템)을 구현할 때는, 이를 검증하기 위한 전용 스크립트(예: `.skills/verify-payments.ps1`)를 `.skills` 폴더에 스스로 생성하고 즉시 실행하여 작동을 확인한다.
 *   MCP(Model Context Protocol)는 최소화하거나 사용하지 않는다.
 
 ## 4. 데이터 보관 정책 (Retention Policy)

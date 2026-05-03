@@ -4,15 +4,28 @@ import Login from './components/Login';
 import './App.css';
 
 function App() {
-  // 임시 로그인 상태 (실제로는 JWT 토큰 유무나 Context API로 관리)
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // localStorage에서 로그인 상태 확인
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return localStorage.getItem('isLoggedIn') === 'true';
+  });
+
+  const handleLogin = () => {
+    setIsLoggedIn(true);
+    localStorage.setItem('isLoggedIn', 'true');
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('token'); // 토큰도 함께 제거
+  };
 
   return (
     <div className="app">
       {isLoggedIn ? (
-        <Dashboard onLogout={() => setIsLoggedIn(false)} />
+        <Dashboard onLogout={handleLogout} />
       ) : (
-        <Login onLogin={() => setIsLoggedIn(true)} />
+        <Login onLogin={handleLogin} />
       )}
     </div>
   );

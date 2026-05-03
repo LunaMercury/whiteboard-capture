@@ -62,4 +62,5 @@ dependencies {
     implementation(libs.camerax.lifecycle)
     implementation(libs.camerax.view)
     implementation(libs.okhttp)
+    implementation(libs.androidx.compose.material.icons.extended)
 }

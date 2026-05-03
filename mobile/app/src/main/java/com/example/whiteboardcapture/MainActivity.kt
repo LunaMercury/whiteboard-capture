@@ -27,6 +27,14 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.IOException
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 
 class MainActivity : ComponentActivity() {
 
@@ -45,10 +53,26 @@ class MainActivity : ComponentActivity() {
             requestPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
 
+        val prefs = getSharedPreferences("auth_prefs", MODE_PRIVATE)
+
         setContent {
             WhiteboardCaptureTheme {
+                var isLoggedIn by remember { 
+                    mutableStateOf(prefs.getBoolean("is_logged_in", false)) 
+                }
+
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    CameraScreen()
+                    if (isLoggedIn) {
+                        CameraScreen(onLogout = {
+                            prefs.edit().putBoolean("is_logged_in", false).apply()
+                            isLoggedIn = false
+                        })
+                    } else {
+                        LoginScreen(onLogin = {
+                            prefs.edit().putBoolean("is_logged_in", true).apply()
+                            isLoggedIn = true
+                        })
+                    }
                 }
             }
         }
@@ -56,7 +80,92 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun CameraScreen() {
+fun LoginScreen(onLogin: () -> Unit) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "Whiteboard Capture",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "필기를 즉시 PC로 전송하세요",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        
+        Spacer(modifier = Modifier.height(48.dp))
+
+        Button(
+            onClick = onLogin,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+        ) {
+            Text("Google 계정으로 시작하기 (임시)")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text("또는 이메일 로그인")
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("이메일") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Email,
+                imeAction = ImeAction.Next
+            )
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("비밀번호") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Password,
+                imeAction = ImeAction.Done
+            ),
+            trailingIcon = {
+                val image = if (passwordVisible)
+                    Icons.Filled.Visibility
+                else Icons.Filled.VisibilityOff
+
+                val description = if (passwordVisible) "비밀번호 숨기기" else "비밀번호 보기"
+
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(imageVector = image, contentDescription = description)
+                }
+            }
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Button(
+            onClick = onLogin,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("로그인")
+        }
+    }
+}
+
+@Composable
+fun CameraScreen(onLogout: () -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
@@ -67,7 +176,6 @@ fun CameraScreen() {
         AndroidView(
             factory = { ctx ->
                 val previewView = PreviewView(ctx)
-                // 핵심: 화면을 꽉 채우기 위해 잘라내는(FILL) 대신, 원본 비율 그대로 다 보여주도록(FIT) 설정합니다.
                 previewView.scaleType = PreviewView.ScaleType.FIT_CENTER
 
                 cameraProviderFuture.addListener({
@@ -76,7 +184,6 @@ fun CameraScreen() {
                         it.setSurfaceProvider(previewView.surfaceProvider)
                     }
 
-                    // 속도를 위해 최소 지연시간 모드 사용
                     imageCapture = ImageCapture.Builder()
                         .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                         .build()
@@ -96,6 +203,17 @@ fun CameraScreen() {
             },
             modifier = Modifier.fillMaxSize()
         )
+
+        // 로그아웃 버튼
+        IconButton(
+            onClick = onLogout,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+        ) {
+            Text("로그아웃", color = MaterialTheme.colorScheme.onPrimaryContainer, 
+                 modifier = Modifier.padding(8.dp))
+        }
 
         Button(
             onClick = {

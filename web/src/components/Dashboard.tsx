@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import ImageEditor from './ImageEditor';
 import styles from './Dashboard.module.css';
 
-interface DashboardProps {
-  onLogout: () => void;
-}
-
 interface CapturedImage {
   id: number;
   url: string;
   date: string;
+}
+
+interface DashboardProps {
+  onLogout: () => void;
 }
 
 const initialImages: CapturedImage[] = [];
@@ -20,10 +20,11 @@ export default function Dashboard({ onLogout }: DashboardProps) {
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
   
   useEffect(() => {
+    // Rust WebSocket 서버(Hot Path Pipeline) 연결
     const ws = new WebSocket('ws://localhost:3000/ws');
 
     ws.onopen = () => {
-      console.log('✅ Connected to Rust Fast Backend');
+      console.log('✅ Connected to Rust Fast Backend (WebSocket)');
       setIsConnected(true);
     };
 
@@ -31,9 +32,10 @@ export default function Dashboard({ onLogout }: DashboardProps) {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'new_image' && data.url) {
+          // 새 이미지가 도착하면 즉시 배열의 맨 앞(최신)에 추가
           setImages(prevImages => {
             const newImage: CapturedImage = {
-              id: Date.now(),
+              id: Date.now(), // 고유 식별자 (임시)
               url: data.url,
               date: new Date().toLocaleString('ko-KR', { 
                 year: 'numeric', month: '2-digit', day: '2-digit', 
@@ -42,6 +44,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
             };
             
             const updatedList = [newImage, ...prevImages];
+            // [데이터 보관 정책] 100개가 넘으면 가장 오래된 데이터 자동 삭제 (FIFO)
             if (updatedList.length > 100) {
               return updatedList.slice(0, 100);
             }
@@ -54,11 +57,12 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     };
 
     ws.onclose = () => {
+      console.log('❌ Disconnected from Rust Fast Backend');
       setIsConnected(false);
     };
 
     return () => {
-      ws.close();
+      ws.close(); // 컴포넌트 언마운트 시 연결 종료
     };
   }, []);
 
@@ -106,8 +110,6 @@ export default function Dashboard({ onLogout }: DashboardProps) {
     e.stopPropagation();
     setEditingImageUrl(imageUrl);
   };
-
-
 
   return (
     <div className={styles.container}>

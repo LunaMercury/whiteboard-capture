@@ -1,26 +1,75 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styles from './Dashboard.module.css';
 
 interface DashboardProps {
   onLogout: () => void;
 }
 
-// 임시 목업 데이터
-const mockImages = [
-  { id: 1, url: 'https://images.unsplash.com/photo-1580894908361-9671950d3215?w=600&q=80', date: '2026-05-02 10:00' },
-  { id: 2, url: 'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=600&q=80', date: '2026-05-02 09:30' }
-];
+interface CapturedImage {
+  id: number;
+  url: string;
+  date: string;
+}
+
+// 실제 연결 전 시각적 테스트를 위해 임시 데이터를 하나 넣어둘 수도 있지만, 실제 연동을 위해 빈 배열로 시작합니다.
+const initialImages: CapturedImage[] = [];
 
 export default function Dashboard({ onLogout }: DashboardProps) {
-  const [images] = useState(mockImages);
+  const [images, setImages] = useState<CapturedImage[]>(initialImages);
+  const [isConnected, setIsConnected] = useState(false);
   
+  useEffect(() => {
+    // Rust WebSocket 서버(Hot Path Pipeline) 연결
+    const ws = new WebSocket('ws://localhost:3000/ws');
+
+    ws.onopen = () => {
+      console.log('✅ Connected to Rust Fast Backend (WebSocket)');
+      setIsConnected(true);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'new_image' && data.url) {
+          // 새 이미지가 도착하면 즉시 배열의 맨 앞(최신)에 추가
+          setImages(prevImages => {
+            const newImage: CapturedImage = {
+              id: Date.now(), // 고유 식별자 (임시)
+              url: data.url,
+              date: new Date().toLocaleString('ko-KR', { 
+                year: 'numeric', month: '2-digit', day: '2-digit', 
+                hour: '2-digit', minute: '2-digit', second: '2-digit' 
+              })
+            };
+            
+            const updatedList = [newImage, ...prevImages];
+            // [데이터 보관 정책] 100개가 넘으면 가장 오래된 데이터 자동 삭제 (FIFO)
+            if (updatedList.length > 100) {
+              return updatedList.slice(0, 100);
+            }
+            return updatedList;
+          });
+        }
+      } catch (e) {
+        console.error('Failed to parse websocket message', e);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('❌ Disconnected from Rust Fast Backend');
+      setIsConnected(false);
+    };
+
+    return () => {
+      ws.close(); // 컴포넌트 언마운트 시 연결 종료
+    };
+  }, []);
+
   const handleCopy = async (imageUrl: string) => {
     try {
-      // 이미지 URL을 가져와서 Blob으로 변환 후 클립보드에 쓰기
       const response = await fetch(imageUrl);
       const blob = await response.blob();
       
-      // ClipboardItem 생성 시 MIME 타입 명시
       const clipboardItem = new ClipboardItem({
         [blob.type]: blob
       });
@@ -42,8 +91,13 @@ export default function Dashboard({ onLogout }: DashboardProps) {
         </div>
         <div className={styles.headerRight}>
           <div className={styles.statusIndicator}>
-            <span className={styles.statusDot}></span>
-            <span className={styles.statusText}>실시간 연결됨</span>
+            <span 
+              className={styles.statusDot} 
+              style={{ backgroundColor: isConnected ? '#10b981' : '#ef4444' }}
+            ></span>
+            <span className={styles.statusText} style={{ color: isConnected ? '#10b981' : '#ef4444' }}>
+              {isConnected ? '실시간 연결됨' : '연결 끊김'}
+            </span>
           </div>
           <button className={styles.logoutButton} onClick={onLogout}>로그아웃</button>
         </div>
@@ -54,7 +108,7 @@ export default function Dashboard({ onLogout }: DashboardProps) {
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>📷</div>
             <h2>아직 찍은 사진이 없습니다.</h2>
-            <p>앱에서 칠판을 찍으면 여기에 즉시 나타납니다.</p>
+            <p>앱에서 칠판을 찍으면 새로고침 없이 여기에 즉시 나타납니다.</p>
           </div>
         ) : (
           <div className={styles.grid}>

@@ -48,3 +48,7 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
+
+# Uploads & User Content
+**/uploads/
+backend-fast/uploads/

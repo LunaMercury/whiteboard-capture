@@ -1,37 +1,113 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import ImageEditor from './ImageEditor';
 import styles from './Dashboard.module.css';
 
 interface DashboardProps {
   onLogout: () => void;
 }
 
-// 임시 목업 데이터
-const mockImages = [
-  { id: 1, url: 'https://images.unsplash.com/photo-1580894908361-9671950d3215?w=600&q=80', date: '2026-05-02 10:00' },
-  { id: 2, url: 'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=600&q=80', date: '2026-05-02 09:30' }
-];
+interface CapturedImage {
+  id: number;
+  url: string;
+  date: string;
+}
+
+const initialImages: CapturedImage[] = [];
 
 export default function Dashboard({ onLogout }: DashboardProps) {
-  const [images] = useState(mockImages);
+  const [images, setImages] = useState<CapturedImage[]>(initialImages);
+  const [isConnected, setIsConnected] = useState(false);
+  const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
   
-  const handleCopy = async (imageUrl: string) => {
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:3000/ws');
+
+    ws.onopen = () => {
+      console.log('✅ Connected to Rust Fast Backend');
+      setIsConnected(true);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'new_image' && data.url) {
+          setImages(prevImages => {
+            const newImage: CapturedImage = {
+              id: Date.now(),
+              url: data.url,
+              date: new Date().toLocaleString('ko-KR', { 
+                year: 'numeric', month: '2-digit', day: '2-digit', 
+                hour: '2-digit', minute: '2-digit', second: '2-digit' 
+              })
+            };
+            
+            const updatedList = [newImage, ...prevImages];
+            if (updatedList.length > 100) {
+              return updatedList.slice(0, 100);
+            }
+            return updatedList;
+          });
+        }
+      } catch (e) {
+        console.error('Failed to parse websocket message', e);
+      }
+    };
+
+    ws.onclose = () => {
+      setIsConnected(false);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
+  const handleCopy = async (imageUrl: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     try {
-      // 이미지 URL을 가져와서 Blob으로 변환 후 클립보드에 쓰기
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = imageUrl;
       
-      // ClipboardItem 생성 시 MIME 타입 명시
-      const clipboardItem = new ClipboardItem({
-        [blob.type]: blob
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
       });
-      
-      await navigator.clipboard.write([clipboardItem]);
-      alert('✅ 이미지가 클립보드에 복사되었습니다! (Ctrl+V로 붙여넣기 해보세요)');
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Canvas context failed');
+      ctx.drawImage(img, 0, 0);
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) {
+          alert('이미지 변환에 실패했습니다.');
+          return;
+        }
+        try {
+          const clipboardItem = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([clipboardItem]);
+          alert('✅ 이미지가 클립보드에 복사되었습니다! (Ctrl+V로 붙여넣기 해보세요)');
+        } catch (err) {
+          console.error('클립보드 쓰기 실패:', err);
+          alert('복사에 실패했습니다. 브라우저가 클립보드 접근을 차단했을 수 있습니다.');
+        }
+      }, 'image/png');
+
     } catch (err) {
-      console.error('복사 실패:', err);
-      alert('복사에 실패했습니다. 브라우저 권한을 확인해주세요.');
+      console.error('이미지 로드 실패:', err);
+      alert('복사에 실패했습니다. 이미지 로드 중 오류가 발생했습니다.');
     }
   };
+
+  const handleEdit = (imageUrl: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingImageUrl(imageUrl);
+  };
+
+
 
   return (
     <div className={styles.container}>
@@ -42,8 +118,13 @@ export default function Dashboard({ onLogout }: DashboardProps) {
         </div>
         <div className={styles.headerRight}>
           <div className={styles.statusIndicator}>
-            <span className={styles.statusDot}></span>
-            <span className={styles.statusText}>실시간 연결됨</span>
+            <span 
+              className={styles.statusDot} 
+              style={{ backgroundColor: isConnected ? '#10b981' : '#ef4444' }}
+            ></span>
+            <span className={styles.statusText} style={{ color: isConnected ? '#10b981' : '#ef4444' }}>
+              {isConnected ? '실시간 연결됨' : '연결 끊김'}
+            </span>
           </div>
           <button className={styles.logoutButton} onClick={onLogout}>로그아웃</button>
         </div>
@@ -54,16 +135,21 @@ export default function Dashboard({ onLogout }: DashboardProps) {
           <div className={styles.emptyState}>
             <div className={styles.emptyIcon}>📷</div>
             <h2>아직 찍은 사진이 없습니다.</h2>
-            <p>앱에서 칠판을 찍으면 여기에 즉시 나타납니다.</p>
+            <p>앱에서 칠판을 찍으면 새로고침 없이 여기에 즉시 나타납니다.</p>
           </div>
         ) : (
           <div className={styles.grid}>
             {images.map((img) => (
-              <div key={img.id} className={styles.card} onClick={() => handleCopy(img.url)}>
+              <div key={img.id} className={styles.card}>
                 <div className={styles.imageWrapper}>
                   <img src={img.url} alt="Board Capture" className={styles.image} crossOrigin="anonymous" />
-                  <div className={styles.copyOverlay}>
-                    <span className={styles.copyText}>클릭하여 복사</span>
+                  <div className={styles.actionOverlay}>
+                    <button className={`${styles.actionButton} ${styles.editButton}`} onClick={(e) => handleEdit(img.url, e)}>
+                      ✏️ 수정
+                    </button>
+                    <button className={`${styles.actionButton} ${styles.copyButton}`} onClick={(e) => handleCopy(img.url, e)}>
+                      📋 복사
+                    </button>
                   </div>
                 </div>
                 <div className={styles.cardFooter}>
@@ -74,6 +160,24 @@ export default function Dashboard({ onLogout }: DashboardProps) {
           </div>
         )}
       </main>
+
+      {/* 이미지 에디터 모달 */}
+      {editingImageUrl && (
+        <div className={styles.editorModalOverlay}>
+          <div className={styles.editorContainer}>
+            <ImageEditor
+              imageUrl={editingImageUrl}
+              onSave={(dataUrl) => {
+                setImages(prev => prev.map(img =>
+                  img.url === editingImageUrl ? { ...img, url: dataUrl } : img
+                ));
+                setEditingImageUrl(null);
+              }}
+              onClose={() => setEditingImageUrl(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

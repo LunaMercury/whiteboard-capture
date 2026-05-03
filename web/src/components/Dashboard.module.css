@@ -157,29 +157,89 @@
   transform: scale(1.05);
 }
 
-.copyOverlay {
+.actionOverlay {
   position: absolute;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.4);
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 12px;
   opacity: 0;
-  transition: opacity var(--transition-normal);
+  transition: opacity 0.2s ease;
 }
 
-.card:hover .copyOverlay {
+.imageWrapper:hover .actionOverlay {
   opacity: 1;
 }
 
-.copyText {
-  color: #ffffff;
+.actionButton {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
   font-weight: 600;
-  font-size: var(--font-size-lg);
-  padding: 0.75rem 1.5rem;
-  border: 2px solid #ffffff;
-  border-radius: var(--radius-full);
-  backdrop-filter: blur(4px);
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.1s ease, background-color 0.2s;
+}
+
+.actionButton:hover {
+  transform: scale(1.05);
+}
+
+.editButton {
+  background-color: var(--primary-color, #3b82f6);
+  color: white;
+}
+
+.copyButton {
+  background-color: white;
+  color: #1f2937;
+}
+
+.editorModalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editorContainer {
+  width: 90vw;
+  height: 90vh;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.closeEditorButton {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 10000;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.closeEditorButton:hover {
+  background: #dc2626;
 }
 
 .cardFooter {

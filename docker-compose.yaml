@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: whiteboard-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: whiteboard_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - whiteboard_pg_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  whiteboard_pg_data:

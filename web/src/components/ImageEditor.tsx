@@ -35,9 +35,18 @@ function useDrawLogic() {
 }
 
 /** 텍스트 로직 모듈 */
-function useTextLogic(textSize: number, textColor: string) {
+function useTextLogic(textSize: number, setSize: (v: number) => void, textColor: string, setColor: (v: number | string) => void) {
   const [texts, setTexts] = useState<TextObj[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const lastRange = useRef<Range | null>(null);
+
+  // 선택 영역 저장
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      lastRange.current = sel.getRangeAt(0).cloneRange();
+    }
+  };
 
   const addText = (pos: { x: number; y: number }, sx: number) => {
     const id = `t${Date.now()}`;
@@ -45,22 +54,78 @@ function useTextLogic(textSize: number, textColor: string) {
     setEditingId(id);
   };
 
-  const updateText = (id: string, next: Partial<TextObj>) => {
+  const updateText = useCallback((id: string, next: Partial<TextObj>) => {
     setTexts(prev => prev.map(t => t.id === id ? { ...t, ...next } : t));
-  };
-
-  const deleteText = (id: string) => {
-    setTexts(prev => prev.filter(t => t.id !== id));
-  };
+  }, []);
 
   const cleanEmptyTexts = () => {
     if (editingId) {
       setTexts(prev => prev.filter(t => t.id !== editingId || t.content.trim() !== ''));
       setEditingId(null);
+      lastRange.current = null;
     }
   };
 
-  return { texts, setTexts, editingId, setEditingId, addText, updateText, deleteText, cleanEmptyTexts };
+  // 툴바 제어 로직 (모듈화)
+  const applyStyle = (type: 'color' | 'size', value: string | number) => {
+    if (!editingId) return;
+
+    const el = document.getElementById(`edit-${editingId}`);
+    if (!el) return;
+
+    const selection = window.getSelection();
+    let range = lastRange.current;
+
+    if (selection && selection.rangeCount > 0 && !selection.getRangeAt(0).collapsed) {
+      range = selection.getRangeAt(0);
+    }
+
+    if (range && !range.collapsed) {
+      el.focus({ preventScroll: true });
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+
+      if (type === 'color') {
+        document.execCommand('foreColor', false, value as string);
+      } else {
+        document.execCommand('fontSize', false, '7');
+        const fontTags = el.getElementsByTagName('font');
+        let newTarget: HTMLElement | null = null;
+        for (let i = 0; i < fontTags.length; i++) {
+          const f = fontTags[i];
+          if (f.size === '7') {
+            f.removeAttribute('size');
+            f.style.fontSize = value + 'px';
+            newTarget = f;
+          }
+        }
+        
+        // 시각적 하이라이트 복구 로직
+        if (newTarget) {
+          const newRange = document.createRange();
+          newRange.selectNodeContents(newTarget);
+          selection?.removeAllRanges();
+          selection?.addRange(newRange);
+          lastRange.current = newRange;
+        }
+      }
+      
+      updateText(editingId, { content: el.innerHTML });
+
+      // 브라우저 렌더링 사이클 이후 한 번 더 선택 영역 보강 (하이라이트 가시성 보장)
+      requestAnimationFrame(() => {
+        if (lastRange.current && selection) {
+          selection.removeAllRanges();
+          selection.addRange(lastRange.current);
+        }
+      });
+    } else {
+      if (type === 'color') updateText(editingId, { color: value as string });
+      else updateText(editingId, { fontSize: (value as number) });
+    }
+  };
+
+  return { texts, setTexts, editingId, setEditingId, addText, updateText, deleteText: (id: string) => setTexts(prev => prev.filter(t => t.id !== id)), cleanEmptyTexts, applyStyle, saveSelection };
 }
 
 /** 자르기 로직 모듈 */
@@ -100,7 +165,7 @@ export default function ImageEditor({ imageUrl, onSave, onClose }: Props) {
 
   // 모듈화된 로직들
   const draw = useDrawLogic();
-  const text = useTextLogic(textSize, textColor);
+  const text = useTextLogic(textSize, setTextSize, textColor, setTextColor);
   const crop = useCropLogic();
 
   useEffect(() => {
@@ -182,18 +247,46 @@ export default function ImageEditor({ imageUrl, onSave, onClose }: Props) {
     const cv = document.createElement('canvas'); cv.width = L.src.w; cv.height = L.src.h;
     const ctx = cv.getContext('2d')!;
     ctx.drawImage(img, L.src.x, L.src.y, L.src.w, L.src.h, 0, 0, L.src.w, L.src.h);
+    
     draw.paths.forEach(p => {
       ctx.beginPath(); ctx.strokeStyle = p.color; ctx.lineWidth = p.width;
       ctx.moveTo(p.points[0].x - L.src.x, p.points[0].y - L.src.y);
       p.points.slice(1).forEach(pt => ctx.lineTo(pt.x - L.src.x, pt.y - L.src.y));
       ctx.stroke();
     });
+
     text.texts.forEach(t => {
       if (!t.content.trim()) return;
-      ctx.font = `bold ${t.fontSize}px Inter, sans-serif`;
-      ctx.fillStyle = t.color;
-      ctx.fillText(t.content, t.x - L.src.x, t.y - L.src.y + t.fontSize);
+      
+      const temp = document.createElement('div');
+      temp.style.position = 'absolute';
+      temp.style.visibility = 'hidden';
+      temp.style.font = `bold ${t.fontSize}px Inter, sans-serif`;
+      temp.innerHTML = t.content;
+      document.body.appendChild(temp);
+      
+      let currentX = t.x - L.src.x;
+      const baseBaseline = t.y - L.src.y + t.fontSize;
+
+      const renderNode = (node: Node, fontSize: number, color: string) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+          ctx.fillStyle = color;
+          ctx.textBaseline = 'alphabetic';
+          ctx.fillText(node.textContent || '', currentX, baseBaseline);
+          currentX += ctx.measureText(node.textContent || '').width;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const el = node as HTMLElement;
+          const nodeColor = el.style.color || color;
+          const nodeSize = el.style.fontSize ? parseInt(el.style.fontSize) : fontSize;
+          el.childNodes.forEach(child => renderNode(child, nodeSize, nodeColor));
+        }
+      };
+
+      temp.childNodes.forEach(node => renderNode(node, t.fontSize, t.color));
+      document.body.removeChild(temp);
     });
+    
     onSave(cv.toDataURL('image/png'));
   };
 
@@ -204,11 +297,13 @@ export default function ImageEditor({ imageUrl, onSave, onClose }: Props) {
       draw.setDrawColor(color);
     } else {
       setTextColor(color);
-      // 현재 편집 중인 텍스트가 있으면 즉시 반영
-      if (text.editingId) {
-        text.updateText(text.editingId, { color });
-      }
+      text.applyStyle('color', color);
     }
+  };
+
+  const handleSizeChange = (newSize: number) => {
+    setTextSize(newSize);
+    text.applyStyle('size', newSize);
   };
 
   return (
@@ -255,22 +350,8 @@ export default function ImageEditor({ imageUrl, onSave, onClose }: Props) {
                 </>
               ) : (
                 <>
-                  <input type="range" min={12} max={150} value={textSize} onChange={e => {
-                    const newSize = +e.target.value;
-                    setTextSize(newSize);
-                    if (text.editingId) {
-                      const L = getLayout();
-                      text.updateText(text.editingId, { fontSize: newSize / (L?.sx || 1) });
-                    }
-                  }} />
-                  <input type="number" className={styles.sizeNumberInput} min={12} max={150} value={textSize} onChange={e => {
-                    const newSize = +e.target.value;
-                    setTextSize(newSize);
-                    if (text.editingId) {
-                      const L = getLayout();
-                      text.updateText(text.editingId, { fontSize: newSize / (L?.sx || 1) });
-                    }
-                  }} />
+                  <input type="range" min={12} max={150} value={textSize} onChange={e => handleSizeChange(+e.target.value)} />
+                  <input type="number" className={styles.sizeNumberInput} min={12} max={150} value={textSize} onChange={e => handleSizeChange(+e.target.value)} />
                 </>
               )}
             </div>
@@ -316,13 +397,13 @@ function TextBox({ t, isEditing, layout, tool, onStartEdit, onChange, onDelete }
   useEffect(() => {
     if (isEditing && editRef.current) {
       const el = editRef.current;
-      // 편집 시작 시 초기값 주입 (React가 그리지 않으므로 직접 주입)
-      if (el.innerText !== t.content) {
-        el.innerText = t.content;
+      // 편집 시작 시점에만 딱 한 번 HTML 주입 (중간에 주입하면 selection이 파괴됨)
+      if (el.innerHTML !== t.content) {
+        el.innerHTML = t.content;
       }
 
       const timer = setTimeout(() => {
-        el.focus();
+        el.focus({ preventScroll: true });
         const sel = window.getSelection();
         if (sel && el.childNodes.length > 0) {
           const range = document.createRange();
@@ -334,7 +415,7 @@ function TextBox({ t, isEditing, layout, tool, onStartEdit, onChange, onDelete }
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [isEditing, t.content]);
+  }, [isEditing]);
 
   const onMouseDown = (e: ReactMouseEvent) => {
     e.stopPropagation();
@@ -366,30 +447,31 @@ function TextBox({ t, isEditing, layout, tool, onStartEdit, onChange, onDelete }
   const fs = t.fontSize * layout.sx;
 
   return (
-    <div className={styles.textBox} onMouseDown={onMouseDown}
+    <div className={styles.textBox} 
+      onMouseDown={onMouseDown}
+      data-editing={isEditing}
+      onMouseUp={() => text.saveSelection()}
+      onKeyUp={() => text.saveSelection()}
       style={{
-        left: sx, top: sy, fontSize: fs + 'px', color: t.color,
-        border: isEditing ? '2px solid #3b82f6' : '1px solid transparent',
+        left: sx - 8, top: sy - 8, fontSize: fs + 'px', color: t.color,
+        border: `2px solid ${isEditing ? '#3b82f6' : 'transparent'}`, // 테두리 두께 고정하여 점프 방지
         pointerEvents: (tool === 'text' || tool === 'select') ? 'auto' : 'none',
-        position: 'absolute', display: 'inline-flex', alignItems: 'center',
-        padding: isEditing ? '8px' : '0px',
-        minWidth: '40px', minHeight: '1.2em', background: isEditing ? 'rgba(0,0,0,0.3)' : 'transparent',
-        cursor: isEditing ? 'move' : 'text'
+        background: isEditing ? 'rgba(0,0,0,0.3)' : 'transparent',
       }}>
       <div ref={editRef} 
+        id={`edit-${t.id}`}
         contentEditable={isEditing} 
         suppressContentEditableWarning
         onInput={e => {
-          // 부모 상태만 업데이트하고, DOM 자식은 React가 건드리지 않게 함
-          onChange({ content: (e.target as HTMLDivElement).innerText });
+          onChange({ content: (e.target as HTMLDivElement).innerHTML });
         }}
         style={{ 
           outline: 'none', whiteSpace: 'pre-wrap', wordBreak: 'break-word', 
-          cursor: isEditing ? 'text' : 'inherit', minWidth: '10px'
+          cursor: isEditing ? 'text' : 'inherit', minWidth: '10px',
+          display: 'inline-block' // 박스 크기 동적 축소를 위해 추가
         }}
-      >
-        {!isEditing && t.content}
-      </div>
+        dangerouslySetInnerHTML={!isEditing ? { __html: t.content } : undefined}
+      />
       {isEditing && (
         <button className={styles.textDeleteBtn} onMouseDown={e => { e.stopPropagation(); onDelete(); }}
           style={{ position: 'absolute', top: '-10px', right: '-10px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>

@@ -247,12 +247,23 @@
 .textBox {
   position: absolute;
   display: inline-flex;
-  align-items: center;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
   border-radius: 4px;
-  min-width: 10px;
-  min-height: 10px;
+  min-width: 40px;
+  min-height: 1.2em;
+  width: auto;
+  height: auto;
   z-index: 100;
   transition: border 0.15s, background 0.15s;
+  box-sizing: border-box;
+  padding: 8px; /* 일관된 여백 유지 */
+}
+
+.textBox[data-editing="true"] {
+  cursor: move; /* 편집 중일 때 테두리 부분 이동 커서 */
 }
 
 .textAreaInput {
@@ -262,7 +273,7 @@
   color: inherit;
   font-family: 'Inter', sans-serif;
   font-weight: bold;
-  padding: 2px 4px;
+  padding: 0;
   min-width: 10px;
   min-height: 1em;
   line-height: 1.2;
@@ -270,6 +281,8 @@
   cursor: text;
   white-space: pre-wrap;
   word-break: break-word;
+  display: inline-block;
+  text-align: left;
 }
 
 .textDisplay {

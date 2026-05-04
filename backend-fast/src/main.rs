@@ -23,7 +23,7 @@ async fn main() {
     // 업로드 폴더 자동 생성
     let _ = tokio::fs::create_dir_all("uploads").await;
 
-    // 1. PostgreSQL 연결 (Spring Boot와 동일한 DB 사용, 포트 5433)
+    // 1. PostgreSQL 연결 (Docker 컨테이너 포트 5433으로 포워딩)
     let db_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5433/whiteboard_db".to_string());
     

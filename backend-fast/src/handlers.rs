@@ -1,77 +1,153 @@
-use crate::AppState;
+use crate::{services, AppState, ImageEvent};
 use axum::{
-    extract::{Multipart, State, WebSocketUpgrade, ws::WebSocket},
+    extract::{ws::Message, Multipart, Query, State, WebSocketUpgrade},
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use serde::Deserialize;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-// [Hot Path 1]: 모바일 앱에서 사진을 찍었을 때 호출되는 엔드포인트
+#[derive(Debug, Deserialize)]
+struct Claims {
+    sub: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WebSocketAuthQuery {
+    token: String,
+}
+
 pub async fn upload_image(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
+    // The hot path only accepts authenticated uploads so each image is routed to the right user.
+    let user_id = match authenticate_request(&headers, &state).await {
+        Ok(user_id) => user_id,
+        Err(status) => return status.into_response(),
+    };
+
     let mut file_path = String::new();
     let mut filename = String::new();
-    
-    // [로직] 1. Multipart 데이터에서 이미지 바이트 추출 후 로컬 디스크에 임시 저장
+
     while let Ok(Some(field)) = multipart.next_field().await {
-        if field.name() == Some("image") {
-            let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
-            filename = format!("{}.jpg", timestamp);
-            file_path = format!("uploads/{}", filename);
-            
-            if let Ok(data) = field.bytes().await {
-                if let Ok(mut file) = File::create(&file_path).await {
-                    let _ = file.write_all(&data).await;
-                }
-            }
-            break;
+        if field.name() != Some("image") {
+            continue;
         }
+
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+
+        filename = format!("{}.jpg", timestamp);
+        file_path = format!("uploads/{}", filename);
+
+        if let Ok(data) = field.bytes().await {
+            if let Ok(mut file) = File::create(&file_path).await {
+                let _ = file.write_all(&data).await;
+            }
+        }
+        break;
     }
 
     if file_path.is_empty() {
-        return "No image found".into_response();
+        return StatusCode::BAD_REQUEST.into_response();
     }
 
-    // [스토리지] 추후 OCI Object Storage URL로 대체될 부분입니다.
-    let real_image_url = format!("http://localhost:3000/uploads/{}", filename);
-    let user_id = 1; // 테스트용 하드코딩 유저 ID
+    let real_image_url = format!("{}/uploads/{}", state.public_base_url.trim_end_matches('/'), filename);
 
-    // [DB] 2. DB 트랜잭션: 100개 제한 FIFO 검사 및 메타데이터 Insert
-    match crate::services::save_image_metadata(&state.db, user_id, &real_image_url).await {
-        Ok(_) => {
-            // [실시간 알림] 3. 저장 성공 시, 해당 유저의 WebSocket으로 새 사진이 생겼다고 브로드캐스트
-            let msg = format!("{{\"type\": \"new_image\", \"url\": \"{}\"}}", real_image_url);
-            let _ = state.tx.send(msg);
-            
-            "Upload Success".into_response()
+    match services::save_image_metadata(&state.db, user_id, &real_image_url).await {
+        Ok(deleted_url) => {
+            // When FIFO evicts an old record, delete the matching local file in the same request flow.
+            if let Some(old_url) = deleted_url {
+                let _ = delete_local_file_from_url(&old_url).await;
+            }
+
+            let _ = state.tx.send(ImageEvent {
+                user_id,
+                url: real_image_url.clone(),
+            });
+
+            (StatusCode::OK, "Upload Success").into_response()
         }
-        Err(e) => {
-            eprintln!("❌ DB Error during upload: {:?}", e);
-            "Upload Failed".into_response()
+        Err(error) => {
+            eprintln!("DB Error during upload: {:?}", error);
+            StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
 }
 
-// [Hot Path 2]: 웹 프론트엔드가 접속을 유지하는 실시간 파이프라인
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
+    Query(query): Query<WebSocketAuthQuery>,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(|socket| handle_socket(socket, state))
+    let user_id = match authenticate_token(&query.token, &state).await {
+        Ok(user_id) => user_id,
+        Err(status) => return status.into_response(),
+    };
+
+    // Each socket subscribes to the shared broadcast stream but only forwards its own user's events.
+    ws.on_upgrade(move |socket| handle_socket(socket, state, user_id))
 }
 
-async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
+async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: Arc<AppState>, user_id: i64) {
     let mut rx = state.tx.subscribe();
-    
-    // 브로드캐스트 채널에서 메시지를 받으면 WebSocket 클라이언트로 즉시 전송
-    while let Ok(msg) = rx.recv().await {
-        if socket.send(axum::extract::ws::Message::Text(msg)).await.is_err() {
+
+    while let Ok(event) = rx.recv().await {
+        if event.user_id != user_id {
+            continue;
+        }
+
+        let message = format!(r#"{{"type":"new_image","url":"{}"}}"#, event.url);
+        if socket.send(Message::Text(message.into())).await.is_err() {
             println!("Client disconnected.");
             break;
         }
     }
+}
+
+async fn authenticate_request(headers: &HeaderMap, state: &AppState) -> Result<i64, StatusCode> {
+    let auth_header = headers
+        .get("Authorization")
+        .and_then(|value| value.to_str().ok())
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+
+    let token = auth_header
+        .strip_prefix("Bearer ")
+        .ok_or(StatusCode::UNAUTHORIZED)?;
+
+    authenticate_token(token, state).await
+}
+
+async fn authenticate_token(token: &str, state: &AppState) -> Result<i64, StatusCode> {
+    // Spring issues the JWT, but Rust resolves the email back to a user id for DB writes and fan-out.
+    let claims = decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(state.jwt_secret.as_bytes()),
+        &Validation::new(Algorithm::HS256),
+    )
+    .map_err(|_| StatusCode::UNAUTHORIZED)?
+    .claims;
+
+    let user_id = services::find_user_id_by_email(&state.db, &claims.sub)
+        .await
+        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+
+    Ok(user_id)
+}
+
+async fn delete_local_file_from_url(url: &str) -> std::io::Result<()> {
+    if let Some(filename) = url.rsplit("/uploads/").next() {
+        let path = format!("uploads/{}", filename);
+        tokio::fs::remove_file(path).await?;
+    }
+
+    Ok(())
 }

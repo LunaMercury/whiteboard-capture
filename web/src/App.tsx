@@ -4,26 +4,22 @@ import Login from './components/Login';
 import './App.css';
 
 function App() {
-  // localStorage에서 로그인 상태 확인
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return localStorage.getItem('isLoggedIn') === 'true';
-  });
+  const [token, setToken] = useState(() => localStorage.getItem('token'));
 
-  const handleLogin = () => {
-    setIsLoggedIn(true);
-    localStorage.setItem('isLoggedIn', 'true');
+  const handleLogin = (nextToken: string) => {
+    localStorage.setItem('token', nextToken);
+    setToken(nextToken);
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('token'); // 토큰도 함께 제거
+    localStorage.removeItem('token');
+    setToken(null);
   };
 
   return (
     <div className="app">
-      {isLoggedIn ? (
-        <Dashboard onLogout={handleLogout} />
+      {token ? (
+        <Dashboard token={token} onLogout={handleLogout} />
       ) : (
         <Login onLogin={handleLogin} />
       )}

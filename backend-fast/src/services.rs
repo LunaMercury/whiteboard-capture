@@ -1,33 +1,48 @@
-use sqlx::{PgPool, Error};
+use sqlx::{Error, PgPool};
 
-// [Core Business Logic] DB 연동 핵심 로직 (Hot Path)
-pub async fn save_image_metadata(pool: &PgPool, user_id: i64, url: &str) -> Result<(), Error> {
+pub async fn find_user_id_by_email(pool: &PgPool, email: &str) -> Result<i64, Error> {
+    let result: (i64,) = sqlx::query_as("SELECT id FROM users WHERE email = $1")
+        .bind(email)
+        .fetch_one(pool)
+        .await?;
+
+    Ok(result.0)
+}
+
+pub async fn save_image_metadata(pool: &PgPool, user_id: i64, url: &str) -> Result<Option<String>, Error> {
     let mut tx = pool.begin().await?;
 
-    // 1. 현재 사용자의 이미지 갯수 확인
     let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM images WHERE user_id = $1")
         .bind(user_id)
         .fetch_one(&mut *tx)
         .await?;
 
-    // 2. 100개 이상이면 가장 오래된 것 삭제 (FIFO)
+    let mut deleted_url = None;
+
     if count.0 >= 100 {
-        // DB 데이터 삭제
-        sqlx::query("DELETE FROM images WHERE id = (SELECT id FROM images WHERE user_id = $1 ORDER BY created_at ASC LIMIT 1)")
-            .bind(user_id)
-            .execute(&mut *tx)
-            .await?;
-        
-        // TODO: (실제 프로덕션에서는 OCI 스토리지에서도 파일 삭제 API 호출 필요)
+        // Fetch the victim row first so the caller can remove the matching file after commit.
+        let oldest = sqlx::query_as::<_, (i64, String)>(
+            "SELECT id, url FROM images WHERE user_id = $1 ORDER BY created_at ASC LIMIT 1"
+        )
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        if let Some((image_id, old_url)) = oldest {
+            sqlx::query("DELETE FROM images WHERE id = $1")
+                .bind(image_id)
+                .execute(&mut *tx)
+                .await?;
+            deleted_url = Some(old_url);
+        }
     }
 
-    // 3. 새 이미지 데이터 저장
     sqlx::query("INSERT INTO images (user_id, url, created_at) VALUES ($1, $2, NOW())")
         .bind(user_id)
         .bind(url)
         .execute(&mut *tx)
         .await?;
-    
+
     tx.commit().await?;
-    Ok(())
+    Ok(deleted_url)
 }

@@ -1,37 +1,87 @@
 # Whiteboard Capture - Troubleshooting Guide
 
-이 문서는 개발 환경 구축 및 운영 중 발생할 수 있는 주요 문제와 해결 방법을 정리합니다.
+이 문서는 개발 환경에서 자주 반복되던 실행 오류와 그 근본 원인을 정리합니다.
 
-## 1. 네트워크 및 포트 관련 (Network & Ports)
+## 1. 왜 같은 오류가 반복됐는가
 
-### 1.1. 포트 점유 에러 (Port 8080 already in use)
-- **증상**: `WB-Core` 실행 시 `Web server failed to start. Port 8080 was already in use.` 메시지 발생.
-- **원인**: 
-    1. 이전 실행 프로세스가 좀비 상태로 남아 있음.
-    2. **Windows 예약 포트(Hyper-V 등)**가 해당 범위를 선점함.
-- **해결 방법**:
-    - **좀비 프로세스 정리**: 루트 폴더의 `mobile-off.bat` 실행.
-    - **예약 포트 초기화 (WinNAT)**: 관리자 권한 CMD에서 아래 명령어 실행.
-      ```cmd
-      net stop winnat
-      net start winnat
-      ```
+이 프로젝트는 예전까지 `run.bat`가 단순히 프로세스만 띄우고 끝나는 구조였습니다.
+그래서 아래 문제가 계속 누적됐습니다.
 
-### 1.2. DB 연결 실패 (PostgreSQL Connection)
-- **증상**: `Failed to connect to Postgres`, `PoolTimedOut` 에러 발생.
-- **원인**: Docker 컨테이너가 내려가 있거나 포트(5433)가 충돌함.
-- **해결 방법**:
-    - `docker ps`로 `whiteboard-postgres` 컨테이너 상태 확인.
-    - `run.bat`을 재실행하여 컨테이너 재시작.
+- 이전 실행에서 남아 있던 `WB-Core`, `WB-Fast`, `WB-Web` 프로세스가 포트를 계속 점유했다.
+- 루트 `.env`, Docker, Spring Boot, Rust, Vite가 서로 다른 포트와 환경변수를 바라봤다.
+- Spring Boot는 DB를 `5432`로 보는데 Docker는 `5433`으로 열려 있어서 연결 실패가 났다.
+- JWT 시크릿과 Vite 환경변수가 서비스별로 일관되게 전달되지 않았다.
+- DB 컨테이너가 완전히 준비되기 전에 백엔드가 먼저 떠서 `Failed to connect to Postgres`가 났다.
 
-## 2. 데이터베이스 인증 (Database Auth)
+즉, `troubleshooting.md`에 적혀 있던 포트 충돌과 DB 인증 실패는 증상이고, 반복 원인은
+"실행 스크립트가 테스트 환경을 매번 같은 상태로 만들지 못했다"는 점입니다.
 
-### 2.1. 인증 실패 (Authentication Failed)
-- **증상**: `password authentication failed for user "postgres"`.
-- **원인**: `.env` 파일의 비밀번호와 Docker 컨테이너의 비밀번호가 불일치.
-- **해결 방법**: 
-    - `.env` 파일의 `SPRING_DATASOURCE_PASSWORD` 및 `DATABASE_URL` 비밀번호 확인.
-    - Docker 볼륨 초기화가 필요한 경우: `docker compose down -v` 후 다시 `run.bat` 실행. (주의: 데이터 삭제됨)
+## 2. 현재 run.bat가 해결하도록 바꾼 점
+
+지금의 `run.bat`는 테스트용 단일 진입점 역할을 하도록 보강되었습니다.
+
+- 루트 `.env`를 먼저 읽는다.
+- 예전 Vite 변수명(`VITE_API_CORE_URL`, `VITE_WS_FAST_URL`)도 현재 변수명으로 매핑한다.
+- 테스트에서는 Docker PostgreSQL(`localhost:5433`)을 강제로 기준값으로 맞춘다.
+- `JWT_SECRET_KEY`가 없으면 로컬 테스트용 기본값을 넣는다.
+- 예전 서비스 창을 먼저 종료해서 포트 점유를 줄인다.
+- `docker compose up -d` 후 `pg_isready`로 DB 준비 완료를 기다린다.
+- 그 다음 Spring, Rust, Web을 순서대로 띄운다.
+- 종료는 `stop.bat`, 모바일 Gradle 정리는 `mobile-stop.bat`로 통일한다.
+
+이제 기본 테스트는 `run.bat`만 실행해도 되도록 설계되었습니다.
+
+## 3. 아직 생길 수 있는 예외
+
+### 3.1 Port 8080 already in use
+
+- 증상: `WB-Core` 창에서 `Port 8080 was already in use`
+- 원인:
+  1. 이 프로젝트 외의 다른 프로세스가 8080을 사용 중
+  2. Windows 예약 포트/Hyper-V/WinNAT 충돌
+- 해결:
+  - 먼저 `stop.bat` 실행
+  - 계속 반복되면 관리자 권한 CMD에서 아래 실행
+
+```cmd
+net stop winnat
+net start winnat
+```
+
+### 3.2 Failed to connect to Postgres / PoolTimedOut
+
+- 증상: Rust 또는 Spring 창에서 Postgres 연결 실패
+- 원인:
+  1. Docker Desktop이 꺼져 있음
+  2. `whiteboard-postgres` 컨테이너가 정상 시작되지 않음
+  3. 볼륨 상태가 꼬여 초기화가 필요함
+- 해결:
+  - `docker ps`로 `whiteboard-postgres` 상태 확인
+  - 필요하면 `docker compose down -v` 후 `run.bat` 재실행
+  - 주의: `-v`는 DB 데이터를 삭제함
+
+### 3.3 password authentication failed for user "postgres"
+
+- 증상: Postgres 인증 실패
+- 원인:
+  1. 수동으로 Docker 설정을 바꿨는데 실행 환경변수는 예전 값 사용 중
+  2. DB 볼륨에 예전 비밀번호 상태가 남아 있음
+- 해결:
+  - 테스트 기준은 `postgres / postgres` + `localhost:5433`
+  - 직접 다른 비밀번호를 쓸 거라면 `docker-compose.yaml`과 실행 환경을 함께 바꿔야 함
+  - 볼륨이 꼬였으면 `docker compose down -v` 후 다시 시작
+
+## 4. 다음부터 run.bat만으로 테스트하는 규칙
+
+아래 규칙만 지키면 됩니다.
+
+1. Docker Desktop을 켠다.
+2. 루트에서 `run.bat`만 실행한다.
+3. 종료할 때는 `stop.bat`를 실행한다.
+4. 모바일 Gradle 정리만 필요하면 `mobile-stop.bat`를 실행한다.
+
+별도로 `cargo run`, `gradlew bootRun`, `npm run dev`를 각각 수동 실행하면
+다시 환경 불일치가 생길 수 있으니, 통합 테스트는 `run.bat` 기준으로 맞추는 것이 안전합니다.
 
 ---
-*마지막 업데이트: 2026-05-04*
+마지막 업데이트: 2026-05-05

@@ -51,7 +51,7 @@ function useDrawLogic() {
 }
 
 /** 텍스트 로직 모듈 */
-function useTextLogic(textSize: number, setSize: (v: number) => void, textColor: string, setColor: (v: number | string) => void) {
+function useTextLogic(textSize: number, textColor: string) {
   const [texts, setTexts] = useState<TextObj[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const lastRange = useRef<Range | null>(null);
@@ -184,7 +184,7 @@ export default function ImageEditor({ imageUrl, onSave, onClose }: Props) {
 
   // 모듈화된 로직들
   const draw = useDrawLogic();
-  const text = useTextLogic(textSize, setTextSize, textColor, setTextColor);
+  const text = useTextLogic(textSize, textColor);
   const crop = useCropLogic();
 
   // History 시스템
@@ -282,10 +282,10 @@ export default function ImageEditor({ imageUrl, onSave, onClose }: Props) {
         const hh = p.width * 0.8 * L.sx; // 높이 축소 (1.5 -> 0.8)
         for (let i = 0; i < p.points.length - 1; i++) {
           const p1 = p.points[i], p2 = p.points[i+1];
-          const x1 = (p1.x - L.src.x) * L.sx + L.ox;
-          const y1 = (p1.y - L.src.y) * L.sx + L.oy; // sy 대신 sx 사용 (정사각형 비율 유지)
-          const x2 = (p2.x - L.src.x) * L.sx + L.ox;
-          const y2 = (p2.y - L.src.y) * L.sx + L.oy;
+          const x1 = (p1.x - L.src.x) * L.sx;
+          const y1 = (p1.y - L.src.y) * L.sx; // sy 대신 sx 사용 (정사각형 비율 유지)
+          const x2 = (p2.x - L.src.x) * L.sx;
+          const y2 = (p2.y - L.src.y) * L.sx;
           offCtx.beginPath();
           offCtx.moveTo(x1, y1 - hh); offCtx.lineTo(x2, y2 - hh);
           offCtx.lineTo(x2, y2 + hh); offCtx.lineTo(x1, y1 + hh);
@@ -552,6 +552,7 @@ export default function ImageEditor({ imageUrl, onSave, onClose }: Props) {
                       onStartEdit={() => text.setEditingId(t.id)}
                       onChange={(next: any) => text.updateText(t.id, next)}
                       onDelete={() => { pushHistory(); text.deleteText(t.id); }}
+                      onSelectionChange={text.saveSelection}
                     />
                   ))}
                 </div>
@@ -584,7 +585,7 @@ export default function ImageEditor({ imageUrl, onSave, onClose }: Props) {
 
 // --- Sub Component: TextBox ---
 
-function TextBox({ t, isEditing, layout, tool, onStartEdit, onChange, onDelete }: any) {
+function TextBox({ t, isEditing, layout, tool, onStartEdit, onChange, onDelete, onSelectionChange }: any) {
   const dragStart = useRef<any>(null);
   const [dragging, setDragging] = useState(false);
   const editRef = useRef<HTMLDivElement>(null);
@@ -645,8 +646,8 @@ function TextBox({ t, isEditing, layout, tool, onStartEdit, onChange, onDelete }
     <div className={styles.textBox} 
       onMouseDown={onMouseDown}
       data-editing={isEditing}
-      onMouseUp={() => text.saveSelection()}
-      onKeyUp={() => text.saveSelection()}
+      onMouseUp={onSelectionChange}
+      onKeyUp={onSelectionChange}
       style={{
         left: sx - 8, top: sy - 8, fontSize: fs + 'px', color: t.color,
         border: `2px solid ${isEditing ? '#3b82f6' : 'transparent'}`, // 테두리 두께 고정하여 점프 방지

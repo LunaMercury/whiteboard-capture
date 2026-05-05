@@ -8,7 +8,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
+
+import jakarta.annotation.PostConstruct;
 
 @Component
 public class JwtUtil {
@@ -19,8 +22,20 @@ public class JwtUtil {
     @Value("${jwt.expiration-time}")
     private long expirationTime;
 
+    @PostConstruct
+    void validateConfiguration() {
+        // Reject weak or missing secrets early so both Spring and Rust stay in sync.
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET_KEY must be configured");
+        }
+
+        if (secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET_KEY must be at least 32 bytes for HS256");
+        }
+    }
+
     private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes());
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(String email) {

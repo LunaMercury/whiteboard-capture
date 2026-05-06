@@ -23,6 +23,10 @@ Set-Location -Path $currentDir
 if ($LASTEXITCODE -ne 0) { throw "Mobile verification failed" }
 
 Set-Location -Path $currentDir
+.\verify-orchestrator.ps1
+if ($LASTEXITCODE -ne 0) { throw "Orchestrator verification failed" }
+
+Set-Location -Path $currentDir
 
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host "ALL CHECKS PASSED SUCCESSFULLY" -ForegroundColor Green

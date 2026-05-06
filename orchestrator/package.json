@@ -1,0 +1,29 @@
+{
+  "name": "whiteboard-capture-orchestrator",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "demo": "tsx src/index.ts",
+    "demo:mock": "tsx src/index.ts --mock",
+    "runner:prepare": "tsx src/prepareRunner.ts",
+    "runner:prepare:mock": "tsx src/prepareRunner.ts --mock",
+    "runner:status": "tsx src/runnerStatus.ts",
+    "runner:collect": "tsx src/collectResults.ts",
+    "worker:prepare": "tsx src/workerExecutor.ts",
+    "worker:run": "tsx src/workerRun.ts"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.79",
+    "@langchain/langgraph": "^0.2.74",
+    "@langchain/openai": "^0.6.11",
+    "dotenv": "^17.2.3",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

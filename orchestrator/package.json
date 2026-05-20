@@ -11,6 +11,7 @@
     "runner:prepare:mock": "tsx src/prepareRunner.ts --mock",
     "runner:status": "tsx src/runnerStatus.ts",
     "runner:collect": "tsx src/collectResults.ts",
+    "runner:execute": "tsx src/runnerExecute.ts",
     "worker:prepare": "tsx src/workerExecutor.ts",
     "worker:run": "tsx src/workerRun.ts"
   },

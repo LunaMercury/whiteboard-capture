@@ -15,9 +15,12 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,8 +29,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -138,15 +146,23 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            text = "Whiteboard Capture",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Whiteboard ",
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color(0xFF08060D)
+            )
+            Text(
+                text = "Capture",
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color(0xFFAA3BFF)
+            )
+        }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "촬영한 칠판 사진을 즉시 PC로 보내보세요.",
-            style = MaterialTheme.typography.bodyMedium
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF6B6375)
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -218,7 +234,13 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
                 )
             },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isSubmitting
+            enabled = !isSubmitting,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFAA3BFF),
+                contentColor = Color.White,
+                disabledContainerColor = Color(0xFFAA3BFF).copy(alpha = 0.5f),
+                disabledContentColor = Color.White.copy(alpha = 0.5f)
+            )
         ) {
             Text(if (isSubmitting) "로그인 중..." else "로그인")
         }
@@ -233,100 +255,152 @@ fun CameraScreen(token: String, onLogout: () -> Unit) {
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var isUploading by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { ctx ->
-                val previewView = PreviewView(ctx)
-                previewView.scaleType = PreviewView.ScaleType.FIT_CENTER
-
-                cameraProviderFuture.addListener({
-                    val cameraProvider = cameraProviderFuture.get()
-                    val preview = Preview.Builder().build().also {
-                        it.setSurfaceProvider(previewView.surfaceProvider)
-                    }
-
-                    imageCapture = ImageCapture.Builder()
-                        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                        .build()
-
-                    try {
-                        cameraProvider.unbindAll()
-                        cameraProvider.bindToLifecycle(
-                            lifecycleOwner,
-                            CameraSelector.DEFAULT_BACK_CAMERA,
-                            preview,
-                            imageCapture
-                        )
-                    } catch (exc: Exception) {
-                        Log.e("CameraX", "Use case binding failed", exc)
-                    }
-                }, ContextCompat.getMainExecutor(ctx))
-
-                previewView
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-
-        IconButton(
-            onClick = onLogout,
+    Column(modifier = Modifier.fillMaxSize()) {
+        // 상단 메뉴바 (Top Menu Bar) - 웹 테마 스타일 리팩토링
+        Row(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp)
+                .fillMaxWidth()
+                .background(Color(0xFFFAF9FF)) // 은은한 웹의 연보라/화이트 톤 배경
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "로그아웃",
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.padding(8.dp)
-            )
+            // 좌측 햄버거 메뉴 아이콘
+            IconButton(onClick = { /* 메뉴 확장 등 향후 기능 연동 */ }) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "메뉴",
+                    tint = Color(0xFFAA3BFF) // 브랜드 보라색 강조 컬러
+                )
+            }
+
+            // 중앙 타이틀 (Whiteboard + Capture 보라색 포인트)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Whiteboard ",
+                    color = Color(0xFF08060D), // 웹의 헤더 텍스트 색상
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                Text(
+                    text = "Capture",
+                    color = Color(0xFFAA3BFF), // 웹의 액센트 퍼플
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+            }
+
+            // 우측 로그아웃 아이콘
+            IconButton(onClick = onLogout) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Logout,
+                    contentDescription = "로그아웃",
+                    tint = Color(0xFF6B6375) // 웹의 차분한 일반 텍스트 색상
+                )
+            }
         }
 
-        Button(
-            onClick = {
-                if (isUploading) {
-                    return@Button
-                }
+        // 얇은 하단 테두리 선
+        HorizontalDivider(
+            color = Color(0xFFAA3BFF).copy(alpha = 0.12f),
+            thickness = 1.dp
+        )
 
-                val capture = imageCapture ?: return@Button
-                val photoFile = File(context.cacheDir, "${System.currentTimeMillis()}.jpg")
-                val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
-
-                isUploading = true
-                capture.takePicture(
-                    outputOptions,
-                    ContextCompat.getMainExecutor(context),
-                    object : ImageCapture.OnImageSavedCallback {
-                        override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                            // Upload immediately after capture so the web dashboard can react in near real time.
-                            uploadImage(
-                                file = photoFile,
-                                token = token,
-                                onResult = { success, message ->
-                                    runOnUiThread(context) {
-                                        isUploading = false
-                                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                    }
-
-                                    if (!success) {
-                                        Log.e("Upload", "Upload failed: $message")
-                                    }
-                                }
-                            )
-                        }
-
-                        override fun onError(exc: ImageCaptureException) {
-                            Log.e("CameraX", "Photo capture failed: ${exc.message}", exc)
-                            isUploading = false
-                        }
-                    }
-                )
-            },
+        // 카메라 프리뷰 및 촬영 버튼 영역
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp)
-                .size(width = 120.dp, height = 60.dp),
-            enabled = !isUploading
+                .fillMaxWidth()
+                .weight(1f)
         ) {
-            Text(if (isUploading) "업로드 중..." else "촬영")
+            AndroidView(
+                factory = { ctx ->
+                    val previewView = PreviewView(ctx)
+                    previewView.scaleType = PreviewView.ScaleType.FIT_CENTER
+
+                    cameraProviderFuture.addListener({
+                        val cameraProvider = cameraProviderFuture.get()
+                        val preview = Preview.Builder().build().also {
+                            it.setSurfaceProvider(previewView.surfaceProvider)
+                        }
+
+                        imageCapture = ImageCapture.Builder()
+                            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                            .build()
+
+                        try {
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(
+                                lifecycleOwner,
+                                CameraSelector.DEFAULT_BACK_CAMERA,
+                                preview,
+                                imageCapture
+                            )
+                        } catch (exc: Exception) {
+                            Log.e("CameraX", "Use case binding failed", exc)
+                        }
+                    }, ContextCompat.getMainExecutor(ctx))
+
+                    previewView
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            Button(
+                onClick = {
+                    if (isUploading) {
+                        return@Button
+                    }
+
+                    val capture = imageCapture ?: return@Button
+                    val photoFile = File(context.cacheDir, "${System.currentTimeMillis()}.jpg")
+                    val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+
+                    isUploading = true
+                    capture.takePicture(
+                        outputOptions,
+                        ContextCompat.getMainExecutor(context),
+                        object : ImageCapture.OnImageSavedCallback {
+                            override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                // Upload immediately after capture so the web dashboard can react in near real time.
+                                uploadImage(
+                                    file = photoFile,
+                                    token = token,
+                                    onResult = { success, message ->
+                                        runOnUiThread(context) {
+                                            isUploading = false
+                                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                        }
+
+                                        if (!success) {
+                                            Log.e("Upload", "Upload failed: $message")
+                                        }
+                                    }
+                                )
+                            }
+
+                            override fun onError(exc: ImageCaptureException) {
+                                Log.e("CameraX", "Photo capture failed: ${exc.message}", exc)
+                                isUploading = false
+                            }
+                        }
+                    )
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 32.dp)
+                    .size(width = 140.dp, height = 60.dp),
+                enabled = !isUploading,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFAA3BFF),
+                    contentColor = Color.White,
+                    disabledContainerColor = Color(0xFFAA3BFF).copy(alpha = 0.5f),
+                    disabledContentColor = Color.White.copy(alpha = 0.5f)
+                )
+            ) {
+                Text(if (isUploading) "업로드 중..." else "촬영")
+            }
         }
     }
 }

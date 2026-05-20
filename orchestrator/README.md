@@ -1,153 +1,323 @@
-# Whiteboard Capture LangGraph 오케스트레이터
+# Whiteboard Capture Orchestrator
 
-이 폴더는 Whiteboard Capture 저장소 전용으로 만든 첫 번째 LangGraph 기반 멀티 에이전트 오케스트레이터입니다.
+이 디렉토리는 Whiteboard Capture 프로젝트용 오케스트레이션 실험 공간입니다.
 
-## 이 오케스트레이터가 하는 일
+현재 목표는 다음 흐름을 만드는 것입니다.
 
-이 오케스트레이터는 총괄 매니저처럼 동작하면서 사용자 요청을 프로젝트 전담 specialist로 분배합니다.
+1. `master`가 사용자 요청을 받음
+2. 요청을 카테고리별 정책으로 분류함
+3. `frontend / rust / java / mobile` worker용 작업 패킷을 만듦
+4. `verifier`가 계획과 패킷을 검토함
+5. 이후 실제 CLI worker가 작업을 수행하고 결과를 반환함
 
-- frontend: `web/**`
-- rust: `backend-fast/**`
-- java: `backend-core/**`
-- mobile: `mobile/**`
+지금은 이 중에서 `master -> plan -> task packet -> verifier -> file-based runner bundle`까지 완료된 상태입니다.
 
-아직 실제 파일을 수정하지는 않습니다. 대신 어떤 모듈이 영향을 받는지, 어디를 수정해야 하는지, 무엇을 검증해야 하는지, 어떤 통합 리스크가 있는지를 계획 형태로 출력합니다.
+## 현재 구조
 
-## 이 프로젝트에 잘 맞는 이유
+오케스트레이터는 LangGraph 기반으로 구성되어 있습니다.
 
-이 저장소는 이미 모듈 경계가 분명하고, `.skills` 검증 스크립트도 나뉘어 있습니다. 그래서 LangGraph로 총괄 agent와 specialist agent를 나누기에 좋습니다.
+- `manager`
+- `frontend`
+- `rust`
+- `java`
+- `mobile`
+- `task-packets`
+- `verifier`
+- `merge`
 
-또한 이 버전은 단순 요약만 보는 것이 아니라, 실제 저장소 파일 구조와 핵심 manifest를 함께 읽어 계획을 만들도록 설계했습니다. 그래서 존재하지 않는 파일을 마구 제안하는 문제를 줄이는 방향으로 발전시켰습니다.
+즉, 현재 그래프 흐름은 아래와 같습니다.
 
-## 설치 방법
-
-저장소 루트에서 아래 순서로 실행합니다.
-
-```powershell
-cd orchestrator
-"C:\Program Files\nodejs\npm.cmd" install
+```text
+manager
+  -> frontend
+  -> rust
+  -> java
+  -> mobile
+  -> task-packets
+  -> verifier
+  -> merge
 ```
 
-사용 패키지:
+## 주요 개념
 
-- `@langchain/langgraph`
-- `@langchain/core`
-- `@langchain/openai`
-- `dotenv`
-- `zod`
-- `tsx`
-- `typescript`
+### 1. 카테고리 정책
 
-## 환경변수
+사용자 요청은 현재 아래 카테고리로 분류됩니다.
 
-스크립트는 저장소 루트의 `.env` 파일을 자동으로 읽습니다.
+- `auth`
+- `design`
+- `redis`
+- `realtime`
 
-실제 OpenAI 호출에 필요한 값:
+각 카테고리는 모듈별 최소 참여 수준을 강제합니다.
 
-- `OPENAI_API_KEY`
+예:
 
-선택값:
+- `auth`
+  - java: `implement`
+  - rust: 최소 `review`
+  - frontend: 최소 `implement`
+  - mobile: 요청 범위에 따라 `skip/review/implement`
 
-- `ORCHESTRATOR_MODEL`
-  - 기본값: `gpt-4.1`
+- `redis`
+  - 기본: java `implement`, rust `review`
+  - `upload hot path`, `websocket`, `fan-out`, `realtime` 문맥 포함 시 rust도 `implement`
 
-나머지 프로젝트 환경변수는 오케스트레이션 문맥으로만 사용됩니다.
+- `realtime`
+  - rust: `implement`
+  - frontend: `implement`
+  - java: 최소 `review`
 
-## 첫 실행: mock 모드
+### 2. 템플릿 레지스트리
 
-처음에는 반드시 mock 모드로 실행하는 것을 권장합니다.
+카테고리별 설명/계약/검토 포인트는 코드에 하드코딩된 긴 문장 대신 템플릿 레지스트리에서 관리합니다.
 
-```powershell
-cd orchestrator
-"C:\Program Files\nodejs\npm.cmd" run demo:mock -- "네이버 로그인 기능을 만들어줘"
+관련 파일:
+
+- [templateRegistry.ts](</D:/개발/whiteboard capture/orchestrator/src/templateRegistry.ts>)
+
+결과 보고서 상단에는 사람이 빠르게 읽을 수 있도록 YAML 형태의 `Applied Templates` 섹션이 출력됩니다.
+
+### 3. Worker Task Packet
+
+worker가 실제로 받아야 하는 입력 형식입니다.
+
+포함 필드:
+
+- `role`
+- `participationMode`
+- `goal`
+- `allowedPaths`
+- `blockedPaths`
+- `touchedAreas`
+- `implementationSteps`
+- `dependencies`
+- `requiredVerification`
+- `contracts`
+- `handoffOutput`
+
+관련 파일:
+
+- [taskSchemas.ts](</D:/개발/whiteboard capture/orchestrator/src/taskSchemas.ts>)
+
+### 4. Worker Result Packet
+
+worker가 작업 후 master에게 반환해야 하는 출력 형식입니다.
+
+포함 필드:
+
+- `status`
+- `changedFiles`
+- `summary`
+- `contractsChanged`
+- `verificationRun`
+- `risks`
+- `questions`
+
+관련 파일:
+
+- [resultSchemas.ts](</D:/개발/whiteboard capture/orchestrator/src/resultSchemas.ts>)
+
+### 5. Verifier
+
+`verifier`는 아래를 검토합니다.
+
+- manager 결정
+- specialist plan
+- worker task packet
+- worker result packet
+
+집중 포인트:
+
+- 계약 충돌
+- 검증 누락
+- 숨은 리스크
+- 릴리즈 블로커
+- worker packet이 실제 실행 가능한지 여부
+
+## 현재 생성되는 산출물
+
+`runner:prepare`를 실행하면 아래 구조가 생성됩니다.
+
+```text
+orchestrator/runs/<run-id>/
+  report.md
+  tasks/
+    frontend.task.json
+    rust.task.json
+    java.task.json
+    mobile.task.json
+  results/
+    frontend.result.json
+    rust.result.json
+    java.result.json
+    mobile.result.json
+  workers/
+    frontend.prompt.md
+    rust.prompt.md
+    java.prompt.md
+    mobile.prompt.md
+  meta/
+    manifest.json
+    summary.json
 ```
 
-mock 모드는 실제 OpenAI API를 호출하지 않습니다. 대신 미리 준비된 가짜 응답으로 전체 그래프 흐름이 정상인지 확인합니다.
+설명:
 
-이 단계에서 확인되는 것:
+- `tasks/*.task.json`
+  - worker 입력 패킷
+- `results/*.result.json`
+  - worker 출력 패킷
+- `workers/*.prompt.md`
+  - CLI worker에게 넘길 프롬프트 파일
+- `report.md`
+  - 사람이 읽는 전체 오케스트레이션 보고서
+- `meta/manifest.json`
+  - run 메타데이터
 
-- LangGraph 설치가 정상인지
-- 그래프가 컴파일되는지
-- manager -> specialist -> merge 흐름이 정상인지
-- 출력 형식이 의도대로 나오는지
+## 현재 사용 가능한 명령
 
-## 실제 모델로 실행
-
-`OPENAI_API_KEY`가 준비되어 있으면 실제 모델 호출 모드로 실행할 수 있습니다.
+### 1. 일반 오케스트레이션 보기
 
 ```powershell
 cd orchestrator
 "C:\Program Files\nodejs\npm.cmd" run demo -- "네이버 로그인 기능을 만들어줘"
 ```
 
-이 모드에서는:
+mock 모드:
 
-- manager agent가 실제 요청을 분석하고
-- specialist 계획도 실제 모델이 생성하며
-- 저장소 구조를 읽은 결과를 함께 참고합니다
+```powershell
+cd orchestrator
+"C:\Program Files\nodejs\npm.cmd" run demo:mock -- "네이버 로그인 기능을 만들어줘"
+```
 
-## 현재 버전의 특징
+### 2. runner bundle 만들기
 
-현재 버전은 아래 정보를 함께 참고합니다.
+```powershell
+cd orchestrator
+"C:\Program Files\nodejs\npm.cmd" run runner:prepare -- "네이버 로그인 기능을 만들어줘"
+```
 
-- 프로젝트 요약
-- 핵심 계약(JWT, DB 포트, env 변수 등)
-- 실제 파일 목록
-- 핵심 설정 파일 일부 내용
-  - `run.bat`
-  - `stop.bat`
-  - `.env`
-  - `web/package.json`
-  - `backend-core/build.gradle`
-  - `backend-core/application.properties`
-  - `backend-fast/Cargo.toml`
-  - `mobile/build.gradle`
+mock 모드:
 
-즉, 단순한 “문맥 기반 planner”에서 한 단계 더 나아가 “repo-aware planner”가 되도록 만든 상태입니다.
+```powershell
+cd orchestrator
+"C:\Program Files\nodejs\npm.cmd" run runner:prepare:mock -- "네이버 로그인 기능을 만들어줘"
+```
 
-## 기대할 수 있는 출력
+### 3. run 상태 보기
 
-실행 결과는 다음과 같은 구조의 orchestration report입니다.
+```powershell
+cd orchestrator
+"C:\Program Files\nodejs\npm.cmd" run runner:status -- <run-id>
+```
 
-- manager summary
-- integration notes
-- specialist별 계획
-- touched areas
-- verification commands
-- risks
+### 4. worker prompt 준비
 
-## 아직 하지 않는 것
+```powershell
+cd orchestrator
+"C:\Program Files\nodejs\npm.cmd" run worker:prepare -- <run-id> java
+```
 
-현재는 아직 아래 기능은 없습니다.
+가능한 role:
 
-- 실제 코드 수정
-- git 브랜치 자동 분기
-- specialist별 자동 병렬 실행
-- verifier agent의 자동 테스트 실행
+- `frontend`
+- `rust`
+- `java`
+- `mobile`
 
-즉, 지금 단계는 “자동 작업 분배 및 계획 생성기”입니다.
+### 5. worker 실제 실행 시도
 
-## 다음 확장 추천
+현재 지원 provider:
 
-추천 확장 순서:
+- `claude`
+- `manual`
 
-1. specialist가 실제 파일 내용을 더 깊게 읽도록 확장
-2. verifier node 추가
-3. specialist별 실제 코드 수정 단계 추가
-4. 병렬 실행 및 상태 저장(checkpoint) 추가
+예:
 
-## 다음에 당신이 할 일
+```powershell
+cd orchestrator
+"C:\Program Files\nodejs\npm.cmd" run worker:run -- <run-id> java
+```
 
-이 단계까지 왔다면 보통 아래 순서로 진행하면 됩니다.
+수동 준비만 하고 싶다면:
 
-1. `npm install`
-2. `demo:mock` 실행
-3. `demo` 실행
-4. 출력 품질 확인
-5. 필요하면 오케스트레이터를 더 똑똑하게 확장
+```powershell
+cd orchestrator
+"C:\Program Files\nodejs\npm.cmd" run worker:run -- <run-id> java --provider manual
+```
 
-이 저장소 기준으로는, 다음 비교 질문이 가장 유용합니다.
+### 6. worker 결과 수집
 
-- “mock 출력과 real 출력이 얼마나 다른가?”
-- “실제 존재하지 않는 파일을 제안하는가?”
-- “Java/Rust/Mobile/Web 영향 범위를 제대로 분리하는가?”
+```powershell
+cd orchestrator
+"C:\Program Files\nodejs\npm.cmd" run runner:collect -- <run-id>
+```
+
+## CLI Worker Runner 상태
+
+현재 `worker:run`은 다음까지 구현되어 있습니다.
+
+1. `task.json` 읽기
+2. `prompt.md` 생성
+3. `claude` CLI를 JSON schema 기반으로 호출
+4. 성공 시 `result.json` 갱신
+5. 실패 시에도 `result.json`에 실패 내용 기록
+
+즉, 완전한 자동 실행기라기보다는 **실제 실행 가능한 초안** 상태입니다.
+
+## 현재까지 완료된 것
+
+- LangGraph master/planner 구조
+- 카테고리 정책 엔진
+- 템플릿 레지스트리
+- YAML 기반 applied templates 출력
+- specialist plan 생성
+- verifier 단계 추가
+- worker task/result packet 스키마
+- file-based runner bundle
+- CLI worker prompt 생성기
+- CLI worker 실행 초안
+
+## 아직 미완성인 것
+
+아래는 아직 완성되지 않았습니다.
+
+1. `master가 worker를 자동으로 순차/병렬 실행`
+2. `worker 결과를 다시 graph에 주입해 최종 보고서를 자동 재생성`
+3. `provider 다중 지원`
+   - 현재는 실질적으로 `claude` 중심
+4. `worker별 git worktree 분리`
+5. `충돌 해결 및 merge 전략`
+6. `verifier의 룰 기반 정적 검사 강화`
+
+## 권장 다음 단계
+
+가장 자연스러운 다음 단계는 아래입니다.
+
+1. `runner:execute` 추가
+   - master가 worker들을 순서대로 또는 병렬로 자동 실행
+
+2. `result reinjection`
+   - worker 결과를 다시 verifier와 merge 단계에 넣어 최종 보고서를 갱신
+
+3. `verifier rules`
+   - 중복 touched areas
+   - blocked path 침범
+   - verification 누락
+   - 계약 충돌
+   자동 감지
+
+## 관련 파일
+
+- [graph.ts](</D:/개발/whiteboard capture/orchestrator/src/graph.ts>)
+- [schemas.ts](</D:/개발/whiteboard capture/orchestrator/src/schemas.ts>)
+- [taskSchemas.ts](</D:/개발/whiteboard capture/orchestrator/src/taskSchemas.ts>)
+- [resultSchemas.ts](</D:/개발/whiteboard capture/orchestrator/src/resultSchemas.ts>)
+- [templateRegistry.ts](</D:/개발/whiteboard capture/orchestrator/src/templateRegistry.ts>)
+- [packetStore.ts](</D:/개발/whiteboard capture/orchestrator/src/packetStore.ts>)
+- [prepareRunner.ts](</D:/개발/whiteboard capture/orchestrator/src/prepareRunner.ts>)
+- [runnerStatus.ts](</D:/개발/whiteboard capture/orchestrator/src/runnerStatus.ts>)
+- [workerExecutor.ts](</D:/개발/whiteboard capture/orchestrator/src/workerExecutor.ts>)
+- [workerRun.ts](</D:/개발/whiteboard capture/orchestrator/src/workerRun.ts>)
+- [collectResults.ts](</D:/개발/whiteboard capture/orchestrator/src/collectResults.ts>)

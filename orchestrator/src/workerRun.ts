@@ -150,7 +150,10 @@ async function main() {
       ...existingResult,
       status: "running",
       summary: `${role} worker prompt가 준비되었습니다. 수동 실행 후 result.json을 업데이트해야 합니다.`,
-      questions: [...existingResult.questions.filter((item) => !item.includes("실행기")), "worker prompt를 읽고 수동으로 실행한 뒤 result.json을 갱신하세요."],
+      questions: [
+        ...existingResult.questions.filter((item) => !item.includes("실행기")),
+        "worker prompt를 읽고 수동으로 실행한 뒤 result.json을 갱신하세요.",
+      ],
     };
     writeWorkerResult(manifest, manualResult);
     console.log(`# Worker Manual Preparation`);

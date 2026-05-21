@@ -93,3 +93,19 @@ pub async fn get_image_url_if_owner(
 
     Ok(result.map(|(url,)| url))
 }
+
+// ---------------- JWT claims definition for backend-fast ----------------------
+// New social login providers (naver, kakao, google, etc) may send JWTs with extra fields such as
+//   { ... core claims ..., "provider": "naver" }.
+// We must accept these for compatibility, and never fail to parse on unknown fields.
+//
+// By using #[serde(flatten)]/BTreeMap<_,_>, we can permit any additional claims, which are ignored.
+use serde::Deserialize;
+use std::collections::BTreeMap;
+
+#[derive(Debug, Deserialize)]
+pub struct Claims {
+    pub sub: String,
+    #[serde(flatten)]
+    pub extra: BTreeMap<String, serde_json::Value>, // Accept provider/other fields for social login
+}

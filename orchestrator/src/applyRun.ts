@@ -1,0 +1,325 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { z } from "zod";
+import { readRunnerManifest, readWorkerResult, writeWorkerResult } from "./packetStore.js";
+import { applyPacketSchema, type ApplyPacket } from "./applySchemas.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+type SupportedProvider = "openai" | "manual";
+
+const applyExecutionSchema = z.object({
+  status: z.enum(["succeeded", "failed", "skipped"]),
+  summary: z.string(),
+  changedFiles: z.array(z.string()),
+  verificationRun: z.array(z.string()),
+  risks: z.array(z.string()),
+  questions: z.array(z.string()),
+  fileEdits: z.array(
+    z.object({
+      path: z.string(),
+      action: z.enum(["create", "update", "delete"]),
+      summary: z.string(),
+      content: z.string().optional(),
+    }),
+  ),
+});
+
+type ApplyExecution = z.infer<typeof applyExecutionSchema>;
+
+function parseArgs(argv: string[]) {
+  const filtered = [...argv];
+  const providerIndex = filtered.findIndex((item) => item === "--provider");
+  let provider: SupportedProvider = (process.env.APPLY_PROVIDER as SupportedProvider) || "openai";
+
+  if (providerIndex >= 0) {
+    provider = filtered[providerIndex + 1] as SupportedProvider;
+    filtered.splice(providerIndex, 2);
+  }
+
+  const [runId, role] = filtered;
+  if (!runId || !role || !["frontend", "rust", "java", "mobile"].includes(role)) {
+    throw new Error("Usage: npm run apply:run -- <run-id> <frontend|rust|java|mobile> [--provider openai|manual]");
+  }
+
+  if (!["openai", "manual"].includes(provider)) {
+    throw new Error(`Unsupported provider: ${provider}`);
+  }
+
+  return {
+    runId,
+    role,
+    provider,
+  };
+}
+
+function normalizePrefix(pattern: string) {
+  return pattern.replace(/\/\*\*$/, "").replaceAll("\\", "/");
+}
+
+function isAllowedPath(repoRelativePath: string, packet: ApplyPacket) {
+  const normalized = repoRelativePath.replaceAll("\\", "/");
+  const allowed = packet.allowedPaths.some((pattern) => {
+    const prefix = normalizePrefix(pattern);
+    return normalized === prefix || normalized.startsWith(`${prefix}/`);
+  });
+  const blocked = packet.blockedPaths.some((pattern) => {
+    const prefix = normalizePrefix(pattern);
+    return normalized === prefix || normalized.startsWith(`${prefix}/`);
+  });
+  return allowed && !blocked;
+}
+
+function loadApplyPacket(orchestratorRoot: string, runId: string, role: string) {
+  const packetPath = path.join(orchestratorRoot, "runs", runId, "applies", `${role}.apply.json`);
+  return {
+    packetPath,
+    packet: applyPacketSchema.parse(JSON.parse(fs.readFileSync(packetPath, "utf8"))),
+  };
+}
+
+function loadCurrentContexts(repoRoot: string, packet: ApplyPacket) {
+  return packet.proposedEdits.map((edit) => {
+    const fullPath = path.join(repoRoot, edit.path);
+    const exists = fs.existsSync(fullPath);
+    const currentContent = exists ? fs.readFileSync(fullPath, "utf8") : "";
+    return {
+      ...edit,
+      exists,
+      currentContent,
+    };
+  });
+}
+
+function renderApplyPrompt(packet: ApplyPacket, contexts: ReturnType<typeof loadCurrentContexts>) {
+  const lines = [
+    "You are Codex applying previously approved worker-proposed edits for the Whiteboard Capture repository.",
+    "Return only JSON matching the provided schema.",
+    "Generate the exact final file content for each changed file.",
+    "Do not propose edits outside the listed files.",
+    "Preserve existing style and comments where appropriate.",
+    "Add concise human-readable comments only where complex logic benefits from them.",
+    "",
+    `Role: ${packet.role}`,
+    `Goal: ${packet.goal}`,
+    "",
+    "Contracts:",
+    ...packet.contracts.map((item) => `- ${item}`),
+    "",
+    "Mandatory policy checks:",
+    ...packet.policyChecks.map((item) => `- ${item}`),
+    "",
+    "Required verification:",
+    ...packet.requiredVerification.map((item) => `- ${item}`),
+    "",
+    "Target file edits:",
+  ];
+
+  for (const context of contexts) {
+    lines.push("");
+    lines.push(`## ${context.path}`);
+    lines.push(`- action: ${context.action}`);
+    lines.push(`- summary: ${context.summary}`);
+    lines.push(`- instructions:`);
+    for (const instruction of context.instructions) {
+      lines.push(`  - ${instruction}`);
+    }
+    lines.push(`- exists: ${context.exists ? "yes" : "no"}`);
+    lines.push("");
+    lines.push("Current file content:");
+    lines.push("```");
+    lines.push(context.currentContent || "<file does not exist>");
+    lines.push("```");
+  }
+
+  lines.push("");
+  lines.push("Output rules:");
+  lines.push("- fileEdits must include only the listed paths.");
+  lines.push("- For update/create actions, content must contain the full final file content.");
+  lines.push("- For delete actions, content must be an empty string.");
+  lines.push("- changedFiles should match the files you actually changed.");
+  lines.push("- Treat every mandatory policy check as a hard requirement when generating final file content.");
+  lines.push("- status should be succeeded only if the file contents are ready to write.");
+
+  return `${lines.join("\n")}\n`;
+}
+
+async function runOpenAIApply(prompt: string) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is not set.");
+  }
+
+  const schema = {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      status: { type: "string", enum: ["succeeded", "failed", "skipped"] },
+      summary: { type: "string" },
+      changedFiles: { type: "array", items: { type: "string" } },
+      verificationRun: { type: "array", items: { type: "string" } },
+      risks: { type: "array", items: { type: "string" } },
+      questions: { type: "array", items: { type: "string" } },
+      fileEdits: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            path: { type: "string" },
+            action: { type: "string", enum: ["create", "update", "delete"] },
+            summary: { type: "string" },
+            content: { type: "string" },
+          },
+          required: ["path", "action", "summary", "content"],
+        },
+      },
+    },
+    required: ["status", "summary", "changedFiles", "verificationRun", "risks", "questions", "fileEdits"],
+  };
+
+  const response = await fetch(process.env.OPENAI_WORKER_API_URL || "https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_APPLY_MODEL || process.env.OPENAI_WORKER_MODEL || "gpt-4.1",
+      input: [
+        {
+          role: "system",
+          content:
+            "You are a coding apply executor for the Whiteboard Capture repository. Produce exact final file contents and return only valid JSON.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "apply_execution",
+          strict: true,
+          schema,
+        },
+      },
+    }),
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || `OpenAI apply request failed with status ${response.status}`);
+  }
+
+  const outputTextFromItems = Array.isArray(payload?.output)
+    ? payload.output
+        .flatMap((item: { content?: Array<{ type?: string; text?: string }> }) => item?.content ?? [])
+        .filter((item: { type?: string; text?: string }) => item?.type === "output_text" && typeof item.text === "string")
+        .map((item: { text?: string }) => item.text ?? "")
+        .join("\n")
+        .trim()
+    : "";
+
+  const outputText =
+    typeof payload?.output_text === "string" && payload.output_text.trim()
+      ? payload.output_text
+      : outputTextFromItems || undefined;
+
+  if (!outputText) {
+    throw new Error("OpenAI apply response did not contain output_text.");
+  }
+
+  return applyExecutionSchema.parse(JSON.parse(outputText));
+}
+
+function writeExecutionArtifacts(manifestRunDir: string, role: string, prompt: string, execution: ApplyExecution) {
+  const appliesDir = path.join(manifestRunDir, "applies");
+  fs.mkdirSync(appliesDir, { recursive: true });
+  fs.writeFileSync(path.join(appliesDir, `${role}.apply-execution.md`), prompt, "utf8");
+  fs.writeFileSync(path.join(appliesDir, `${role}.apply-result.json`), `${JSON.stringify(execution, null, 2)}\n`, "utf8");
+}
+
+function applyFileEdits(repoRoot: string, packet: ApplyPacket, execution: ApplyExecution) {
+  for (const fileEdit of execution.fileEdits) {
+    if (!isAllowedPath(fileEdit.path, packet)) {
+      throw new Error(`Apply edit path is outside allowed scope: ${fileEdit.path}`);
+    }
+
+    const fullPath = path.join(repoRoot, fileEdit.path);
+
+    if (fileEdit.action === "delete") {
+      if (fs.existsSync(fullPath)) {
+        fs.unlinkSync(fullPath);
+      }
+      continue;
+    }
+
+    if (typeof fileEdit.content !== "string") {
+      throw new Error(`Missing content for ${fileEdit.action} action: ${fileEdit.path}`);
+    }
+
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, fileEdit.content, "utf8");
+  }
+}
+
+function syncWorkerResultAfterApply(
+  manifest: ReturnType<typeof readRunnerManifest>,
+  role: string,
+  execution: ApplyExecution,
+) {
+  const existing = readWorkerResult(manifest, role as "frontend" | "rust" | "java" | "mobile");
+  writeWorkerResult(manifest, {
+    ...existing,
+    status: execution.status,
+    summary: execution.summary,
+    changedFiles: execution.changedFiles,
+    verificationRun:
+      execution.verificationRun.length > 0
+        ? execution.verificationRun
+        : existing.verificationRun,
+    risks: execution.risks,
+    questions: execution.questions,
+  });
+}
+
+async function main() {
+  const { runId, role, provider } = parseArgs(process.argv.slice(2));
+  const orchestratorRoot = path.resolve(__dirname, "..");
+  const manifest = readRunnerManifest(orchestratorRoot, runId);
+  const { packet } = loadApplyPacket(orchestratorRoot, runId, role);
+  const contexts = loadCurrentContexts(manifest.repoRoot, packet);
+  const prompt = renderApplyPrompt(packet, contexts);
+
+  if (provider === "manual") {
+    const manualPath = path.join(manifest.runDir, "applies", `${role}.apply-execution.md`);
+    fs.mkdirSync(path.dirname(manualPath), { recursive: true });
+    fs.writeFileSync(manualPath, prompt, "utf8");
+    console.log(`# Apply Manual Preparation`);
+    console.log(`Run ID: ${runId}`);
+    console.log(`Role: ${role}`);
+    console.log(`Prompt: ${manualPath}`);
+    return;
+  }
+
+  const execution = await runOpenAIApply(prompt);
+  writeExecutionArtifacts(manifest.runDir, role, prompt, execution);
+  applyFileEdits(manifest.repoRoot, packet, execution);
+  syncWorkerResultAfterApply(manifest, role, execution);
+
+  console.log(`# Apply Run Complete`);
+  console.log(`Run ID: ${runId}`);
+  console.log(`Role: ${role}`);
+  console.log(`Provider: ${provider}`);
+  console.log(`Status: ${execution.status}`);
+  console.log(`Changed files: ${execution.changedFiles.join(", ") || "none"}`);
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

@@ -1,4 +1,4 @@
-export type TemplateCategory = "auth" | "design" | "redis" | "realtime";
+﻿export type TemplateCategory = "auth" | "design" | "redis" | "realtime";
 export type TemplateRole = "frontend" | "rust" | "java" | "mobile";
 
 export type TemplateContextFlags = {
@@ -43,26 +43,29 @@ export const categoryTemplateRegistry: Record<TemplateCategory, CategoryTemplate
     verifierChecks: [
       "JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인",
       "OAuth redirect URI와 토큰 전달 방식 합의 여부 확인",
+      "HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인",
+      "JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인",
     ],
   },
   design: {
     notes: {
-      default: "디자인/UI 변경은 기본적으로 웹 프론트엔드 중심으로 진행합니다.",
+      default: "디자인/UI 변경은 기본적으로 프론트엔드 중심으로 진행합니다.",
       variants: {
-        mobileRequested: "모바일 범위가 명시된 디자인 변경은 모바일도 함께 구현합니다.",
+        mobileRequested: "모바일 범위가 명시된 디자인 변경은 모바일도 직접 구현합니다.",
       },
     },
     roleContracts: {
       frontend: [
-        "기존 디자인 시스템과 화면 흐름을 불필요하게 깨지 않습니다.",
+        "기존 디자인 시스템과 화면 흐름을 불안정하게 깨지 않습니다.",
       ],
       mobile: [
         "모바일 UI를 바꾸는 경우 기존 촬영-업로드 흐름의 속도와 단순함을 유지합니다.",
       ],
     },
     verifierChecks: [
-      "UI 변경 범위가 웹 전용인지 모바일 포함인지 확인",
-      "기존 상태 관리/라우팅과 충돌 없는지 확인",
+      "UI 변경 범위가 웹 전용인지 모바일도 포함인지 확인",
+      "기존 상태 관리 흐름과 충돌 없는지 확인",
+      "CSS 모듈/BEM/프리미엄 UI 규칙이 frontend_context.md, css_rules.md와 일치하는지 확인",
     ],
   },
   redis: {
@@ -74,7 +77,7 @@ export const categoryTemplateRegistry: Record<TemplateCategory, CategoryTemplate
     },
     roleContracts: {
       rust: [
-        "hot path에 Redis를 붙일 경우 캐시 미스 fallback과 일관성 정책을 반드시 정의합니다.",
+        "hot path에 Redis를 붙일 경우 캐시 미스 fallback과 성능 보호 정책을 반드시 정의합니다.",
       ],
       java: [
         "세션/일반 캐시 도입 시 application.properties, .env, 로컬 실행 규칙과 충돌하지 않도록 구성합니다.",
@@ -83,26 +86,28 @@ export const categoryTemplateRegistry: Record<TemplateCategory, CategoryTemplate
     verifierChecks: [
       "Redis 연결 정보(.env/application.properties) 누락 여부 확인",
       "캐시 미스 fallback 및 장애 시 동작 보장 여부 확인",
+      "Redis 장애 시 과도한 트래픽/egress 비용 방어 정책과 충돌하지 않는지 확인",
     ],
   },
   realtime: {
     notes: {
-      default: "실시간/WebSocket 작업은 backend-fast 구현과 웹 프론트엔드 구현이 기본이며, backend-core는 인증/계약 관점에서 최소 리뷰가 필요합니다.",
+      default: "실시간 WebSocket 작업은 backend-fast 구현과 프론트엔드 구현이 기본이며, backend-core는 인증/계약 관점에서 최소 리뷰가 필요합니다.",
     },
     roleContracts: {
       frontend: [
-        "WebSocket 메시지 포맷과 연결 상태 UI는 backend-fast와 합의된 계약을 사용합니다.",
+        "WebSocket 메시지 포맷과 연결 상태 UI는 backend-fast와 합의된 계약만 사용합니다.",
       ],
       rust: [
         "fan-out, 세션 정리, JWT 검증, origin 제한은 성능과 보안을 함께 만족해야 합니다.",
       ],
       java: [
-        "실시간 경로에서 사용하는 JWT claim/만료 정책이 Rust와 일치해야 합니다.",
+        "실시간 경로에서 사용하는 JWT claim/만료 정책은 Rust와 일치해야 합니다.",
       ],
     },
     verifierChecks: [
       "WebSocket 메시지 포맷 합의 여부 확인",
       "JWT 전달 방식과 origin 정책 일치 여부 확인",
+      "WSS, CORS, origin 제한이 security_guidelines.md와 system_architecture.md 기준을 따르는지 확인",
     ],
   },
 };
@@ -125,16 +130,16 @@ export function renderAppliedTemplatesYaml(
   for (const category of categories) {
     const template = categoryTemplateRegistry[category];
     lines.push(`  ${category}:`);
-    lines.push(`    note: "${template.notes.default}"`);
+    lines.push(`    note: \"${template.notes.default}\"`);
     if (template.notes.variants && Object.keys(template.notes.variants).length > 0) {
       lines.push("    variants:");
       for (const [key, value] of Object.entries(template.notes.variants)) {
-        lines.push(`      ${key}: "${value}"`);
+        lines.push(`      ${key}: \"${value}\"`);
       }
     }
     lines.push("    verifier_checks:");
     for (const check of template.verifierChecks) {
-      lines.push(`      - "${check}"`);
+      lines.push(`      - \"${check}\"`);
     }
   }
 

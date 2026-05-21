@@ -34,6 +34,14 @@ type RunnerBundleInput = {
   workerResults: WorkerResultPacket[];
 };
 
+export type RunnerSummary = {
+  request: string;
+  managerDecision?: ManagerDecision;
+  verifierReport?: VerifierReport;
+  taskPacketCount: number;
+  workerResultCount: number;
+};
+
 function ensureDir(dirPath: string) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -76,6 +84,7 @@ export function writeRunnerBundle(orchestratorRoot: string, input: RunnerBundleI
       verificationRun: [],
       risks: [],
       questions: [],
+      proposedEdits: [],
     });
 
     return {
@@ -118,6 +127,10 @@ export function readRunnerManifest(orchestratorRoot: string, runId: string): Run
   return JSON.parse(fs.readFileSync(manifestPath, "utf8")) as RunnerManifest;
 }
 
+export function readRunnerSummary(manifest: RunnerManifest): RunnerSummary {
+  return JSON.parse(fs.readFileSync(manifest.summaryPath, "utf8")) as RunnerSummary;
+}
+
 export function readWorkerResults(manifest: RunnerManifest): WorkerResultPacket[] {
   return manifest.workers.map((worker) => {
     return JSON.parse(fs.readFileSync(worker.resultFile, "utf8")) as WorkerResultPacket;
@@ -149,4 +162,16 @@ export function writeWorkerResult(manifest: RunnerManifest, result: WorkerResult
   }
 
   writeJson(worker.resultFile, result);
+}
+
+export function writeRunnerManifest(orchestratorRoot: string, manifest: RunnerManifest) {
+  writeJson(path.join(orchestratorRoot, "runs", manifest.runId, "meta", "manifest.json"), manifest);
+}
+
+export function writeRunnerSummary(manifest: RunnerManifest, summary: RunnerSummary) {
+  writeJson(manifest.summaryPath, summary);
+}
+
+export function writeRunnerReport(manifest: RunnerManifest, report: string) {
+  fs.writeFileSync(manifest.reportPath, report, "utf8");
 }

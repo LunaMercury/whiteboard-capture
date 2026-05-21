@@ -4,7 +4,7 @@ Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "Running Verification for WEB (React)" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
-$repoRoot = Split-Path -Parent (Get-Location)
+$repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -Path (Join-Path $repoRoot "web")
 $npmCmd = "C:\Program Files\nodejs\npm.cmd"
 

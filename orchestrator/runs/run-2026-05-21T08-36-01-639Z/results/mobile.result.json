@@ -1,0 +1,14 @@
+{
+  "role": "mobile",
+  "status": "pending",
+  "changedFiles": [],
+  "summary": "mobile worker의 실제 실행 결과가 아직 수집되지 않았습니다.",
+  "contractsChanged": [],
+  "verificationRun": [],
+  "risks": [
+    "실행기(worker runner)가 아직 연결되지 않아 결과 packet은 placeholder 상태입니다."
+  ],
+  "questions": [
+    "이 worker를 어떤 실행기로 돌릴지(master 세션, Codex CLI, 별도 API worker) 결정이 필요합니다."
+  ]
+}

@@ -43,6 +43,7 @@ async function main() {
     console.log(`    summary: ${result.summary}`);
     console.log(`    changed_files: ${result.changedFiles.length}`);
     console.log(`    verification_run: ${result.verificationRun.length}`);
+    console.log(`    proposed_edits: ${result.proposedEdits?.length ?? 0}`);
   }
 }
 

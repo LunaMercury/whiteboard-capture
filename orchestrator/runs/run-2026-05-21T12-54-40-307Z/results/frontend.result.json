@@ -1,0 +1,46 @@
+{
+  "role": "frontend",
+  "status": "succeeded",
+  "changedFiles": [
+    "web/src/components/Login.tsx",
+    "web/src/components/Login.module.css"
+  ],
+  "summary": "네이버 로그인 버튼을 공식 가이드에 맞춰 추가, OAuth2 JWT 전달/에러 플로우 처리, CSS 네이버 버튼 CI·접근성 반영.",
+  "contractsChanged": [],
+  "verificationRun": [
+    ".skills/verify-web.ps1"
+  ],
+  "risks": [
+    "OAuth redirect URI와 백엔드 계약 일치 필요.",
+    "JWT 저장과 XSS/CSRF 예방은 security_guidelines.md 준수 필요.",
+    "네이버 및 Google 로그인 동시 처리시 쿼리 파싱정책 주의 필요."
+  ],
+  "questions": [],
+  "proposedEdits": [
+    {
+      "path": "web/src/components/Login.tsx",
+      "action": "update",
+      "summary": "Add Naver login button, integrate backend OAuth2 redirect, handle JWT and error states.",
+      "instructions": [
+        "Import necessary hooks and utilities for navigation and JWT storage (as per existing Google/IDPW flow).",
+        "Add a Naver login button matching official CI, with aria-label for accessibility.",
+        "On Naver button click, redirect to `/auth/oauth2/authorization/naver` endpoint.",
+        "On redirect back (OAuth2 callback), detect Naver flow and handle JWT storage as performed for Google (from query/cookie/etc, as per backend contract).",
+        "Catch and display error/canceled states if present in the redirected response.",
+        "Ensure Naver button and messaging are integrated in visual and logical blocks with other login options.",
+        "Update success, error, and loading UI flows to accommodate Naver along with Google/IDPW."
+      ]
+    },
+    {
+      "path": "web/src/components/Login.module.css",
+      "action": "update",
+      "summary": "Add styles for Naver login button according to Naver official CI, ensure accessibility and responsive design.",
+      "instructions": [
+        "Add .naverLoginButton style using official Naver green, with logo and bold text per their CI guide.",
+        "Ensure :hover/:focus states comply for accessibility.",
+        "Adjust layout to ensure button aligns with existing login buttons, is keyboard navigable, and resizes well on small screens.",
+        "If specific accessibility classes exist for other providers, replicate for Naver button."
+      ]
+    }
+  ]
+}

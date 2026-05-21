@@ -1,0 +1,22 @@
+{
+  "role": "rust",
+  "status": "skipped",
+  "changedFiles": [],
+  "summary": "Rust/JWT 검증 및 보안 정책을 점검한 결과, 기존 JWT 처리 로직(backend-fast)은 일반화된 방식으로 JWT를 파싱 및 검증하고 있으므로, 네이버 OAuth2 로그인에서 발급하는 JWT도 Spring(Java팀)에서 기존 Google/IDPW 토큰과 동일한 구조 및 secrect(키) 정책이 유지된다면 코드 변경이 불필요합니다. JWT_SECRET_KEY, claim 구조, 만료 정책, provider 식별 방식이 완전히 일치해야 합니다. 만약 provider 식별 방식이나 claim 구조가 변경된다면 계약 변경이 요구되므로, 본 리포에서 직접 변경 없이 점검만 수행합니다.",
+  "contractsChanged": [],
+  "verificationRun": [
+    ".skills/verify-fast.ps1",
+    ".skills/verify-all.ps1"
+  ],
+  "risks": [
+    "Java(Spring Boot)에서 발급되는 JWT의 claim 구조(provider, iss, sub 등)가 기존 Google/IDPW 방식과 달라지는 경우, Rust 인증 경로에서 검증 실패 또는 권한 오류가 발생할 수 있음(이 경우 계약 변경 필요).",
+    "JWT_SECRET_KEY 또는 만료 정책이 불일치하면 검증 실패/보안 취약점 발생 가능. 모든 환경(.env 등)과 spring 설정(application.properties) 동기화 필수.",
+    "provider 값의 예외(예: 'naver' 등)가 추가되는 경우, 추후 명시적 대응이 필요할 수 있음."
+  ],
+  "questions": [
+    "Java팀에서 네이버 OAuth2 로그인 성공 시 발급하는 JWT의 claim 구조(예: user_id, provider, iss, sub 등)가 기존 Google/IDPW JWT와 100% 동일하게 유지되는지 다시 한 번 확인 바랍니다.",
+    "OAuth2 리다이렉트 URI, JWT 토큰 전달 방식(cookie/header), HTTPS 환경에서의 암호화 및 XSS/CSRF 위험 관리가 security_guidelines.md를 모두 준수하는지 확인 바랍니다.",
+    "네이버 provider의 특이점(예: 추가 claims, iss 값)이 생길 경우 반드시 Rust 인증 hot path에 미리 안내 및 동기화 요청 부탁드립니다."
+  ],
+  "proposedEdits": []
+}

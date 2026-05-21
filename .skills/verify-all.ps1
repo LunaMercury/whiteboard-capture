@@ -1,32 +1,31 @@
 $ErrorActionPreference = "Stop"
 
-$currentDir = Get-Location
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+function Invoke-VerificationScript {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $ScriptName,
+        [Parameter(Mandatory = $true)]
+        [string] $FailureMessage
+    )
+
+    $scriptPath = Join-Path $scriptDir $ScriptName
+    & powershell -ExecutionPolicy Bypass -File $scriptPath
+    if ($LASTEXITCODE -ne 0) { throw $FailureMessage }
+}
 
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "STARTING FULL PROJECT VERIFICATION" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
-Set-Location -Path $currentDir
-.\verify-web.ps1
-if ($LASTEXITCODE -ne 0) { throw "Web verification failed" }
+Invoke-VerificationScript -ScriptName "verify-web.ps1" -FailureMessage "Web verification failed"
+Invoke-VerificationScript -ScriptName "verify-fast.ps1" -FailureMessage "Fast backend verification failed"
+Invoke-VerificationScript -ScriptName "verify-core.ps1" -FailureMessage "Core backend verification failed"
+Invoke-VerificationScript -ScriptName "verify-mobile.ps1" -FailureMessage "Mobile verification failed"
+Invoke-VerificationScript -ScriptName "verify-orchestrator.ps1" -FailureMessage "Orchestrator verification failed"
 
-Set-Location -Path $currentDir
-.\verify-fast.ps1
-if ($LASTEXITCODE -ne 0) { throw "Fast backend verification failed" }
-
-Set-Location -Path $currentDir
-.\verify-core.ps1
-if ($LASTEXITCODE -ne 0) { throw "Core backend verification failed" }
-
-Set-Location -Path $currentDir
-.\verify-mobile.ps1
-if ($LASTEXITCODE -ne 0) { throw "Mobile verification failed" }
-
-Set-Location -Path $currentDir
-.\verify-orchestrator.ps1
-if ($LASTEXITCODE -ne 0) { throw "Orchestrator verification failed" }
-
-Set-Location -Path $currentDir
+Set-Location -Path $scriptDir
 
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host "ALL CHECKS PASSED SUCCESSFULLY" -ForegroundColor Green

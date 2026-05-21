@@ -1,0 +1,21 @@
+{
+  "role": "rust",
+  "status": "succeeded",
+  "changedFiles": [],
+  "summary": "Rust(backend-fast) 모듈의 JWT 검증 및 실시간 경로 보호는 현 구조에서 네이버 OAuth2(JAVA 발급 토큰)와 정상적으로 호환됩니다. Java(Spring Boot)에서 발급된 JWT claim(pld: iss, sub, exp, email 등)과 서명 방식(HS256) 또한 Rust 쪽 jsonwebtoken crate와 호환 가능합니다. 환경변수(CORS, SECRET_KEY) 역시 계약을 준수하며, 별도 구분 claim(provider 등)은 현재 파서에서 안전하게 무시됩니다.",
+  "contractsChanged": [],
+  "verificationRun": [
+    ".skills/verify-fast.ps1",
+    ".skills/verify-all.ps1"
+  ],
+  "risks": [
+    "Java(Spring Boot)에서 JWT claim 구조(필수 key/값, alg 등)가 임의로 변경될 경우 Rust 쪽 검증 실패 가능.",
+    "JWT_SECRET_KEY나 claim 정책이 양측에서 어긋나면 인증 불가.",
+    "provider 구분 claim 타입이 예상과 다를 경우 Fallback이 잘 동작하는지 수시 점검 필요."
+  ],
+  "questions": [
+    "Java(Spring Boot) 발급 JWT에 추가적으로 들어가는 custom claim(e.g. provider, role 등)의 스펙이 확정되면 Rust 쪽 파싱 예외 처리 범위를 재조정할 필요가 있을까요?",
+    "JWT 서명 알고리즘(HS256 등)이 추후 변경될 가능성이 있나요? 변경 시 Rust 쪽 'jsonwebtoken' config 대응 필요합니다."
+  ],
+  "proposedEdits": []
+}

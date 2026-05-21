@@ -1,0 +1,57 @@
+{
+  "request": "네이버 로그인 기능을 만들어줘",
+  "managerDecision": {
+    "summary": "네이버 로그인 기능을 만들어줘 요청에 대해 Java(Spring Boot)는 구현, Rust(backend-fast)는 리뷰, 웹 프론트엔드는 구현, 모바일(Android)은 리뷰 모드로 참여합니다. 최종 참여 수준은 프로젝트 강제 정책과 저장소 구조를 기준으로 정해졌습니다.",
+    "frontendMode": "implement",
+    "rustMode": "review",
+    "javaMode": "implement",
+    "mobileMode": "review",
+    "integrationNotes": [
+      "Java(Spring Boot)는 OAuth와 JWT 발급 로직을 구현해야 합니다.",
+      "Rust(backend-fast)는 JWT 검증과 업로드/웹소켓 인증 경로 호환성을 검토해야 합니다.",
+      "웹 프론트엔드는 로그인 UI와 인증 플로우 연동을 구현해야 합니다.",
+      "모바일(Android)은 모바일 로그인 진입점과 JWT 저장/복원 흐름 영향 여부를 검토해야 합니다."
+    ],
+    "exclusionReasons": {
+      "frontend": "",
+      "rust": "",
+      "java": "",
+      "mobile": ""
+    }
+  },
+  "verifierReport": {
+    "summary": "네이버 로그인(OAuth 2.0) 기능 추가에 대한 전체 설계와 작업 분할, 정책 준수 여부, 위험요소, 실행 가능성에 대한 검토 결과입니다.",
+    "findings": [
+      "매니저 결정과 스페셜리스트 계획 모두 Whiteboard Capture의 정책(AGENTS.md, security_guidelines.md 등)에 따라 인증/소셜 로그인은 Java(Spring Boot)에서 구현, Rust는 JWT 검증 및 리뷰, 프론트엔드는 UI/플로우 구현, 모바일은 이번 요청에서 제외로 명확히 역할 분담이 이루어졌습니다.",
+      "각 워커 패킷은 실제로 만질 파일, 구현 단계, 검증 스크립트, 계약 준수 사항을 구체적으로 명시하고 있습니다.",
+      "프론트엔드는 네이버 로그인 버튼, 인증 플로우, JWT 저장 등 UI/UX와 인증 연동을 담당하며, 백엔드(Spring Boot)에서 JWT 발급 및 리디렉션 방식과의 계약을 명확히 요구하고 있습니다.",
+      "Rust(backend-fast)는 JWT claim 구조, secret key, 만료 정책 등 인증 계약이 변경될 경우 반드시 동기화해야 함을 강조하고 있습니다.",
+      "Java(Spring Boot)는 네이버 OAuth2 인증, JWT 발급, User 엔티티 확장, 예외 처리 등 핵심 인증 로직을 담당하며, DB 마이그레이션 및 외부 API 연동 위험을 인지하고 있습니다.",
+      "모바일은 이번에 직접 구현하지 않지만, 추후 네이버 로그인 도입 시 고려사항을 명확히 기술하고 있습니다."
+    ],
+    "contractChecks": [
+      "security_guidelines.md의 인증/인가, 데이터 보호, CORS 정책을 모두 준수하도록 설계되어 있습니다.",
+      "JWT_SECRET_KEY, claim 구조, 환경변수 명칭 등 핵심 계약을 임의로 변경하지 않으며, 변경 시 반드시 마스터 세션에 보고하도록 명시되어 있습니다.",
+      "프론트엔드와 백엔드 간 JWT 전달 방식(쿼리/해시 등), 리디렉션 URI, 사용자 식별 방식 등은 사전 합의 및 계약에 따라 구현하도록 되어 있습니다.",
+      "모든 인증 관련 변경은 Rust(backend-fast) 리뷰를 필수로 포함하며, 모바일은 추후 확장 시 계약 준수 검토가 필요합니다.",
+      "JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인",
+      "OAuth redirect URI와 토큰 전달 방식 합의 여부 확인",
+      "HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인",
+      "JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인"
+    ],
+    "recommendedVerification": [
+      ".skills/verify-web.ps1",
+      ".skills/verify-core.ps1",
+      ".skills/verify-fast.ps1",
+      ".skills/verify-all.ps1"
+    ],
+    "releaseBlockers": [
+      "네이버 OAuth2 인증 플로우에서 JWT claim 구조, secret key, 만료 정책이 기존 Google/IDPW 로그인과 완전히 일치하지 않으면 Rust(backend-fast)에서 인증이 실패할 수 있습니다. 이 경우 반드시 claim 구조를 동기화해야 하며, 미동기화 시 배포 불가입니다.",
+      "User 엔티티에 네이버 고유 ID 필드 추가 시 DB 마이그레이션이 필요하며, 기존 데이터와의 호환성 문제가 발생할 수 있습니다. 마이그레이션 계획 및 테스트가 없으면 배포 불가입니다.",
+      "프론트엔드와 백엔드 간 리디렉션 URI, JWT 전달 방식(쿼리/해시 등)이 불일치할 경우 인증 플로우가 동작하지 않으므로, 명확한 계약 및 통합 테스트가 필요합니다.",
+      "네이버 OAuth2 인증 실패/취소/예외 상황에 대한 예외 처리 및 사용자 경험(UI 피드백)이 미흡할 경우, 사용자 혼란 및 보안 취약점이 발생할 수 있습니다."
+    ]
+  },
+  "taskPacketCount": 4,
+  "workerResultCount": 4
+}

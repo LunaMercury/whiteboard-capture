@@ -58,17 +58,26 @@ function relativeList(repoRoot: string, files: string[]): string[] {
 export function buildRepoSnapshot(repoRoot: string): RepoSnapshot {
   const keyFiles: Record<string, string> = {
     "AGENTS.md": readFileIfExists(path.join(repoRoot, "AGENTS.md")),
+    "agent_role.md": readFileIfExists(path.join(repoRoot, "agent_role.md")),
+    "security_guidelines.md": readFileIfExists(path.join(repoRoot, "security_guidelines.md")),
+    "system_architecture.md": readFileIfExists(path.join(repoRoot, "system_architecture.md")),
     "troubleshooting.md": readFileIfExists(path.join(repoRoot, "troubleshooting.md")),
     "run.bat": readFileIfExists(path.join(repoRoot, "run.bat")),
     "stop.bat": readFileIfExists(path.join(repoRoot, "stop.bat")),
     ".env": readFileIfExists(path.join(repoRoot, ".env")),
     "web/package.json": readFileIfExists(path.join(repoRoot, "web", "package.json")),
+    "web/frontend_context.md": readFileIfExists(path.join(repoRoot, "web", "frontend_context.md")),
+    "web/css_rules.md": readFileIfExists(path.join(repoRoot, "web", "css_rules.md")),
     "backend-core/build.gradle": readFileIfExists(path.join(repoRoot, "backend-core", "build.gradle")),
+    "backend-core/backend_core_context.md": readFileIfExists(path.join(repoRoot, "backend-core", "backend_core_context.md")),
     "backend-core/application.properties": readFileIfExists(
       path.join(repoRoot, "backend-core", "src", "main", "resources", "application.properties")
     ),
     "backend-fast/Cargo.toml": readFileIfExists(path.join(repoRoot, "backend-fast", "Cargo.toml")),
+    "backend-fast/backend_fast_context.md": readFileIfExists(path.join(repoRoot, "backend-fast", "backend_fast_context.md")),
     "mobile/build.gradle": readFileIfExists(path.join(repoRoot, "mobile", "build.gradle")),
+    "mobile/android_context.md": readFileIfExists(path.join(repoRoot, "mobile", "android_context.md")),
+    "cloud/cloud_context.md": readFileIfExists(path.join(repoRoot, "cloud", "cloud_context.md")),
   };
 
   const moduleFiles: Record<string, string[]> = {

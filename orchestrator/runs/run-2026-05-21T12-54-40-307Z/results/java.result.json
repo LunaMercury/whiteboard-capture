@@ -1,0 +1,94 @@
+{
+  "role": "java",
+  "status": "failed",
+  "changedFiles": [
+    "backend-core/src/main/java/com/whiteboard/core/auth/SecurityConfig.java",
+    "backend-core/src/main/java/com/whiteboard/core/auth/AuthController.java",
+    "backend-core/src/main/java/com/whiteboard/core/user/User.java",
+    "backend-core/src/main/java/com/whiteboard/core/user/UserRepository.java",
+    "backend-core/src/main/java/com/whiteboard/core/auth/CustomUserDetailsService.java",
+    "backend-core/src/main/java/com/whiteboard/core/auth/JwtUtil.java"
+  ],
+  "summary": "네이버 OAuth 2.0 소셜 로그인 연동, JWT 발급, User 엔티티/리포지토리/provider 구조 확장 등 정책 반영. 클레임/환경설정/보안 규정 유지. Verification failed during workflow. Verification failed during workflow.",
+  "contractsChanged": [
+    "User 엔티티의 필드(provider, providerId) 추가로 전체 사용자 식별 방식(식별자 구조)이 바뀌는 부분 있으니 master 세션에 보고 필요",
+    "네이버 OAuth 인증 콜백 URI 및 JWT 토큰 전달 정책 동기화 마스터 세션에 확인(프론트/fast-backend 계약 확인)"
+  ],
+  "verificationRun": [
+    ".skills/verify-core.ps1",
+    ".skills/verify-all.ps1"
+  ],
+  "risks": [
+    "네이버 OAuth 연동시에 리다이렉트 URI, client secret의 노출방지 및 HTTPS 환경 보장 필요.",
+    "JWT 클레임 구조와 secret key 정책을 Rust/Web/Mobile과 불일치하지 않게 상시 점검 필요.",
+    "Social 신규/기존 사용자 통합 로직이 provider, providerId, legacy naverId와 혼재로 경계조건 테스트 필요.",
+    "Verification failed: .skills/verify-core.ps1",
+    "D:\\개발\\whiteboard capture\\backend-core\\src\\main\\java\\com\\whiteboard\\core\\auth\\CustomUserDetailsService.java:11: error: package org.springframework.security.oauth2.client.authentication does not exist\nimport org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;\n                                                                ^\r\nD:\\개발\\whiteboard capture\\backend-core\\src\\main\\java\\com\\whiteboard\\core\\auth\\SecurityConfig.java:18: error: package org.springframework.security.oauth2.client.registration does not exist\nimport org.springframework.security.oauth2.client.registration.ClientRegistration;\n                                                              ^\r\nD:\\개발\\whiteboard capture\\backend-core\\src\\main\\java\\com\\whiteboard\\core\\auth\\SecurityConfig.java:19: error: package org.springframework.security.oauth2.client.registration does not exist\nimport org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;\n                                                              ^\r\nD:\\개발\\whiteboard capture\\backend-core\\src\\main\\java\\com\\whiteboard\\core\\auth\\SecurityConfig.java:20: error: package org.springframework.security.oauth2.client.registration does not exist\nimport org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;\n                                                              ^\r\nD:\\개발\\whiteboard capture\\backend-core\\src\\main\\java\\com\\whiteboard\\core\\auth\\SecurityConfig.java:87: error: cannot find symbol\n    public ClientRegistrationRepository clientRegistrationRepository() {\n           ^\n  symbol:   class ClientRegistrationRepository\n  location: class SecurityConfig\r\nD:\\개발\\whiteboard capture\\backend-core\\src\\main\\java\\com\\whiteboard\\core\\auth\\CustomUserDetailsService.java:44: error: cannot find symbol\n        if (auth instanceof OAuth2AuthenticationToken oauth2Auth) {\n                            ^\n  symbol:   class OAuth2AuthenticationToken\n  location: class CustomUserDetailsService\r\nD:\\개발\\whiteboard capture\\backend-core\\src\\main\\java\\com\\whiteboard\\core\\auth\\SecurityConfig.java:88: error: cannot find symbol\n        ClientRegistration naverRegistration = ClientRegistration.withRegistrationId(\"naver\")\n        ^\n  symbol:   class ClientRegistration\n  location: class SecurityConfig\r\nD:\\개발\\whiteboard capture\\backend-core\\src\\main\\java\\com\\whiteboard\\core\\auth\\SecurityConfig.java:97: error: package org.springframework.security.oauth2.core does not exist\n                .authorizationGrantType(org.springframework.security.oauth2.core.AuthorizationGrantType.AUTHORIZATION_CODE)\n                                                                                ^\r\nD:\\개발\\whiteboard capture\\backend-core\\src\\main\\java\\com\\whiteboard\\core\\auth\\SecurityConfig.java:88: error: cannot find symbol\n        ClientRegistration naverRegistration = ClientRegistration.withRegistrationId(\"naver\")\n                                               ^\n  symbol:   variable ClientRegistration\n  location: class SecurityConfig\r\nD:\\개발\\whiteboard capture\\backend-core\\src\\main\\java\\com\\whiteboard\\core\\auth\\SecurityConfig.java:100: error: cannot find symbol\n        return new InMemoryClientRegistrationRepository(naverRegistration);\n                   ^\n  symbol:   class InMemoryClientRegistrationRepository\n  location: class SecurityConfig\r\nNote: D:\\개발\\whiteboard capture\\backend-core\\src\\main\\java\\com\\whiteboard\\core\\auth\\CustomUserDetailsService.java uses unchecked or unsafe operations.\r\nNote: Recompile with -Xlint:unchecked for details.\r\n10 errors\r\n\r\nFAILURE: Build failed with an exception.\r\n\r\n* What went wrong:\r\nExecution failed for task ':compileJava'.\r\n> Compilation failed; see the compiler output below.\r\n  D:\\개발\\whiteboard capture\\backend-core\\src\\main\\java\\com\\whiteboard\\core\\auth\\CustomUserDetailsService.java:11: error: package org.springframework.security.oauth2.client.authentication does not exist\n  import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;\n                                                                  ^\r\n  10 errors\r\n\r\n* Try:\r\n> Check your code and dependencies to fix the compilation error(s)\r\n> Run with --scan to get full insights from a Build Scan (powered by Develocity).\r\n\r\nBUILD FAILED in 22s\r\ngradlew classes failed\r\nAt D:\\개발\\whiteboard capture\\.skills\\verify-core.ps1:14 char:28\r\n+ if ($LASTEXITCODE -ne 0) { throw \"gradlew classes failed\" }\r\n+                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (gradlew classes failed:String) [], RuntimeException\r\n    + FullyQualifiedErrorId : gradlew classes failed",
+    "Verification failed: .skills/verify-all.ps1",
+    ".\\verify-web.ps1 : The term '.\\verify-web.ps1' is not recognized as the name of a cmdlet, function, script file, or ope\r\nrable program. Check the spelling of the name, or if a path was included, verify that the path is correct and try again\r\n.\r\nAt D:\\개발\\whiteboard capture\\.skills\\verify-all.ps1:10 char:1\r\n+ .\\verify-web.ps1\r\n+ ~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : ObjectNotFound: (.\\verify-web.ps1:String) [], ParentContainsErrorRecordException\r\n    + FullyQualifiedErrorId : CommandNotFoundException"
+  ],
+  "questions": [],
+  "proposedEdits": [
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/SecurityConfig.java",
+      "action": "update",
+      "summary": "Spring Security 설정에 네이버 OAuth2 provider/registration 연동 및 OAuth2 로그인 엔드포인트 활성화",
+      "instructions": [
+        "OAuth2 Client 등록 정보에 NAVER provider 추가(authorizationUri, tokenUri 등 정의)",
+        "Naver clientId, clientSecret, redirectUri 등 설정을 ENV/application.properties에서 불러오기",
+        "oauth2Login() 설정에 네이버 연동 엔드포인트 추가",
+        "필요시 csrf, cors 등 정책 재확인"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/AuthController.java",
+      "action": "update",
+      "summary": "네이버 OAuth2 인증 콜백 엔드포인트(/auth/naver/callback 등) 추가 및 JWT 발급 로직 구현",
+      "instructions": [
+        "네이버 OAuth2 인증 콜백을 처리하는 @GetMapping 엔드포인트 추가",
+        "인증 성공 시 네이버에서 받은 사용자 profile 정보 파싱",
+        "UserRepository를 통해 provider/providerId로 기존 유저 조회, 없으면 신규 생성",
+        "JwtUtil로 JWT 토큰을 발급하여 반환",
+        "에러처리 및 예외 상황 처리(필요시 로그 추가)"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/user/User.java",
+      "action": "update",
+      "summary": "User 엔티티에 provider, providerId 필드(및 필요한 getter/setter) 추가",
+      "instructions": [
+        "provider(String), providerId(String) 필드 추가",
+        "해당 필드에 @Column(nullable = true, unique = false) 등 적절한 JPA 어노테이션 부여",
+        "기본 생성자, getter/setter, builder에 필드 추가"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/user/UserRepository.java",
+      "action": "update",
+      "summary": "provider/providerId 조합으로 User 엔티티를 조회하는 메서드(add findByProviderAndProviderId)",
+      "instructions": [
+        "Optional<User> findByProviderAndProviderId(String provider, String providerId) 메서드 추가",
+        "기존 id/email 기반 조회 코드는 그대로 유지"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/CustomUserDetailsService.java",
+      "action": "update",
+      "summary": "네이버(provider == 'naver') 등 소셜 로그인 사용자도 처리할 수 있게 UserDetailsService 로직 확장",
+      "instructions": [
+        "OAuth2AuthenticationToken 기반 인증 처리 시 provider, providerId 활용하도록 로직 보강",
+        "provider가 naver일 경우 profile 정보에서 id 추출 후 User 조회/생성",
+        "Google 등 기존 Social 로그인 로직(if any)과 통합/유지"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/JwtUtil.java",
+      "action": "update",
+      "summary": "JWT 발급/파싱 로직 기존 구조(클레임구조/시크릿/만료정책 등) 유지, 네이버 소셜사용자도 동일방식으로 처리",
+      "instructions": [
+        "JWT를 생성할 때 provider, providerId 정보(claim)도 포함(타 플랫폼과 claim구조 일치 재확인 필요)",
+        "기존 getUsernameFromToken, validateToken 등 코드 변경 최소화"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$repoRoot = Split-Path -Parent (Get-Location)
+$repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -Path (Join-Path $repoRoot "orchestrator")
 $npmCmd = "C:\Program Files\nodejs\npm.cmd"
 

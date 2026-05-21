@@ -1,0 +1,57 @@
+{
+  "role": "java",
+  "participationMode": "implement",
+  "goal": "Spring Boot 기반 백엔드에 네이버 OAuth 2.0 로그인(소셜 로그인) 기능을 추가하여, 네이버 계정으로 로그인 시 JWT를 발급하고 기존 사용자 계정과 연동/생성 처리까지 구현합니다.",
+  "allowedPaths": [
+    "backend-core/**"
+  ],
+  "blockedPaths": [
+    "web/**",
+    "backend-fast/**",
+    "mobile/**"
+  ],
+  "touchedAreas": [
+    "backend-core/src/main/java/com/whiteboard/core/auth",
+    "backend-core/src/main/java/com/whiteboard/core/user",
+    "backend-core/src/main/java/com/whiteboard/core/auth/dto"
+  ],
+  "implementationSteps": [
+    "1. build.gradle에 네이버 OAuth2 클라이언트 지원을 위한 spring-security-oauth2-client 의존성 추가(최신 버전).",
+    "2. application.properties에 이미 존재하는 네이버 OAuth2 설정(NAVER_CLIENT_ID 등)이 실제로 동작하도록 SecurityConfig 및 OAuth2 관련 설정 보강.",
+    "3. com.whiteboard.core.auth 패키지에 Naver OAuth2 인증 처리용 커스텀 OAuth2UserService 구현(NaverOAuth2UserService 등). 네이버에서 받은 profile 정보를 파싱하여 User 엔티티와 연동(신규 생성 또는 기존 계정 매핑).",
+    "4. OAuth2 로그인 성공 시 JWT를 발급하는 OAuth2SuccessHandler 구현 및 SecurityConfig에 등록. (JWT 발급 로직은 기존 JwtUtil 활용)",
+    "5. AuthController에 /auth/naver/login, /auth/naver/callback 등 엔드포인트 추가(프론트엔드와 연동되는 REST 방식 또는 OAuth2 리다이렉트 방식 모두 지원).",
+    "6. User 엔티티에 네이버 고유 ID, 이메일, 이름 등 필드 추가(필요시 마이그레이션).",
+    "7. AuthResponse 등 DTO에 네이버 로그인 결과(JWT, 사용자 정보 등) 반환 구조 반영.",
+    "8. (선택) 기존 CustomUserDetailsService가 소셜 로그인 계정도 지원하도록 확장.",
+    "9. 통합 테스트: 네이버 OAuth2 플로우 전체를 Postman 등으로 검증, JWT 발급 및 사용자 정보 연동 확인.",
+    "10. 정책 준수: JWT_SECRET_KEY, OAuth2 client 정보 등은 .env/application.properties에서 관리, 민감 정보 노출 금지.",
+    "11. 문서화: 주요 인증 플로우, 엔드포인트, 예외 처리 등 Javadoc 및 README/코드 주석 보강.",
+    "12. 검증 스크립트(.skills/verify-core.ps1)로 전체 인증 플로우 자동 테스트.",
+    "13. Rust(backend-fast)와 JWT 호환성(서명, 클레임 등) 재확인 및 필요시 리뷰 요청."
+  ],
+  "dependencies": [
+    "spring-security-oauth2-client (최신)",
+    "기존 spring-boot-starter-security, spring-boot-starter-webmvc, jjwt-api 등",
+    "네이버 OAuth2 client id/secret (.env, application.properties)",
+    "JwtUtil, UserRepository, User 엔티티 등 내부 클래스"
+  ],
+  "requiredVerification": [
+    ".skills/verify-core.ps1"
+  ],
+  "contracts": [
+    "기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.",
+    "변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.",
+    "JWT 발급 구조와 사용자 식별 계약을 Rust/Web/Mobile과 일치시킵니다.",
+    "application.properties와 .env 기반 환경설정 정책을 유지합니다.",
+    "OAuth provider 연동, 사용자 식별, JWT 발급 구조를 전체 클라이언트와 일치시킵니다."
+  ],
+  "handoffOutput": [
+    "changed_files",
+    "summary",
+    "contracts_changed",
+    "verification_run",
+    "risks",
+    "questions"
+  ]
+}

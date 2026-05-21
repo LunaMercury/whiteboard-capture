@@ -12,6 +12,7 @@ export const workerTaskPacketSchema = z.object({
   dependencies: z.array(z.string()),
   requiredVerification: z.array(z.string()),
   contracts: z.array(z.string()),
+  policyChecks: z.array(z.string()),
   handoffOutput: z.array(z.string()),
 });
 

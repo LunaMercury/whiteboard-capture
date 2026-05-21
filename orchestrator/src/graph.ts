@@ -283,6 +283,15 @@ function buildTemplateFlags(userRequest: string): TemplateContextFlags {
   };
 }
 
+function buildRegistryVerifierChecks(userRequest: string): string[] {
+  const categories = detectRequestCategories(userRequest);
+  return Array.from(
+    new Set(
+      categories.flatMap((category) => categoryTemplateRegistry[category].verifierChecks),
+    ),
+  );
+}
+
 function strongerMode(current: ParticipationMode, required: ParticipationMode): ParticipationMode {
   const rank: Record<ParticipationMode, number> = {
     skip: 0,
@@ -495,6 +504,12 @@ function contractsForRole(role: SpecialistRole, userRequest: string): string[] {
   return [...shared, ...roleDefaults[role], ...registryContracts];
 }
 
+function policyChecksForRole(userRequest: string): string[] {
+  const categories = detectRequestCategories(userRequest);
+  const checks = categories.flatMap((category) => categoryTemplateRegistry[category].verifierChecks);
+  return Array.from(new Set(checks));
+}
+
 function createTaskPacketFromPlan(plan: SpecialistPlan, userRequest: string): WorkerTaskPacket {
   return {
     role: plan.role,
@@ -507,6 +522,7 @@ function createTaskPacketFromPlan(plan: SpecialistPlan, userRequest: string): Wo
     dependencies: plan.dependencies,
     requiredVerification: plan.verification,
     contracts: contractsForRole(plan.role, userRequest),
+    policyChecks: policyChecksForRole(userRequest),
     handoffOutput: [
       "changed_files",
       "summary",
@@ -528,6 +544,7 @@ function createPendingWorkerResult(plan: SpecialistPlan): WorkerResultPacket {
     verificationRun: [],
     risks: ["실행기(worker runner)가 아직 연결되지 않아 결과 packet은 placeholder 상태입니다."],
     questions: ["이 worker를 어떤 실행기로 돌릴지(master 세션, Codex CLI, 별도 API worker) 결정이 필요합니다."],
+    proposedEdits: [],
   };
 }
 
@@ -646,6 +663,7 @@ function createMockVerifierReport(state: OrchestratorStateType): VerifierReport 
     contractChecks: [
       "인증 요청이면 JWT_SECRET_KEY, OAuth redirect URI, 토큰 전달 방식을 확인합니다.",
       "실시간/캐시 요청이면 backend-fast와 frontend의 계약이 일치하는지 확인합니다.",
+      ...buildRegistryVerifierChecks(state.userRequest),
     ],
     recommendedVerification: [
       ".skills/verify-web.ps1",
@@ -677,6 +695,7 @@ async function buildManagerDecision(
         "Decide which specialist teams should work on the user's request.",
         "Do not implement code. Only produce orchestration decisions.",
         "Follow the mandatory project policies even if a module is only indirectly affected.",
+        "Treat the markdown policy documents included in the repository snapshot keyFiles as authoritative project instructions, especially for security, architecture, coding style, and module responsibilities.",
         "Only reference files and modules that actually exist in the repository snapshot.",
         `Project context: ${JSON.stringify(projectContext)}`,
         `Repository snapshot: ${JSON.stringify(repoSnapshot)}`,
@@ -714,6 +733,7 @@ async function buildSpecialistPlan(
         "Answer in Korean.",
         "Return a concrete implementation plan for your module only.",
         "Reference project-specific verification commands and integration dependencies.",
+        "Use the markdown policy documents from the repository snapshot as binding guidance for security, architecture, coding style, and module boundaries.",
         `Your participation mode is ${modeForRole(role, decision)}. If the mode is review, focus on compatibility checks and required review points instead of implementation-heavy steps.`,
         "Only mention touched areas that are present in the repository snapshot. If a needed file does not exist yet, say so in risks or implementation steps instead of inventing the path.",
         `Project context: ${JSON.stringify(projectContext)}`,
@@ -776,7 +796,7 @@ async function buildVerifierReport(state: OrchestratorStateType): Promise<Verifi
   ].filter((plan): plan is SpecialistPlan => Boolean(plan));
 
   const model = createModel().withStructuredOutput(verifierReportSchema);
-  return model.invoke([
+  const report = await model.invoke([
     [
       "system",
       [
@@ -784,6 +804,7 @@ async function buildVerifierReport(state: OrchestratorStateType): Promise<Verifi
         "Answer in Korean.",
         "Review the manager decision and specialist plans before implementation starts.",
         "Focus on contract mismatches, missing verification, hidden risks, release blockers, and whether the worker task packets are executable.",
+        "Use the markdown policy documents from the repository snapshot as authoritative review criteria, especially security_guidelines.md and the module context files.",
         "Do not create new implementation plans. Only review and summarize.",
         `Project context: ${JSON.stringify(projectContext)}`,
         `Repository snapshot: ${JSON.stringify(state.repoSnapshot)}`,
@@ -795,6 +816,16 @@ async function buildVerifierReport(state: OrchestratorStateType): Promise<Verifi
     ],
     ["human", state.userRequest],
   ]);
+
+  return {
+    ...report,
+    contractChecks: Array.from(
+      new Set([
+        ...report.contractChecks,
+        ...buildRegistryVerifierChecks(state.userRequest),
+      ]),
+    ),
+  };
 }
 
 async function verifierNode(state: OrchestratorStateType) {
@@ -873,6 +904,8 @@ async function mergeNode(state: OrchestratorStateType) {
       lines.push(`Required verification: ${packet.requiredVerification.join(", ")}`);
       lines.push(`Contracts:`);
       lines.push(...packet.contracts.map((item) => `- ${item}`));
+      lines.push(`Policy checks:`);
+      lines.push(...packet.policyChecks.map((item) => `- ${item}`));
       lines.push(`Expected handoff: ${packet.handoffOutput.join(", ")}`);
       lines.push(``);
     }

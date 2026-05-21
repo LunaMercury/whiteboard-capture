@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+﻿import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest } from "./packetStore.js";
@@ -7,7 +7,7 @@ import type { WorkerTaskPacket } from "./taskSchemas.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-type SupportedProvider = "claude" | "manual";
+type SupportedProvider = "claude" | "openai" | "manual";
 
 type Args = {
   runId: string;
@@ -22,7 +22,7 @@ function parseArgs(argv: string[]): Args {
   const rolesIndex = filtered.findIndex((item) => item === "--roles");
   const continueOnError = filtered.includes("--continue-on-error");
 
-  let provider: SupportedProvider = (process.env.WORKER_PROVIDER as SupportedProvider) || "claude";
+  let provider: SupportedProvider = (process.env.WORKER_PROVIDER as SupportedProvider) || "openai";
   let roles: WorkerTaskPacket["role"][] | undefined;
 
   if (providerIndex >= 0) {
@@ -42,7 +42,7 @@ function parseArgs(argv: string[]): Args {
   const [runId] = remaining;
 
   if (!runId) {
-    throw new Error("Usage: npm run runner:execute -- <run-id> [--provider claude|manual] [--roles frontend,java] [--continue-on-error]");
+    throw new Error("Usage: npm run runner:execute -- <run-id> [--provider openai|claude|manual] [--roles frontend,java] [--continue-on-error]");
   }
 
   return {
@@ -53,8 +53,9 @@ function parseArgs(argv: string[]): Args {
   };
 }
 
-function runCommand(command: string, args: string[], cwd: string) {
-  return spawnSync(command, args, {
+function runNodeScript(scriptPath: string, scriptArgs: string[], cwd: string) {
+  const tsxCliPath = path.join(cwd, "node_modules", "tsx", "dist", "cli.mjs");
+  return spawnSync(process.execPath, [tsxCliPath, scriptPath, ...scriptArgs], {
     cwd,
     encoding: "utf8",
     stdio: "pipe",
@@ -65,7 +66,6 @@ async function main() {
   const { runId, provider, roles, continueOnError } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
   const manifest = readRunnerManifest(orchestratorRoot, runId);
-  const npmCmd = path.join(process.env.ProgramFiles || "C:\\Program Files", "nodejs", "npm.cmd");
 
   const targetWorkers = manifest.workers.filter((worker) => {
     return !roles || roles.includes(worker.role);
@@ -83,9 +83,9 @@ async function main() {
 
   for (const worker of targetWorkers) {
     console.log(`## Running ${worker.role}`);
-    const child = runCommand(
-      npmCmd,
-      ["run", "worker:run", "--", runId, worker.role, "--provider", provider],
+    const child = runNodeScript(
+      path.join("src", "workerRun.ts"),
+      [runId, worker.role, "--provider", provider],
       orchestratorRoot,
     );
 
@@ -94,6 +94,12 @@ async function main() {
     }
     if (child.stderr?.trim()) {
       console.error(child.stderr.trim());
+    }
+    if (child.error) {
+      console.error(`spawn error: ${child.error.message}`);
+    }
+    if (child.signal) {
+      console.error(`signal: ${child.signal}`);
     }
 
     if (child.status !== 0) {
@@ -107,12 +113,18 @@ async function main() {
   }
 
   console.log(`## Collecting results`);
-  const collect = runCommand(npmCmd, ["run", "runner:collect", "--", runId], orchestratorRoot);
+  const collect = runNodeScript(path.join("src", "collectResults.ts"), [runId], orchestratorRoot);
   if (collect.stdout?.trim()) {
     console.log(collect.stdout.trim());
   }
   if (collect.stderr?.trim()) {
     console.error(collect.stderr.trim());
+  }
+  if (collect.error) {
+    console.error(`collect spawn error: ${collect.error.message}`);
+  }
+  if (collect.signal) {
+    console.error(`collect signal: ${collect.signal}`);
   }
 
   if (collect.status !== 0) {

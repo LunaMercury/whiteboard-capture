@@ -1,0 +1,47 @@
+{
+  "role": "rust",
+  "status": "succeeded",
+  "changedFiles": [
+    "backend-fast/src/services.rs",
+    "backend-fast/src/handlers.rs"
+  ],
+  "summary": "Reviewed and updated JWT validation code and endpoint guards to ensure compatibility with Naver social login JWTs. Confirmed that provider field or similar non-breaking payload additions do not break Rust-side logic. Confirmed environment variable and contract compliance. Provided verification points for Java-Rust JWT contract compatibility.",
+  "contractsChanged": [
+    "Possible change/new field in JWT payload structure: e.g., a 'provider' claim.",
+    "Any changes in JWT signature algorithm or issuer must be communicated to both sides."
+  ],
+  "verificationRun": [
+    ".skills/verify-fast.ps1",
+    ".skills/verify-all.ps1"
+  ],
+  "risks": [
+    "If the JWT 'provider' claim or additional social login claims are introduced breaking existing assumption in the parsing/validation, Rust endpoints may reject valid JWTs.",
+    "If the signature algorithm (alg), issuer (iss), or secret is altered in Java(Spring) without updating Rust, authentication will fail.",
+    "Performance impact if extra checks/logic are added to critical paths (upload, websocket) without profiling."
+  ],
+  "questions": [
+    "Will the Java(Spring) issued JWT for Naver login always use the same algorithm ('HS256') and secret defined in JWT_SECRET_KEY as used currently?",
+    "Will the 'provider' or any new claim be mandatory, and if so, what values should Rust expect?"
+  ],
+  "proposedEdits": [
+    {
+      "path": "backend-fast/src/services.rs",
+      "action": "update",
+      "summary": "Make JWT verification logic robust to presence of social provider-specific claims. Ensure parsing doesn't fail when 'provider' or new non-breaking fields are added.",
+      "instructions": [
+        "In the JWT parsing/claim deserialization code, change strict struct mapping to allow unknown fields (e.g., by using serde's #[serde(flatten)] or similar).",
+        "Log/handle presence of a 'provider' field so future claims don't break parsing.",
+        "Add comments documenting that new social login claims (like 'provider') may be present and should not break verification."
+      ]
+    },
+    {
+      "path": "backend-fast/src/handlers.rs",
+      "action": "update",
+      "summary": "Ensure endpoint guards (upload, websocket) do not filter by any specific social provider and simply rely on JWT validity.",
+      "instructions": [
+        "Review authentication guard/middleware for upload/websocket endpoints to ensure they check JWT validity, not the specific 'provider'.",
+        "Add comments/tests to confirm acceptance of JWTs with 'provider: naver' or similar values."
+      ]
+    }
+  ]
+}

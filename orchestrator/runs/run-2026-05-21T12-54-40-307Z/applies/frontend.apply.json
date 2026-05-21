@@ -1,0 +1,57 @@
+{
+  "runId": "run-2026-05-21T12-54-40-307Z",
+  "role": "frontend",
+  "status": "prepared",
+  "goal": "웹 프론트엔드에 네이버 로그인 버튼 및 인증 플로우를 추가하여 사용자가 네이버 계정으로 로그인할 수 있도록 한다.",
+  "allowedPaths": [
+    "web/**"
+  ],
+  "blockedPaths": [
+    "backend-fast/**",
+    "backend-core/**",
+    "mobile/**"
+  ],
+  "requiredVerification": [
+    ".skills/verify-web.ps1"
+  ],
+  "contracts": [
+    "기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.",
+    "변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.",
+    "VITE_API_BASE_URL, VITE_REALTIME_WS_URL 계약을 유지합니다.",
+    "백엔드 메시지 포맷과 JWT 전달 방식을 합의 없이 바꾸지 않습니다.",
+    "로그인 버튼, OAuth redirect, JWT 저장 방식은 백엔드와 합의된 계약만 사용합니다."
+  ],
+  "policyChecks": [
+    "JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인",
+    "OAuth redirect URI와 토큰 전달 방식 합의 여부 확인",
+    "HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인",
+    "JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인"
+  ],
+  "proposedEdits": [
+    {
+      "path": "web/src/components/Login.tsx",
+      "action": "update",
+      "summary": "Add Naver login button, integrate backend OAuth2 redirect, handle JWT and error states.",
+      "instructions": [
+        "Import necessary hooks and utilities for navigation and JWT storage (as per existing Google/IDPW flow).",
+        "Add a Naver login button matching official CI, with aria-label for accessibility.",
+        "On Naver button click, redirect to `/auth/oauth2/authorization/naver` endpoint.",
+        "On redirect back (OAuth2 callback), detect Naver flow and handle JWT storage as performed for Google (from query/cookie/etc, as per backend contract).",
+        "Catch and display error/canceled states if present in the redirected response.",
+        "Ensure Naver button and messaging are integrated in visual and logical blocks with other login options.",
+        "Update success, error, and loading UI flows to accommodate Naver along with Google/IDPW."
+      ]
+    },
+    {
+      "path": "web/src/components/Login.module.css",
+      "action": "update",
+      "summary": "Add styles for Naver login button according to Naver official CI, ensure accessibility and responsive design.",
+      "instructions": [
+        "Add .naverLoginButton style using official Naver green, with logo and bold text per their CI guide.",
+        "Ensure :hover/:focus states comply for accessibility.",
+        "Adjust layout to ensure button aligns with existing login buttons, is keyboard navigable, and resizes well on small screens.",
+        "If specific accessibility classes exist for other providers, replicate for Naver button."
+      ]
+    }
+  ]
+}

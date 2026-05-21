@@ -1,0 +1,44 @@
+{
+  "role": "mobile",
+  "participationMode": "review",
+  "goal": "네이버 소셜 로그인(OAuth 2.0) 기능 추가에 대한 모바일(Android) 모듈의 영향 및 호환성 검토",
+  "allowedPaths": [
+    "mobile/**"
+  ],
+  "blockedPaths": [
+    "web/**",
+    "backend-fast/**",
+    "backend-core/**"
+  ],
+  "touchedAreas": [
+    "mobile/app/src/main/java/com/example/whiteboardcapture/MainActivity.kt"
+  ],
+  "implementationSteps": [
+    "현재 요청에서는 모바일(Android) 앱에 네이버 로그인 UI 또는 인증 플로우 추가 요구가 명시되지 않았으므로, 직접적인 코드 구현은 생략합니다.",
+    "향후 네이버 로그인을 모바일에 도입할 경우, 네이버 OAuth SDK(Android) 연동, JWT 발급 및 Rust 업로드 경로와의 연동, 보안 검토가 필요합니다.",
+    "모바일에서 네이버 로그인 도입 시, Spring Boot(Java)에서 발급한 JWT를 정상적으로 수신·저장하고, 기존 Google/ID-PW 로그인과 동일한 방식으로 업로드 API에 인증 헤더를 포함해야 합니다.",
+    "네이버 로그인 도입 시, 기존 CameraX 촬영 및 업로드 플로우와의 충돌 여부(예: 로그인 상태 관리, 토큰 만료 처리 등)도 반드시 검토해야 합니다."
+  ],
+  "dependencies": [
+    "네이버 로그인 기능은 backend-core(Java/Spring Boot)에서 OAuth 인증 및 JWT 발급을 담당하므로, 모바일은 해당 API 명세에 맞춰 연동해야 합니다.",
+    "backend-fast(Rust)는 JWT 검증만 담당하므로, 모바일에서 발급받은 JWT가 Rust 업로드/웹소켓 경로에서 정상적으로 인식되는지 확인이 필요합니다."
+  ],
+  "requiredVerification": [
+    ".skills/verify-mobile.ps1"
+  ],
+  "contracts": [
+    "기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.",
+    "변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.",
+    "Spring 로그인 계약과 Rust 업로드 인증 계약을 임의로 바꾸지 않습니다.",
+    "모바일의 JWT 저장/복원 흐름이 기존 업로드 경로와 호환되어야 합니다.",
+    "모바일 로그인 진입점이 추가되면 JWT 저장/복원과 업로드 인증 흐름이 기존 계약을 유지해야 합니다."
+  ],
+  "handoffOutput": [
+    "changed_files",
+    "summary",
+    "contracts_changed",
+    "verification_run",
+    "risks",
+    "questions"
+  ]
+}

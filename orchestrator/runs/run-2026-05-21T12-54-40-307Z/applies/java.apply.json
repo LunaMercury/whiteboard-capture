@@ -1,0 +1,94 @@
+{
+  "runId": "run-2026-05-21T12-54-40-307Z",
+  "role": "java",
+  "status": "prepared",
+  "goal": "Spring Boot 기반 백엔드에 네이버 OAuth 2.0 소셜 로그인 기능을 추가하여, 네이버 계정으로 로그인 시 JWT를 발급하고 기존 Google/IDPW와 동일하게 사용자 계정과 연동되도록 구현합니다.",
+  "allowedPaths": [
+    "backend-core/**"
+  ],
+  "blockedPaths": [
+    "web/**",
+    "backend-fast/**",
+    "mobile/**"
+  ],
+  "requiredVerification": [
+    ".skills/verify-core.ps1",
+    ".skills/verify-all.ps1"
+  ],
+  "contracts": [
+    "기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.",
+    "변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.",
+    "JWT 발급 구조와 사용자 식별 계약을 Rust/Web/Mobile과 일치시킵니다.",
+    "application.properties와 .env 기반 환경설정 정책을 유지합니다.",
+    "OAuth provider 연동, 사용자 식별, JWT 발급 구조를 전체 클라이언트와 일치시킵니다."
+  ],
+  "policyChecks": [
+    "JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인",
+    "OAuth redirect URI와 토큰 전달 방식 합의 여부 확인",
+    "HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인",
+    "JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인"
+  ],
+  "proposedEdits": [
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/SecurityConfig.java",
+      "action": "update",
+      "summary": "Spring Security 설정에 네이버 OAuth2 provider/registration 연동 및 OAuth2 로그인 엔드포인트 활성화",
+      "instructions": [
+        "OAuth2 Client 등록 정보에 NAVER provider 추가(authorizationUri, tokenUri 등 정의)",
+        "Naver clientId, clientSecret, redirectUri 등 설정을 ENV/application.properties에서 불러오기",
+        "oauth2Login() 설정에 네이버 연동 엔드포인트 추가",
+        "필요시 csrf, cors 등 정책 재확인"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/AuthController.java",
+      "action": "update",
+      "summary": "네이버 OAuth2 인증 콜백 엔드포인트(/auth/naver/callback 등) 추가 및 JWT 발급 로직 구현",
+      "instructions": [
+        "네이버 OAuth2 인증 콜백을 처리하는 @GetMapping 엔드포인트 추가",
+        "인증 성공 시 네이버에서 받은 사용자 profile 정보 파싱",
+        "UserRepository를 통해 provider/providerId로 기존 유저 조회, 없으면 신규 생성",
+        "JwtUtil로 JWT 토큰을 발급하여 반환",
+        "에러처리 및 예외 상황 처리(필요시 로그 추가)"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/user/User.java",
+      "action": "update",
+      "summary": "User 엔티티에 provider, providerId 필드(및 필요한 getter/setter) 추가",
+      "instructions": [
+        "provider(String), providerId(String) 필드 추가",
+        "해당 필드에 @Column(nullable = true, unique = false) 등 적절한 JPA 어노테이션 부여",
+        "기본 생성자, getter/setter, builder에 필드 추가"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/user/UserRepository.java",
+      "action": "update",
+      "summary": "provider/providerId 조합으로 User 엔티티를 조회하는 메서드(add findByProviderAndProviderId)",
+      "instructions": [
+        "Optional<User> findByProviderAndProviderId(String provider, String providerId) 메서드 추가",
+        "기존 id/email 기반 조회 코드는 그대로 유지"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/CustomUserDetailsService.java",
+      "action": "update",
+      "summary": "네이버(provider == 'naver') 등 소셜 로그인 사용자도 처리할 수 있게 UserDetailsService 로직 확장",
+      "instructions": [
+        "OAuth2AuthenticationToken 기반 인증 처리 시 provider, providerId 활용하도록 로직 보강",
+        "provider가 naver일 경우 profile 정보에서 id 추출 후 User 조회/생성",
+        "Google 등 기존 Social 로그인 로직(if any)과 통합/유지"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/JwtUtil.java",
+      "action": "update",
+      "summary": "JWT 발급/파싱 로직 기존 구조(클레임구조/시크릿/만료정책 등) 유지, 네이버 소셜사용자도 동일방식으로 처리",
+      "instructions": [
+        "JWT를 생성할 때 provider, providerId 정보(claim)도 포함(타 플랫폼과 claim구조 일치 재확인 필요)",
+        "기존 getUsernameFromToken, validateToken 등 코드 변경 최소화"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "request": "네이버 로그인 기능을 만들어줘",
+  "managerDecision": {
+    "summary": "네이버 로그인 기능을 만들어줘 요청에 대해 Java(Spring Boot)는 구현, Rust(backend-fast)는 리뷰, 웹 프론트엔드는 구현, 모바일(Android)은 리뷰 모드로 참여합니다. 최종 참여 수준은 프로젝트 강제 정책과 저장소 구조를 기준으로 정해졌습니다.",
+    "frontendMode": "implement",
+    "rustMode": "review",
+    "javaMode": "implement",
+    "mobileMode": "review",
+    "integrationNotes": [
+      "Java(Spring Boot)는 OAuth와 JWT 발급 로직을 구현해야 합니다.",
+      "Rust(backend-fast)는 JWT 검증과 업로드/웹소켓 인증 경로 호환성을 검토해야 합니다.",
+      "웹 프론트엔드는 로그인 UI와 인증 플로우 연동을 구현해야 합니다.",
+      "모바일(Android)은 모바일 로그인 진입점과 JWT 저장/복원 흐름 영향 여부를 검토해야 합니다."
+    ],
+    "exclusionReasons": {
+      "frontend": "",
+      "rust": "",
+      "java": "",
+      "mobile": ""
+    }
+  },
+  "verifierReport": {
+    "summary": "Finalized worker collection. Succeeded: frontend / Pending: mobile / Failed: java",
+    "findings": [
+      "frontend: status=succeeded, changed_files=2, proposed_edits=2, verification=1",
+      "rust: status=skipped, changed_files=0, proposed_edits=0, verification=2",
+      "java: status=failed, changed_files=6, proposed_edits=6, verification=2",
+      "mobile: status=pending, changed_files=0, proposed_edits=0, verification=0"
+    ],
+    "contractChecks": [
+      "JWT_SECRET_KEY, JWT claim 구조, 만료 정책이 Spring과 Rust 양쪽에서 완전히 일치해야 함 (security_guidelines.md, backend_core_context.md, backend_fast_context.md 기준).",
+      "OAuth2 redirect URI, 토큰 전달 방식, 사용자 식별 정책이 모든 클라이언트(Web, Mobile)와 합의되어야 함.",
+      "환경변수 및 설정파일(.env, application.properties)에서 JWT_SECRET_KEY, OAuth2 클라이언트 정보가 누락 없이 관리되어야 함.",
+      "프론트엔드의 JWT 저장 위치, XSS/CSRF 방어, HTTPS/WSS 사용 등 보안 정책이 security_guidelines.md를 준수해야 함.",
+      "JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인",
+      "OAuth redirect URI와 토큰 전달 방식 합의 여부 확인",
+      "HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인",
+      "JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인"
+    ],
+    "recommendedVerification": [
+      ".skills/verify-web.ps1",
+      ".skills/verify-fast.ps1",
+      ".skills/verify-all.ps1",
+      ".skills/verify-core.ps1"
+    ],
+    "releaseBlockers": [
+      "java worker failed: 네이버 OAuth 2.0 소셜 로그인 연동, JWT 발급, User 엔티티/리포지토리/provider 구조 확장 등 정책 반영. 클레임/환경설정/보안 규정 유지. Verification failed during workflow. Verification failed during workflow.",
+      "mobile worker has not been executed yet."
+    ]
+  },
+  "taskPacketCount": 4,
+  "workerResultCount": 4
+}

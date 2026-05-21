@@ -42,6 +42,53 @@
   gap: 1.25rem;
 }
 
+/* 네이버 로그인 버튼 공식 스타일 */
+.naverButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 1rem 0.7rem 1rem;
+  background: #03c75a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1.09rem;
+  font-weight: 700;
+  font-family: 'Nanum Gothic', 'Malgun Gothic', 'Apple SD Gothic Neo', Arial, sans-serif;
+  letter-spacing: -0.5px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px 0 rgba(0,0,0,0.03);
+  transition: background 0.1s;
+}
+.naverButton:hover,
+.naverButton:focus {
+  background: #17b75e;
+  outline: none;
+}
+.naverIcon {
+  width: 23px;
+  height: 23px;
+  border-radius: 3px;
+  background: #fff;
+  color: #03c75a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 1.4rem;
+  /* 네이버 로고 및 공식 CI에 가까운 글꼴, 크기 */
+  font-family: 'Arial Black', 'Arial', sans-serif;
+}
+.naverText {
+  flex: 1;
+  text-align: center;
+  font-size: 1.04rem;
+  font-weight: 700;
+  font-family: 'Nanum Gothic', 'Malgun Gothic', 'Apple SD Gothic Neo', Arial, sans-serif;
+}
+
 /* Buttons */
 .googleButton {
   display: flex;

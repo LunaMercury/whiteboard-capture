@@ -1,0 +1,57 @@
+You are the rust worker for the Whiteboard Capture repository.
+Work only inside the allowed paths.
+Do not modify blocked paths.
+If you need a contract change outside your scope, do not edit it. Report it in contractsChanged or questions.
+Run ID: run-2026-05-21T08-36-01-639Z
+
+Goal:
+네이버 소셜 로그인을 도입할 때 Rust(Rapid Backend)가 JWT 검증 및 업로드/웹소켓 경로 보호에 대해 정책 및 구현 호환성을 검토하고, 필요한 계약 검증 포인트를 제시합니다.
+
+Allowed paths:
+- backend-fast/**
+
+Blocked paths:
+- web/**
+- backend-core/**
+- mobile/**
+
+Touched areas:
+- backend-fast/src/handlers.rs
+- backend-fast/src/main.rs
+- backend-fast/src/services.rs
+
+Implementation steps:
+- 1. Java(Spring)에서 네이버 OAuth 인증 및 JWT 발급 로직이 추가될 경우, JWT의 페이로드 구조(issuer, subject, provider 등)와 서명 알고리즘이 기존과 동일하게 유지되는지 확인합니다.
+- 2. Rust의 JWT 검증 로직(backend-fast/src/services.rs 등)에서 네이버 로그인으로 발급된 JWT도 정상적으로 검증되는지 점검합니다. (예: provider 필드 추가 시 파싱/검증 코드가 깨지지 않는지 확인)
+- 3. 업로드/웹소켓 엔드포인트 보호 로직(backend-fast/src/handlers.rs 등)이 네이버 로그인 사용자의 JWT도 동일하게 허용하는지 검토합니다.
+- 4. 환경변수(JWT_SECRET_KEY) 및 계약(PUBLIC_BASE_URL, ALLOWED_WEB_ORIGINS 등)이 네이버 로그인 추가로 변경될 경우, Rust 서비스가 이를 올바르게 읽고 반영하는지 확인합니다.
+- 5. Java와 Rust 간 JWT 계약(alg, iss, exp, sub, custom claims 등)이 명확히 문서화되어 있는지, 변경 시 Rust 쪽에 영향이 없는지 리뷰합니다.
+
+Dependencies:
+- Java(Spring)에서 네이버 OAuth 및 JWT 발급 구현 완료
+- 공통 환경변수(.env, application.properties) 확장 및 동기화
+- 프론트엔드/모바일에서 네이버 로그인 플로우 및 JWT 전달 방식 확정
+
+Contracts:
+- 기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.
+- 변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.
+- JWT_SECRET_KEY, ALLOWED_WEB_ORIGINS, PUBLIC_BASE_URL 계약을 유지합니다.
+- 업로드 hot path와 websocket fan-out의 성능 특성을 해치지 않습니다.
+- JWT_SECRET_KEY, claim 구조, 만료 정책이 Spring 발급 토큰과 일치해야 합니다.
+
+Required verification:
+- .skills/verify-fast.ps1
+- .skills/verify-all.ps1
+
+Instructions:
+- You may edit files inside allowed paths when necessary.
+- Run relevant verification commands when possible.
+- Return only JSON matching the provided schema.
+- Use changedFiles as repository-relative paths.
+- proposedEdits must list the concrete file-by-file changes that should be applied in this repository.
+- Each proposedEdits item must include path, action, summary, and step-by-step instructions.
+- If no file change is needed, return proposedEdits as an empty array.
+- Use status 'succeeded' only if your scoped work and verification are complete.
+- Use status 'failed' if you were blocked or verification failed.
+- Use status 'skipped' only if no code change was necessary.
+- The runner will write your JSON to: D:\개발\whiteboard capture\orchestrator\runs\run-2026-05-21T08-36-01-639Z\results\rust.result.json

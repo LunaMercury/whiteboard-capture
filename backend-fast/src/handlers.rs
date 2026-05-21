@@ -11,10 +11,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
 
-#[derive(Debug, Deserialize)]
-struct Claims {
-    sub: String,
-}
+// Claims can contain extra fields such as 'provider' for Naver/Kakao/etc social logins
+// due to the flatten in services.rs. This ensures JWTs from any provider are accepted
+// as long as the signature and 'sub' are correct.
+pub use crate::services::Claims;
 
 #[derive(Debug, Deserialize)]
 pub struct WebSocketAuthQuery {
@@ -27,6 +27,7 @@ pub async fn upload_image(
     mut multipart: Multipart,
 ) -> impl IntoResponse {
     // The hot path only accepts authenticated uploads so each image is routed to the right user.
+    // Provider-specific JWTs (e.g. 'provider: naver') are accepted as long as JWT is valid.
     let user_id = match authenticate_request(&headers, &state).await {
         Ok(user_id) => user_id,
         Err(status) => return status.into_response(),
@@ -90,6 +91,7 @@ pub async fn ws_handler(
     Query(query): Query<WebSocketAuthQuery>,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
+    // JWT is accepted regardless of social provider; only signature and user existence are checked.
     let user_id = match authenticate_token(&query.token, &state).await {
         Ok(user_id) => user_id,
         Err(status) => return status.into_response(),
@@ -107,7 +109,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: Arc<AppS
             continue;
         }
 
-        let message = format!(r#"{{"type":"new_image","url":"{}"}}"#, event.url);
+        let message = format!(r#"{{\"type\":\"new_image\",\"url\":\"{}\"}}"#, event.url);
         if socket.send(Message::Text(message.into())).await.is_err() {
             println!("Client disconnected.");
             break;
@@ -130,6 +132,8 @@ async fn authenticate_request(headers: &HeaderMap, state: &AppState) -> Result<i
 
 async fn authenticate_token(token: &str, state: &AppState) -> Result<i64, StatusCode> {
     // Spring issues the JWT, but Rust resolves the email back to a user id for DB writes and fan-out.
+    // Provider-specific JWTs (e.g. 'provider: naver') are accepted as long as JWT is valid and contains 'sub'.
+    // If 'provider' is present in JWT claims, we simply ignore it.
     let claims = decode::<Claims>(
         token,
         &DecodingKey::from_secret(state.jwt_secret.as_bytes()),
@@ -137,6 +141,12 @@ async fn authenticate_token(token: &str, state: &AppState) -> Result<i64, Status
     )
     .map_err(|_| StatusCode::UNAUTHORIZED)?
     .claims;
+
+    // Optionally log provider field for debugging/social provider analytics
+    if let Some(_provider) = claims.extra.get("provider").and_then(|v| v.as_str()) {
+        // eprintln!("JWT provider: {}", _provider);
+        // For production, remove or redirect this log to structured telemetry if needed.
+    }
 
     let user_id = services::find_user_id_by_email(&state.db, &claims.sub)
         .await

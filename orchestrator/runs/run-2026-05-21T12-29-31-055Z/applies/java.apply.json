@@ -1,0 +1,104 @@
+{
+  "runId": "run-2026-05-21T12-29-31-055Z",
+  "role": "java",
+  "status": "prepared",
+  "goal": "Spring Boot 백엔드에 네이버 OAuth2 로그인 연동 및 JWT 발급/인증 플로우 구현",
+  "allowedPaths": [
+    "backend-core/**"
+  ],
+  "blockedPaths": [
+    "web/**",
+    "backend-fast/**",
+    "mobile/**"
+  ],
+  "requiredVerification": [
+    ".skills/verify-core.ps1"
+  ],
+  "contracts": [
+    "기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.",
+    "변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.",
+    "JWT 발급 구조와 사용자 식별 계약을 Rust/Web/Mobile과 일치시킵니다.",
+    "application.properties와 .env 기반 환경설정 정책을 유지합니다.",
+    "OAuth provider 연동, 사용자 식별, JWT 발급 구조를 전체 클라이언트와 일치시킵니다."
+  ],
+  "proposedEdits": [
+    {
+      "path": "backend-core/src/main/resources/application.properties",
+      "action": "update",
+      "summary": "네이버 OAuth2 클라이언트 정보를 환경변수 연동 형태로 보강",
+      "instructions": [
+        "NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI 항목이 없으면 spring.security.oauth2.client.registration.naver.{client-id,client-secret,redirect-uri} 환경변수 바인딩으로 추가",
+        "application.properties 하단에 아래 형식 추가",
+        "# Naver OAuth2",
+        "spring.security.oauth2.client.registration.naver.client-id=${NAVER_CLIENT_ID}",
+        "spring.security.oauth2.client.registration.naver.client-secret=${NAVER_CLIENT_SECRET}",
+        "spring.security.oauth2.client.registration.naver.redirect-uri=${NAVER_REDIRECT_URI}",
+        "spring.security.oauth2.client.registration.naver.authorization-grant-type=authorization_code",
+        "spring.security.oauth2.client.registration.naver.scope=name,email"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/SecurityConfig.java",
+      "action": "update",
+      "summary": "SecurityConfig에 네이버 OAuth2 client 등록 및 login config 추가",
+      "instructions": [
+        "http.oauth2Login() 설정을 활성화",
+        "OAuth2UserService와 SuccessHandler, FailureHandler를 설정",
+        "네이버 프로바이더 등록 spring.security.oauth2.client.registration.naver.* 와 연결",
+        "기존 JWT 인증 필터와 oauth2Login 공존 유의"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/AuthController.java",
+      "action": "update",
+      "summary": "네이버 OAuth2 로그인 엔드포인트 및 콜백 핸들러 구현",
+      "instructions": [
+        "GET /oauth2/authorization/naver 엔드포인트 추가 (네이버 로그인 리다이렉트용)",
+        "GET /login/oauth2/code/naver 콜백 엔드포인트 구현",
+        "인증 성공시 네이버 API에서 사용자 정보(email, name 등) 받아와 기존 User와 매칭 또는 새로 회원가입",
+        "JwtUtil 사용해 최초 JWT 발급 및 AuthResponse 반환"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/user/User.java",
+      "action": "update",
+      "summary": "User 엔티티에 provider, providerId 필드 추가",
+      "instructions": [
+        "private String provider; // ex: naver, google 등",
+        "private String providerId; // 각 provider의 고유 user 식별자",
+        "필요시 JPA @Column 애너테이션으로 필드 매핑",
+        "생성자/빌더 등에 신규 필드 반영",
+        "equals/hashCode 등에 provider, providerId 추가여부 확인"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/user/UserRepository.java",
+      "action": "update",
+      "summary": "provider, providerId 기반 사용자 조회 추가",
+      "instructions": [
+        "Optional<User> findByProviderAndProviderId(String provider, String providerId);",
+        "네이버 OAuth 로그인시 provider, providerId로 사용자를 먼저 찾도록 지원"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/CustomUserDetailsService.java",
+      "action": "update",
+      "summary": "CustomUserDetailsService가 OAuth2User도 인증 가능하도록 확장",
+      "instructions": [
+        "UserDetailsService 및 OAuth2UserService 구현",
+        "네이버 OAuth2 인증 결과로부터 User 엔티티를 찾거나 새로 생성",
+        "provider, providerId 필드를 활용",
+        "UserDetails 및 OAuth2User 반환 타입 유의"
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/JwtUtil.java",
+      "action": "update",
+      "summary": "JwtUtil에 OAuth2 사용자(JWT 생성/파싱) 지원 보강",
+      "instructions": [
+        "User principal에서 provider, providerId 기반의 식별자 JWT에 포함",
+        "기존 JWT 발급 로직이 이메일뿐 아니라 provider, providerId와 잘 연동되는지 확인"
+      ]
+    }
+  ]
+}

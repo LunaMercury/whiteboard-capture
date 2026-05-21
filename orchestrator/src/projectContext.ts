@@ -36,4 +36,16 @@ export const projectContext = {
     ".skills/verify-mobile.ps1",
     ".skills/verify-all.ps1",
   ],
+  policySources: [
+    "AGENTS.md",
+    "agent_role.md",
+    "security_guidelines.md",
+    "system_architecture.md",
+    "web/frontend_context.md",
+    "web/css_rules.md",
+    "backend-core/backend_core_context.md",
+    "backend-fast/backend_fast_context.md",
+    "mobile/android_context.md",
+    "cloud/cloud_context.md",
+  ],
 };

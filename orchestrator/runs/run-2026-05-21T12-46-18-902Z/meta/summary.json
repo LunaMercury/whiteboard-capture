@@ -1,0 +1,55 @@
+{
+  "request": "네이버 로그인 기능을 만들어줘",
+  "managerDecision": {
+    "summary": "네이버 로그인 기능을 만들어줘 요청에 대해 Java(Spring Boot)는 구현, Rust(backend-fast)는 리뷰, 웹 프론트엔드는 구현, 모바일(Android)은 리뷰 모드로 참여합니다. 최종 참여 수준은 프로젝트 강제 정책과 저장소 구조를 기준으로 정해졌습니다.",
+    "frontendMode": "implement",
+    "rustMode": "review",
+    "javaMode": "implement",
+    "mobileMode": "review",
+    "integrationNotes": [
+      "Java(Spring Boot)는 OAuth와 JWT 발급 로직을 구현해야 합니다.",
+      "Rust(backend-fast)는 JWT 검증과 업로드/웹소켓 인증 경로 호환성을 검토해야 합니다.",
+      "웹 프론트엔드는 로그인 UI와 인증 플로우 연동을 구현해야 합니다.",
+      "모바일(Android)은 모바일 로그인 진입점과 JWT 저장/복원 흐름 영향 여부를 검토해야 합니다."
+    ],
+    "exclusionReasons": {
+      "frontend": "",
+      "rust": "",
+      "java": "",
+      "mobile": ""
+    }
+  },
+  "verifierReport": {
+    "summary": "네이버 로그인(OAuth 2.0) 기능 추가에 대한 전체 설계와 작업 분할, 정책 준수 여부, 위험 요소를 검토한 결과, 각 모듈별 계획과 작업 패킷이 정책에 부합하며, 실제 구현 전 단계에서 주요 보안 및 계약상 유의사항이 명확히 정의되어 있습니다. 단, 실제 구현 결과(worker 실행 결과)는 아직 수집되지 않았으므로, 실행 후 검증이 필요합니다.",
+    "findings": [
+      "네이버 로그인은 인증/소셜 로그인 관련이므로 Java(Spring Boot, backend-core)가 반드시 구현에 참여해야 하며, Rust(backend-fast)는 JWT 검증 및 업로드/웹소켓 경로 보호를 위해 리뷰에 참여해야 함(정책상 필수).",
+      "프론트엔드는 네이버 로그인 UI, 인증 플로우, JWT 저장 및 로그인 상태 관리 UI를 구현해야 하며, 모바일(Android)은 네이버 로그인 연동이 필요할 경우 리뷰 이상 참여해야 함.",
+      "각 모듈별 작업 계획이 정책 문서(security_guidelines.md, system_architecture.md 등)와 일치하며, 계약 위반이나 모듈 누락 없이 역할이 분배됨.",
+      "JWT 발급 구조, 환경변수, 인증 계약 등은 기존 정책을 임의로 변경하지 않고, 변경이 필요한 경우 master 세션에 명시적으로 보고하도록 되어 있음.",
+      "보안 정책(HTTPS, JWT 저장, XSS/CSRF 방지, 민감 정보 관리 등)과 UI/UX 정책(css_rules.md, frontend_context.md 등)도 작업 계획에 반영됨."
+    ],
+    "contractChecks": [
+      "security_guidelines.md의 인증/인가, 데이터 보호, 애플리케이션 보안 정책을 준수함.",
+      "system_architecture.md의 모듈 분리 및 JWT 공유 정책을 준수함.",
+      "frontend_context.md, css_rules.md의 UI/UX, 스타일링, 인증 플로우 정책을 준수함.",
+      "backend_core_context.md, backend_fast_context.md의 인증, JWT, OAuth2 연동 정책을 준수함.",
+      "모든 작업 패킷에서 환경변수, JWT 구조, 인증 계약을 임의로 변경하지 않으며, 변경 시 반드시 보고하도록 명시됨."
+    ],
+    "recommendedVerification": [
+      ".skills/verify-web.ps1 (프론트엔드)",
+      " .skills/verify-core.ps1 (Spring Boot)",
+      " .skills/verify-fast.ps1 (Rust)",
+      " .skills/verify-all.ps1 (통합)",
+      " .skills/verify-mobile.ps1 (모바일, 필요시)"
+    ],
+    "releaseBlockers": [
+      "실제 worker 실행 결과가 아직 수집되지 않아, 구현이 완료되었는지, 계약 위반이나 보안 결함이 없는지 최종 검증이 불가함.",
+      "네이버 OAuth2 연동 시, JWT 전달 방식(쿼리스트링/헤더/쿠키 등)과 콜백 URI가 프론트엔드, 모바일, 백엔드 간 합의된 계약과 일치해야 하며, 이 부분이 실제 구현에서 어긋나면 인증이 실패할 수 있음.",
+      "User 엔티티 및 DB 마이그레이션(네이버 고유 ID 등 필드 추가)이 누락되면 기존 사용자와의 연동이 깨질 수 있음.",
+      "JWT 클레임 구조가 Rust와 호환되지 않으면 업로드/웹소켓 인증이 실패할 수 있음.",
+      "네이버 OAuth2 client id/secret 등 민감 정보가 깃에 노출되지 않도록 환경설정 관리에 주의 필요."
+    ]
+  },
+  "taskPacketCount": 4,
+  "workerResultCount": 4
+}

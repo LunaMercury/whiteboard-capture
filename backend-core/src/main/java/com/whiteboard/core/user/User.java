@@ -2,6 +2,7 @@ package com.whiteboard.core.user;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 @Entity
 @Table(name = "users")
@@ -23,6 +24,18 @@ public class User {
     // Google OAuth 로그인용
     @Column(name = "google_id", unique = true)
     private String googleId;
+
+    // Naver OAuth 로그인용(이전 호환)
+    @Column(name = "naver_id", unique = true, nullable = true)
+    private String naverId;
+
+    // 통합 OAuth provider(reserved: "local", "naver", "google" 등)
+    @Column(name = "provider", nullable = true, length = 50)
+    private String provider;
+
+    // provider별 고유 식별자 (예: 네이버id, 구글sub 등)
+    @Column(name = "provider_id", nullable = true, length = 100)
+    private String providerId;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -47,7 +60,31 @@ public class User {
     
     public String getGoogleId() { return googleId; }
     public void setGoogleId(String googleId) { this.googleId = googleId; }
-    
+
+    public String getNaverId() { return naverId; }
+    public void setNaverId(String naverId) { this.naverId = naverId; }
+
+    public String getProvider() { return provider; }
+    public void setProvider(String provider) { this.provider = provider; }
+
+    public String getProviderId() { return providerId; }
+    public void setProviderId(String providerId) { this.providerId = providerId; }
+
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        User user = (User) o;
+        return Objects.equals(email, user.email) &&
+                Objects.equals(provider, user.provider) &&
+                Objects.equals(providerId, user.providerId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(email, provider, providerId);
+    }
 }

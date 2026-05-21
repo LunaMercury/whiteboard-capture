@@ -1,0 +1,55 @@
+{
+  "runId": "run-2026-05-21T08-36-01-639Z",
+  "role": "frontend",
+  "status": "prepared",
+  "goal": "웹 프론트엔드에 네이버 소셜 로그인 기능을 추가하여 사용자가 네이버 계정으로 인증할 수 있도록 한다.",
+  "allowedPaths": [
+    "web/**"
+  ],
+  "blockedPaths": [
+    "backend-fast/**",
+    "backend-core/**",
+    "mobile/**"
+  ],
+  "requiredVerification": [
+    ".skills/verify-web.ps1"
+  ],
+  "contracts": [
+    "기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.",
+    "변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.",
+    "VITE_API_BASE_URL, VITE_REALTIME_WS_URL 계약을 유지합니다.",
+    "백엔드 메시지 포맷과 JWT 전달 방식을 합의 없이 바꾸지 않습니다.",
+    "로그인 버튼, OAuth redirect, JWT 저장 방식은 백엔드와 합의된 계약만 사용합니다."
+  ],
+  "proposedEdits": [
+    {
+      "path": "web/src/config.ts",
+      "action": "update",
+      "summary": "네이버 로그인용 OAuth 인증 URL을 상수로 추가",
+      "instructions": [
+        "VITE_API_BASE_URL 이용하여 NAVER_OAUTH_URL 상수를 추가합니다.",
+        "예: export const NAVER_OAUTH_URL = `${VITE_API_BASE_URL}/auth/naver/login`;"
+      ]
+    },
+    {
+      "path": "web/src/components/Login.tsx",
+      "action": "update",
+      "summary": "네이버 로그인 버튼 UI 추가 및 인증 플로우/콜백 JWT 저장 로직 구현",
+      "instructions": [
+        "공식 네이버 CI 가이드에 맞는 네이버 로그인 버튼을 렌더링합니다.",
+        "버튼 클릭 시 window.location.href를 NAVER_OAUTH_URL로 이동시킵니다.",
+        "component mount 시 URL 쿼리 파라미터에서 JWT(token)를 감지해 로컬스토리지 등에 저장 후 로그인 상태로 전환, 보호된 페이지로 네비게이션합니다.",
+        "에러/취소/실패 시 URL 파라미터를 확인해 안내 메시지와 함께 UI에 표시합니다."
+      ]
+    },
+    {
+      "path": "web/src/components/Login.module.css",
+      "action": "update",
+      "summary": "네이버 로그인 버튼 공식 스타일 클래스 추가",
+      "instructions": [
+        "네이버 공식 가이드에 따라 네이버 그린, 로고, 폰트 등 버튼 스타일을 정의합니다.",
+        "cursor, padding, border-radius, focus/hover 효과 등 접근성을 고려해 작성합니다."
+      ]
+    }
+  ]
+}

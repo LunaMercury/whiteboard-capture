@@ -1,0 +1,49 @@
+{
+  "role": "rust",
+  "participationMode": "review",
+  "goal": "네이버 OAuth 2.0 로그인 기능 추가에 대한 Rust(backend-fast) 모듈의 리뷰 및 보안/계약 검증",
+  "allowedPaths": [
+    "backend-fast/**"
+  ],
+  "blockedPaths": [
+    "web/**",
+    "backend-core/**",
+    "mobile/**"
+  ],
+  "touchedAreas": [
+    "backend-fast/src/handlers.rs",
+    "backend-fast/src/services.rs",
+    "backend-fast/src/main.rs"
+  ],
+  "implementationSteps": [
+    "1. Java(Spring Boot, backend-core)에서 네이버 OAuth 2.0 인증, 콜백, JWT 발급, 사용자 계정 연동 로직을 구현하는지 확인합니다.",
+    "2. Rust(backend-fast)는 직접 네이버 OAuth 인증을 구현하지 않으나, 업로드/웹소켓 등 모든 인증 경로에서 Java가 발급한 JWT를 검증해야 하므로, JWT 파싱 및 검증 로직이 네이버 로그인으로 발급된 토큰에도 정상 동작하는지 확인합니다.",
+    "3. JWT 내 클레임(예: sub, provider 등)에 네이버 로그인 사용자를 구분할 수 있는 정보가 포함되는지 확인하고, Rust의 JWT 검증 로직이 이를 문제없이 처리하는지 검토합니다.",
+    "4. ALLOWED_WEB_ORIGINS, PUBLIC_BASE_URL 등 환경변수 및 CORS 정책이 네이버 로그인 플로우(리디렉션 등)에 영향이 없는지 점검합니다.",
+    "5. (필요시) backend-fast/src/handlers.rs, services.rs, main.rs 내 JWT 검증 미들웨어/핸들러에서 네이버 로그인 유저의 JWT도 정상적으로 인증되는지 테스트 케이스를 추가하거나 검토합니다."
+  ],
+  "dependencies": [
+    "Java(backend-core)에서 JWT 발급 및 네이버 OAuth 연동이 정상적으로 구현되어야 함",
+    "JWT_SECRET_KEY 환경변수 일치 필요"
+  ],
+  "requiredVerification": [
+    ".skills/verify-fast.ps1",
+    ".skills/verify-core.ps1",
+    ".skills/verify-all.ps1"
+  ],
+  "contracts": [
+    "기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.",
+    "변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.",
+    "JWT_SECRET_KEY, ALLOWED_WEB_ORIGINS, PUBLIC_BASE_URL 계약을 유지합니다.",
+    "업로드 hot path와 websocket fan-out의 성능 특성을 해치지 않습니다.",
+    "JWT_SECRET_KEY, claim 구조, 만료 정책이 Spring 발급 토큰과 일치해야 합니다."
+  ],
+  "handoffOutput": [
+    "changed_files",
+    "summary",
+    "contracts_changed",
+    "verification_run",
+    "risks",
+    "questions"
+  ]
+}

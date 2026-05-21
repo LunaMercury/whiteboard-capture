@@ -1,0 +1,71 @@
+You are the java worker for the Whiteboard Capture repository.
+Work only inside the allowed paths.
+Do not modify blocked paths.
+If you need a contract change outside your scope, do not edit it. Report it in contractsChanged or questions.
+Run ID: run-2026-05-21T12-54-40-307Z
+
+Goal:
+Spring Boot 기반 백엔드에 네이버 OAuth 2.0 소셜 로그인 기능을 추가하여, 네이버 계정으로 로그인 시 JWT를 발급하고 기존 Google/IDPW와 동일하게 사용자 계정과 연동되도록 구현합니다.
+
+Allowed paths:
+- backend-core/**
+
+Blocked paths:
+- web/**
+- backend-fast/**
+- mobile/**
+
+Touched areas:
+- backend-core/src/main/java/com/whiteboard/core/auth/AuthController.java
+- backend-core/src/main/java/com/whiteboard/core/auth/SecurityConfig.java
+- backend-core/src/main/java/com/whiteboard/core/auth/CustomUserDetailsService.java
+- backend-core/src/main/java/com/whiteboard/core/auth/JwtUtil.java
+- backend-core/src/main/java/com/whiteboard/core/user/User.java
+- backend-core/src/main/java/com/whiteboard/core/user/UserRepository.java
+
+Implementation steps:
+- 1. application.properties에 이미 정의된 네이버 OAuth2 클라이언트 설정을 확인하고, 필요시 값 보강.
+- 2. SecurityConfig.java에서 Spring Security OAuth2 Client 설정에 네이버 provider/registration을 추가하고, OAuth2 로그인 엔드포인트를 활성화.
+- 3. AuthController.java에 네이버 OAuth2 인증 콜백 엔드포인트(/auth/naver/callback 등)를 추가. 인증 성공 시 네이버에서 받은 profile 정보를 바탕으로 User 엔티티를 조회/생성하고 JWT를 발급.
+- 4. CustomUserDetailsService.java에서 네이버 소셜 로그인 사용자를 처리할 수 있도록 확장. (provider, providerId 등 필드 추가 필요시 User 엔티티에 반영)
+- 5. JwtUtil.java에서 기존과 동일하게 JWT 발급/파싱 로직을 재사용.
+- 6. User.java, UserRepository.java에 provider/providerId 등 소셜 계정 연동 필드가 없다면 추가 및 마이그레이션.
+- 7. 네이버 로그인 플로우가 정상 동작하는지 Postman 등으로 직접 검증.
+- 8. 기존 Google/IDPW 로그인과 동일하게 JWT가 발급되고, 프론트엔드/fast-backend와 연동되는지 확인.
+
+Dependencies:
+- Spring Security OAuth2 Client (spring-boot-starter-oauth2-client) 필요시 build.gradle에 추가
+- 네이버 OAuth2 클라이언트 정보 (application.properties)
+- User 엔티티의 provider/providerId 필드 (없으면 추가)
+
+Contracts:
+- 기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.
+- 변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.
+- JWT 발급 구조와 사용자 식별 계약을 Rust/Web/Mobile과 일치시킵니다.
+- application.properties와 .env 기반 환경설정 정책을 유지합니다.
+- OAuth provider 연동, 사용자 식별, JWT 발급 구조를 전체 클라이언트와 일치시킵니다.
+
+Mandatory policy checks:
+- JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인
+- OAuth redirect URI와 토큰 전달 방식 합의 여부 확인
+- HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인
+- JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인
+
+Required verification:
+- .skills/verify-core.ps1
+- .skills/verify-all.ps1
+
+Instructions:
+- You may edit files inside allowed paths when necessary.
+- Run relevant verification commands when possible.
+- Return only JSON matching the provided schema.
+- Use changedFiles as repository-relative paths.
+- proposedEdits must list the concrete file-by-file changes that should be applied in this repository.
+- Each proposedEdits item must include path, action, summary, and step-by-step instructions.
+- If no file change is needed, return proposedEdits as an empty array.
+- Treat every mandatory policy check as a hard requirement, not a suggestion.
+- If any policy check cannot be satisfied in your scope, set status to 'failed' or report the blocker clearly in risks/questions.
+- Use status 'succeeded' only if your scoped work and verification are complete.
+- Use status 'failed' if you were blocked or verification failed.
+- Use status 'skipped' only if no code change was necessary.
+- The runner will write your JSON to: D:\개발\whiteboard capture\orchestrator\runs\run-2026-05-21T12-54-40-307Z\results\java.result.json

@@ -4,7 +4,7 @@ Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "Running Verification for BACKEND-CORE (Java/Spring)" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
-$repoRoot = Split-Path -Parent (Get-Location)
+$repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -Path (Join-Path $repoRoot "backend-core")
 $env:GRADLE_USER_HOME = "C:\Users\Public\Documents\ESTsoft\CreatorTemp\whiteboard-capture-core-gradle"
 New-Item -ItemType Directory -Force -Path $env:GRADLE_USER_HOME | Out-Null

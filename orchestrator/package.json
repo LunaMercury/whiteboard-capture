@@ -12,8 +12,13 @@
     "runner:status": "tsx src/runnerStatus.ts",
     "runner:collect": "tsx src/collectResults.ts",
     "runner:execute": "tsx src/runnerExecute.ts",
+    "runner:workflow": "tsx src/runnerWorkflow.ts",
+    "runner:finalize": "tsx src/runnerFinalize.ts",
     "worker:prepare": "tsx src/workerExecutor.ts",
-    "worker:run": "tsx src/workerRun.ts"
+    "worker:run": "tsx src/workerRun.ts",
+    "worker:handoff": "tsx src/workerHandoff.ts",
+    "apply:prepare": "tsx src/applyExecutor.ts",
+    "apply:run": "tsx src/applyRun.ts"
   },
   "dependencies": {
     "@langchain/core": "^0.3.79",

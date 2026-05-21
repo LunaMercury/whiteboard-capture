@@ -4,7 +4,7 @@ Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "Running Verification for BACKEND-FAST (Rust)" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
 
- $repoRoot = Split-Path -Parent (Get-Location)
+$repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -Path (Join-Path $repoRoot "backend-fast")
 $env:CARGO_TARGET_DIR = "C:\Users\Public\Documents\ESTsoft\CreatorTemp\whiteboard-capture-cargo-target"
 New-Item -ItemType Directory -Force -Path $env:CARGO_TARGET_DIR | Out-Null

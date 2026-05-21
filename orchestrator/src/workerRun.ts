@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+﻿import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +9,7 @@ import type { WorkerTaskPacket } from "./taskSchemas.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-type SupportedProvider = "claude" | "manual";
+type SupportedProvider = "claude" | "openai" | "manual";
 
 type Args = {
   runId: string;
@@ -19,7 +19,7 @@ type Args = {
 
 function parseArgs(argv: string[]): Args {
   const providerFlagIndex = argv.findIndex((item) => item === "--provider");
-  let provider: SupportedProvider = (process.env.WORKER_PROVIDER as SupportedProvider) || "claude";
+  let provider: SupportedProvider = (process.env.WORKER_PROVIDER as SupportedProvider) || "openai";
   const filtered = [...argv];
 
   if (providerFlagIndex >= 0) {
@@ -30,10 +30,10 @@ function parseArgs(argv: string[]): Args {
   const [runId, role] = filtered;
 
   if (!runId || !role || !["frontend", "rust", "java", "mobile"].includes(role)) {
-    throw new Error("Usage: npm run worker:run -- <run-id> <frontend|rust|java|mobile> [--provider claude|manual]");
+    throw new Error("Usage: npm run worker:run -- <run-id> <frontend|rust|java|mobile> [--provider openai|claude|manual]");
   }
 
-  if (!["claude", "manual"].includes(provider)) {
+  if (!["openai", "claude", "manual"].includes(provider)) {
     throw new Error(`Unsupported provider: ${provider}`);
   }
 
@@ -57,8 +57,22 @@ function createResultJsonSchema() {
       verificationRun: { type: "array", items: { type: "string" } },
       risks: { type: "array", items: { type: "string" } },
       questions: { type: "array", items: { type: "string" } },
+      proposedEdits: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            path: { type: "string" },
+            action: { type: "string", enum: ["create", "update", "delete"] },
+            summary: { type: "string" },
+            instructions: { type: "array", items: { type: "string" } },
+          },
+          required: ["path", "action", "summary", "instructions"],
+        },
+      },
     },
-    required: ["role", "status", "changedFiles", "summary", "contractsChanged", "verificationRun", "risks", "questions"],
+    required: ["role", "status", "changedFiles", "summary", "contractsChanged", "verificationRun", "risks", "questions", "proposedEdits"],
   };
 }
 
@@ -91,6 +105,9 @@ function renderExecutionPrompt(runId: string, task: WorkerTaskPacket, resultPath
     `Contracts:`,
     ...task.contracts.map((item) => `- ${item}`),
     ``,
+    `Mandatory policy checks:`,
+    ...task.policyChecks.map((item) => `- ${item}`),
+    ``,
     `Required verification:`,
     ...task.requiredVerification.map((item) => `- ${item}`),
     ``,
@@ -99,6 +116,11 @@ function renderExecutionPrompt(runId: string, task: WorkerTaskPacket, resultPath
     `- Run relevant verification commands when possible.`,
     `- Return only JSON matching the provided schema.`,
     `- Use changedFiles as repository-relative paths.`,
+    `- proposedEdits must list the concrete file-by-file changes that should be applied in this repository.`,
+    `- Each proposedEdits item must include path, action, summary, and step-by-step instructions.`,
+    `- If no file change is needed, return proposedEdits as an empty array.`,
+    `- Treat every mandatory policy check as a hard requirement, not a suggestion.`,
+    `- If any policy check cannot be satisfied in your scope, set status to 'failed' or report the blocker clearly in risks/questions.`,
     `- Use status 'succeeded' only if your scoped work and verification are complete.`,
     `- Use status 'failed' if you were blocked or verification failed.`,
     `- Use status 'skipped' only if no code change was necessary.`,
@@ -122,9 +144,117 @@ function writeFailureResult(
     verificationRun: [],
     risks,
     questions,
+    proposedEdits: [],
   };
 
   fs.writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
+}
+
+function normalizeWorkerResult(
+  task: WorkerTaskPacket,
+  result: WorkerResultPacket,
+  provider: SupportedProvider,
+): WorkerResultPacket {
+  if (provider === "manual") {
+    return result;
+  }
+
+  if (result.status !== "running") {
+    return result;
+  }
+
+  const proposedEditCount = result.proposedEdits?.length ?? 0;
+  const changedFileCount = result.changedFiles?.length ?? 0;
+  const hasReadyWork = proposedEditCount > 0 || changedFileCount > 0;
+  if (!hasReadyWork) {
+    return result;
+  }
+
+  const existingSummary = result.summary.trim();
+  const normalizedSummary = existingSummary.includes("[normalized:")
+    ? existingSummary
+    : `${existingSummary} [normalized: proposed edits are ready, so workflow can continue to apply/verify.]`;
+
+  const risks = Array.from(
+    new Set([
+      ...result.risks,
+      `${task.role} worker originally returned status 'running'; orchestrator normalized it to 'succeeded' because concrete edits were produced.`,
+    ]),
+  );
+
+  return {
+    ...result,
+    status: "succeeded",
+    summary: normalizedSummary,
+    risks,
+  };
+}
+
+async function runOpenAIWorker(prompt: string, schema: ReturnType<typeof createResultJsonSchema>) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENAI_API_KEY is not set.");
+  }
+
+  const model = process.env.OPENAI_WORKER_MODEL || "gpt-4.1";
+  const response = await fetch(process.env.OPENAI_WORKER_API_URL || "https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      input: [
+        {
+          role: "system",
+          content:
+            "You are a coding worker for the Whiteboard Capture repository. Follow the task exactly. Return only valid JSON that matches the provided schema.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "worker_result",
+          strict: true,
+          schema,
+        },
+      },
+    }),
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    const message =
+      payload?.error?.message ||
+      payload?.message ||
+      `OpenAI API request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  const outputTextFromItems = Array.isArray(payload?.output)
+    ? payload.output
+        .flatMap((item: { content?: Array<{ type?: string; text?: string }> }) => item?.content ?? [])
+        .filter((item: { type?: string; text?: string }) => item?.type === "output_text" && typeof item.text === "string")
+        .map((item: { text?: string }) => item.text ?? "")
+        .join("\n")
+        .trim()
+    : "";
+
+  const outputText =
+    typeof payload?.output_text === "string" && payload.output_text.trim()
+      ? payload.output_text
+      : outputTextFromItems || undefined;
+
+  if (!outputText) {
+    throw new Error("OpenAI response did not contain output_text.");
+  }
+
+  return JSON.parse(outputText);
 }
 
 async function main() {
@@ -164,51 +294,71 @@ async function main() {
     return;
   }
 
-  const schema = JSON.stringify(createResultJsonSchema());
+  const resultJsonSchema = createResultJsonSchema();
+  const schema = JSON.stringify(resultJsonSchema);
   const prompt = renderExecutionPrompt(runId, task, resultPath);
-  const command = "claude";
-  const args = [
-    "--print",
-    "--output-format",
-    "json",
-    "--json-schema",
-    schema,
-    "--permission-mode",
-    "acceptEdits",
-    "--add-dir",
-    manifest.repoRoot,
-    prompt,
-  ];
+  let rawResult: unknown;
 
-  const child = spawnSync(command, args, {
-    cwd: manifest.repoRoot,
-    encoding: "utf8",
-    timeout: 20 * 60 * 1000,
-  });
+  if (provider === "openai") {
+    try {
+      rawResult = await runOpenAIWorker(prompt, resultJsonSchema);
+    } catch (error) {
+      writeFailureResult(
+        role,
+        resultPath,
+        `${role} worker OpenAI 실행에 실패했습니다.`,
+        [error instanceof Error ? error.message : String(error)],
+        ["OPENAI_API_KEY, 모델명, 네트워크 연결 상태를 확인하세요."],
+      );
+      throw error;
+    }
+  } else {
+    const command = "claude";
+    const args = [
+      "--print",
+      "--output-format",
+      "json",
+      "--json-schema",
+      schema,
+      "--permission-mode",
+      "acceptEdits",
+      "--add-dir",
+      manifest.repoRoot,
+    ];
 
-  if (child.error) {
-    writeFailureResult(
-      role,
-      resultPath,
-      `${role} worker CLI 실행에 실패했습니다.`,
-      [String(child.error.message)],
-      ["claude CLI 설치 또는 인증 상태를 확인하세요."],
-    );
-    throw child.error;
+    const child = spawnSync(command, args, {
+      cwd: manifest.repoRoot,
+      encoding: "utf8",
+      input: prompt,
+      timeout: 20 * 60 * 1000,
+    });
+
+    if (child.error) {
+      writeFailureResult(
+        role,
+        resultPath,
+        `${role} worker CLI 실행에 실패했습니다.`,
+        [String(child.error.message)],
+        ["claude CLI 설치 또는 인증 상태를 확인하세요."],
+      );
+      throw child.error;
+    }
+
+    if (child.status !== 0) {
+      writeFailureResult(
+        role,
+        resultPath,
+        `${role} worker CLI가 비정상 종료되었습니다.`,
+        [child.stderr?.trim() || child.stdout?.trim() || `signal=${child.signal ?? "none"}` || "unknown cli error"],
+        ["claude CLI 인증, 권한 모드, 워크스페이스 접근 권한을 확인하세요."],
+      );
+      throw new Error(child.stderr?.trim() || child.stdout?.trim() || `CLI exited with code ${child.status} signal=${child.signal ?? "none"}`);
+    }
+
+    rawResult = JSON.parse(child.stdout);
   }
 
-  if (child.status !== 0) {
-    writeFailureResult(
-      role,
-      resultPath,
-      `${role} worker CLI가 비정상 종료되었습니다.`,
-      [child.stderr?.trim() || "unknown cli error"],
-      ["claude CLI 인증, 권한 모드, 워크스페이스 접근 권한을 확인하세요."],
-    );
-    throw new Error(child.stderr?.trim() || `CLI exited with code ${child.status}`);
-  }
-
-  const parsed = workerResultPacketSchema.safeParse(JSON.parse(child.stdout));
+  const parsed = workerResultPacketSchema.safeParse(rawResult);
   if (!parsed.success) {
     writeFailureResult(
       role,
@@ -220,11 +370,11 @@ async function main() {
     throw new Error(parsed.error.message);
   }
 
-  const result: WorkerResultPacket = {
+  const normalized = normalizeWorkerResult(task, {
     ...parsed.data,
     role,
-  };
-  writeWorkerResult(manifest, result);
+  }, provider);
+  writeWorkerResult(manifest, normalized);
 
   console.log(`# Worker Run Complete`);
   console.log(`Run ID: ${runId}`);
@@ -232,10 +382,13 @@ async function main() {
   console.log(`Provider: ${provider}`);
   console.log(`Prompt: ${promptPath}`);
   console.log(`Result: ${resultPath}`);
-  console.log(`Status: ${result.status}`);
+  console.log(`Status: ${normalized.status}`);
 }
 
 main().catch((error) => {
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
 });
+
+
+

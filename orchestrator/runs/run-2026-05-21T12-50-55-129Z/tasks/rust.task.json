@@ -1,0 +1,49 @@
+{
+  "role": "rust",
+  "participationMode": "review",
+  "goal": "네이버 OAuth 2.0 로그인 도입에 따라 Rust 핫패스(backend-fast)의 JWT 검증 및 인증 경로 보호가 올바르게 동작하는지 검토하고, Java(Spring Boot)에서 발급한 JWT가 Rust에서 정상적으로 수용되는지 보장합니다.",
+  "allowedPaths": [
+    "backend-fast/**"
+  ],
+  "blockedPaths": [
+    "web/**",
+    "backend-core/**",
+    "mobile/**"
+  ],
+  "touchedAreas": [
+    "backend-fast/src/handlers.rs",
+    "backend-fast/src/services.rs",
+    "backend-fast/src/main.rs"
+  ],
+  "implementationSteps": [
+    "1. Java(Spring Boot)에서 네이버 OAuth 2.0 인증 및 JWT 발급 로직이 추가될 예정이므로, Rust에서 사용하는 JWT 파싱/검증 로직이 기존과 동일한 방식(alg, secret, claim 구조 등)으로 동작하는지 확인합니다.",
+    "2. backend-fast/src/services.rs 내 JWT 검증 함수가 Java에서 발급한 토큰(네이버 로그인 포함)을 올바르게 파싱하는지 테스트합니다. (예: iss, sub, exp, user_id 등 claim 구조 일치 여부)",
+    "3. backend-fast/src/handlers.rs에서 업로드, WebSocket 등 인증이 필요한 엔드포인트가 JWT 미포함/유효하지 않은 경우 401을 반환하는지 재확인합니다.",
+    "4. ALLOWED_WEB_ORIGINS, PUBLIC_BASE_URL 등 환경변수 기반 CORS 정책이 네이버 로그인 후 리다이렉트 플로우에도 문제없는지 점검합니다.",
+    "5. 필요시 README 또는 주석에 '네이버 OAuth 추가 시 JWT claim 구조 변경사항 없음' 등 리뷰 결과를 명시합니다."
+  ],
+  "dependencies": [
+    "Java(Spring Boot)에서 JWT 발급 방식이 변경될 경우(예: claim 추가/변경) Rust 쪽 파싱 로직도 반드시 동기화해야 함.",
+    ".env 및 환경변수(JWT_SECRET_KEY 등)는 Java와 Rust가 동일하게 유지되어야 함."
+  ],
+  "requiredVerification": [
+    ".skills/verify-fast.ps1",
+    ".skills/verify-core.ps1",
+    ".skills/verify-all.ps1"
+  ],
+  "contracts": [
+    "기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.",
+    "변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.",
+    "JWT_SECRET_KEY, ALLOWED_WEB_ORIGINS, PUBLIC_BASE_URL 계약을 유지합니다.",
+    "업로드 hot path와 websocket fan-out의 성능 특성을 해치지 않습니다.",
+    "JWT_SECRET_KEY, claim 구조, 만료 정책이 Spring 발급 토큰과 일치해야 합니다."
+  ],
+  "handoffOutput": [
+    "changed_files",
+    "summary",
+    "contracts_changed",
+    "verification_run",
+    "risks",
+    "questions"
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "request": "네이버 로그인 기능을 만들어줘",
+  "managerDecision": {
+    "summary": "네이버 로그인 기능을 만들어줘 요청에 대해 Java(Spring Boot)는 구현, Rust(backend-fast)는 리뷰, 웹 프론트엔드는 구현, 모바일(Android)은 리뷰 모드로 참여합니다. 최종 참여 수준은 프로젝트 강제 정책과 저장소 구조를 기준으로 정해졌습니다.",
+    "frontendMode": "implement",
+    "rustMode": "review",
+    "javaMode": "implement",
+    "mobileMode": "review",
+    "integrationNotes": [
+      "Java(Spring Boot)는 OAuth와 JWT 발급 로직을 구현해야 합니다.",
+      "Rust(backend-fast)는 JWT 검증과 업로드/웹소켓 인증 경로 호환성을 검토해야 합니다.",
+      "웹 프론트엔드는 로그인 UI와 인증 플로우 연동을 구현해야 합니다.",
+      "모바일(Android)은 모바일 로그인 진입점과 JWT 저장/복원 흐름 영향 여부를 검토해야 합니다."
+    ],
+    "exclusionReasons": {
+      "frontend": "",
+      "rust": "",
+      "java": "",
+      "mobile": ""
+    }
+  },
+  "verifierReport": {
+    "summary": "Finalized worker collection. Succeeded: frontend, rust, java / Pending: mobile",
+    "findings": [
+      "frontend: status=succeeded, changed_files=3, proposed_edits=3, verification=1",
+      "rust: status=succeeded, changed_files=2, proposed_edits=2, verification=2",
+      "java: status=succeeded, changed_files=6, proposed_edits=6, verification=1",
+      "mobile: status=pending, changed_files=0, proposed_edits=0, verification=0"
+    ],
+    "contractChecks": [
+      "JWT_SECRET_KEY, OAuth 클라이언트 정보 등 환경변수 계약이 명확히 유지되고 있습니다.",
+      "JWT 구조, 발급/검증 정책, 전달 방식(쿼리스트링/쿠키/로컬스토리지 등) 변경 시 반드시 master 세션에 보고하도록 명시되어 있습니다.",
+      "프론트엔드, 모바일, Rust, Java 모두 기존 인증 계약을 임의로 바꾸지 않도록 명확히 제한되어 있습니다.",
+      "모든 주요 변경점은 .skills/verify-*.ps1 스크립트로 자동 검증하도록 되어 있습니다."
+    ],
+    "recommendedVerification": [
+      ".skills/verify-web.ps1",
+      ".skills/verify-fast.ps1",
+      ".skills/verify-all.ps1",
+      ".skills/verify-core.ps1"
+    ],
+    "releaseBlockers": [
+      "mobile worker has not been executed yet."
+    ]
+  },
+  "taskPacketCount": 4,
+  "workerResultCount": 4
+}

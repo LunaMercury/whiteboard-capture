@@ -1,0 +1,54 @@
+{
+  "role": "frontend",
+  "participationMode": "implement",
+  "goal": "웹 프론트엔드에 네이버 소셜 로그인 버튼 및 인증 플로우 UI를 추가하고, Spring Boot 백엔드의 네이버 OAuth2 인증 엔드포인트와 연동한다.",
+  "allowedPaths": [
+    "web/**"
+  ],
+  "blockedPaths": [
+    "backend-fast/**",
+    "backend-core/**",
+    "mobile/**"
+  ],
+  "touchedAreas": [
+    "web/src/components/Login.tsx",
+    "web/src/components/Login.module.css"
+  ],
+  "implementationSteps": [
+    "1. 네이버 로그인 버튼 UI를 Login.tsx에 추가한다. (공식 네이버 CI 가이드에 맞는 버튼 디자인 적용, Login.module.css에 스타일 추가)",
+    "2. 네이버 로그인 버튼 클릭 시, Spring Boot 백엔드의 네이버 OAuth2 인증 엔드포인트(예: /oauth2/authorization/naver)로 리다이렉트한다. (window.location.href 사용)",
+    "3. 인증 성공 후 백엔드에서 JWT를 발급받아 리다이렉트될 때, 프론트엔드가 JWT를 URL 파라미터 또는 쿠키/로컬스토리지로 수신하도록 처리한다. (예: /login/oauth2/code/naver?token=...)",
+    "4. JWT 토큰을 안전하게 저장하고, 로그인 상태를 관리한다. (기존 로그인 플로우와 동일하게 처리)",
+    "5. 로그인 성공 시 대시보드로 이동하도록 라우팅 처리한다.",
+    "6. (선택) 네이버 로그인 진행 중 로딩 상태/에러 메시지 UI를 추가한다.",
+    "7. 접근성 및 보안(클릭재킹 방지, XSS 등) 점검 후 마무리한다."
+  ],
+  "dependencies": [
+    "Spring Boot 백엔드의 네이버 OAuth2 인증 엔드포인트가 정상적으로 동작해야 함 (backend-core 구현 필요)",
+    "JWT 발급 및 리다이렉트 URL 규약이 백엔드와 합의되어야 함"
+  ],
+  "requiredVerification": [
+    ".skills/verify-web.ps1"
+  ],
+  "contracts": [
+    "기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.",
+    "변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.",
+    "VITE_API_BASE_URL, VITE_REALTIME_WS_URL 계약을 유지합니다.",
+    "백엔드 메시지 포맷과 JWT 전달 방식을 합의 없이 바꾸지 않습니다.",
+    "로그인 버튼, OAuth redirect, JWT 저장 방식은 백엔드와 합의된 계약만 사용합니다."
+  ],
+  "policyChecks": [
+    "JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인",
+    "OAuth redirect URI와 토큰 전달 방식 합의 여부 확인",
+    "HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인",
+    "JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인"
+  ],
+  "handoffOutput": [
+    "changed_files",
+    "summary",
+    "contracts_changed",
+    "verification_run",
+    "risks",
+    "questions"
+  ]
+}

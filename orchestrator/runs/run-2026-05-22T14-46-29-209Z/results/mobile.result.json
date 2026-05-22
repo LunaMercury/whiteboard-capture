@@ -1,0 +1,13 @@
+{
+  "role": "mobile",
+  "status": "skipped",
+  "changedFiles": [],
+  "summary": "네이버 소셜 로그인(OAuth 2.0) 지원에 대해 모바일(Android) 모듈 관점에서 정책 및 아키텍처 호환성 리뷰를 수행했습니다. 현재 Android 앱에서 네이버 로그인이 요구되지 않아 직접 구현 사항은 없었으나, 모바일에서 향후 동일 JWT 수신 및 저장 방식, 인증 흐름이 Google 소셜 로그인 구조와 동일하게 확장 가능함을 확인했습니다. 모든 계약, 환경변수, JWT 구조 및 정책이 기존과 호환됨을 검증하였고, 추가 코드 변경은 필요하지 않습니다.",
+  "contractsChanged": [],
+  "verificationRun": [
+    ".skills/verify-mobile.ps1"
+  ],
+  "risks": [],
+  "questions": [],
+  "proposedEdits": []
+}

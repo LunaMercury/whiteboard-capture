@@ -1,0 +1,25 @@
+{
+  "role": "rust",
+  "status": "succeeded",
+  "changedFiles": [],
+  "summary": "검토 결과, Rust 쪽 JWT 검증 로직(handlers.rs, services.rs)은 이미 provider, user_id 등을 payload 필드로 기대하며, 네이버 OAuth2 로그인 대응을 위해 별도 추가 코드 변경이 필요하지 않음을 확인했습니다. JWT_SECRET_KEY 등 환경 변수 명 및 구조도 contract 기준과 일치하며, 불일치시 계약 변경 필요함을 마스터에 보고함이 적절합니다. JWT 파싱·검증 실패시 error log/response도 이미 구현되어 있습니다. 통합 테스트는 Java(Spring) 측 발급 네이버 JWT를 이용해 실행되어야 하며, Rust만으로 일관성·보안에 문제가 발견되지 않았습니다.",
+  "contractsChanged": [],
+  "verificationRun": [
+    ".skills/verify-fast.ps1",
+    ".skills/verify-core.ps1",
+    ".skills/verify-all.ps1"
+  ],
+  "risks": [
+    "Java(Spring) 측에서 JWT claim/user_id/provider 구조가 Rust와 완전히 일치하지 않으면 인증에 실패할 위험이 있습니다.",
+    "JWT_SECRET_KEY가 양쪽 환경에서 서로 다르다면 인증이 정상작동하지 않습니다.",
+    "실제 네이버 OAuth2를 통해 받은 JWT로 통합 엔드투엔드 테스트 필요(이 부분은 Java 및 DEVOPS 담당 영역임)",
+    "만약 Java(Spring)에서 claim 구조를 임의로 바꾼다면 contract 변경 승인 및 반영 필요"
+  ],
+  "questions": [
+    "Java(Spring) 발급 JWT의 claim 구조 예시(JSON)를 공유받을 수 있습니까? (user_id, provider, exp, iat, etc.)",
+    "새 provider(navver 등) 추가 시 혹시 claim 내 필수/옵셔널 필드에 변경이 있으십니까?",
+    "토큰 만료(exp) 정책이 Rust 및 Java에서 명확하게 일치합니까?",
+    "JWT 전달(Http Authorization 헤더 bearer) 규약에 변동 사항이 있습니까?"
+  ],
+  "proposedEdits": []
+}

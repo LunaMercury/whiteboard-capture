@@ -1,0 +1,52 @@
+{
+  "request": "네이버 로그인 기능을 만들어줘",
+  "managerDecision": {
+    "summary": "네이버 로그인 기능을 만들어줘 요청에 대해 Java(Spring Boot)는 구현, Rust(backend-fast)는 리뷰, 웹 프론트엔드는 구현, 모바일(Android)은 리뷰 모드로 참여합니다. 최종 참여 수준은 프로젝트 강제 정책과 저장소 구조를 기준으로 정해졌습니다.",
+    "frontendMode": "implement",
+    "rustMode": "review",
+    "javaMode": "implement",
+    "mobileMode": "review",
+    "integrationNotes": [
+      "Java(Spring Boot)는 OAuth와 JWT 발급 로직을 구현해야 합니다.",
+      "Rust(backend-fast)는 JWT 검증과 업로드/웹소켓 인증 경로 호환성을 검토해야 합니다.",
+      "웹 프론트엔드는 로그인 UI와 인증 플로우 연동을 구현해야 합니다.",
+      "모바일(Android)은 모바일 로그인 진입점과 JWT 저장/복원 흐름 영향 여부를 검토해야 합니다."
+    ],
+    "exclusionReasons": {
+      "frontend": "",
+      "rust": "",
+      "java": "",
+      "mobile": ""
+    }
+  },
+  "verifierReport": {
+    "summary": "Finalized worker collection. Succeeded: frontend, rust, java",
+    "findings": [
+      "frontend: status=succeeded, changed_files=2, proposed_edits=2, verification=1",
+      "rust: status=succeeded, changed_files=0, proposed_edits=0, verification=3",
+      "java: status=succeeded, changed_files=6, proposed_edits=6, verification=1",
+      "mobile: status=skipped, changed_files=0, proposed_edits=0, verification=1"
+    ],
+    "contractChecks": [
+      "JWT_SECRET_KEY, claim 구조, 만료 정책이 Spring과 Rust에서 완전히 동기화되어야 함 (security_guidelines.md, backend_core_context.md, backend_fast_context.md 기준).",
+      "OAuth redirect URI, JWT 전달 방식(쿼리파라미터/쿠키 등)은 프론트엔드와 백엔드가 합의해야 하며, 변경 시 반드시 계약 변경 보고 필요.",
+      "프론트엔드의 JWT 저장 위치(로컬스토리지/쿠키 등)는 security_guidelines.md의 XSS/CSRF 방지 기준을 따라야 함.",
+      "네이버 OAuth2 클라이언트 정보 등 민감 정보는 .env/application.properties 등 안전한 경로에만 저장해야 하며, 코드/프론트엔드에 노출 금지.",
+      "모든 인증 관련 작업은 Java(Spring) 구현, Rust 리뷰, 모바일 리뷰가 반드시 포함되어야 하며, 정책상 생략 불가.",
+      "JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인",
+      "OAuth redirect URI와 토큰 전달 방식 합의 여부 확인",
+      "HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인",
+      "JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인"
+    ],
+    "recommendedVerification": [
+      ".skills/verify-web.ps1",
+      ".skills/verify-fast.ps1",
+      ".skills/verify-core.ps1",
+      ".skills/verify-all.ps1",
+      ".skills/verify-mobile.ps1"
+    ],
+    "releaseBlockers": []
+  },
+  "taskPacketCount": 4,
+  "workerResultCount": 4
+}

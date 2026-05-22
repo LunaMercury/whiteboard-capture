@@ -14,6 +14,7 @@
     "runner:execute": "tsx src/runnerExecute.ts",
     "runner:workflow": "tsx src/runnerWorkflow.ts",
     "runner:finalize": "tsx src/runnerFinalize.ts",
+    "runner:review": "tsx src/applyReview.ts",
     "worker:prepare": "tsx src/workerExecutor.ts",
     "worker:run": "tsx src/workerRun.ts",
     "worker:handoff": "tsx src/workerHandoff.ts",

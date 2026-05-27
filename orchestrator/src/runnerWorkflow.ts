@@ -366,6 +366,22 @@ function updateWorkerResultWithVerificationFailure(
   writeWorkerResult(manifest, next);
 }
 
+function updateWorkerResultWithApplyReviewFailure(
+  manifest: ReturnType<typeof readRunnerManifest>,
+  role: WorkerTaskPacket["role"],
+  failureMessage: string,
+) {
+  const existing = readWorkerResult(manifest, role);
+  const risks = Array.from(new Set([...existing.risks, `Apply review blocked: ${failureMessage}`]));
+
+  writeWorkerResult(manifest, {
+    ...existing,
+    status: "failed",
+    summary: `${existing.summary} Apply review blocked before file changes.`,
+    risks,
+  });
+}
+
 function runVerificationScript(
   manifest: ReturnType<typeof readRunnerManifest>,
   role: WorkerTaskPacket["role"],
@@ -530,6 +546,15 @@ function getTrackedPaths(repoRoot: string, pathspecs: string[]) {
 
 function rollbackWorktree(manifest: ReturnType<typeof readRunnerManifest>, pathspecs: string[]) {
   const uniquePathspecs = Array.from(new Set(pathspecs)).filter(Boolean);
+  if (uniquePathspecs.length === 0) {
+    return {
+      restore: { stdout: "", stderr: "", status: 0, signal: null } as ReturnType<typeof runCommand>,
+      clean: { stdout: "", stderr: "", status: 0, signal: null } as ReturnType<typeof runCommand>,
+      finalStatus: "",
+      succeeded: true,
+    };
+  }
+
   const trackedPaths = getTrackedPaths(manifest.repoRoot, uniquePathspecs);
   const restore = trackedPaths.length > 0
     ? runCommand("git", ["restore", "--worktree", "--staged", "--", ...trackedPaths], manifest.repoRoot)
@@ -605,6 +630,7 @@ async function main() {
   };
   let workflowExitCode = 0;
   const rollbackPathspecs: string[] = [];
+  const appliedRoles = new Set<WorkerTaskPacket["role"]>();
   let rollbackCompleted = false;
 
   function performRollback() {
@@ -736,6 +762,11 @@ async function main() {
 
       if (applyReviewRun.status !== 0) {
         console.error(`apply:review ${worker.role} blocked or failed with exit code ${applyReviewRun.status}`);
+        const failureMessage =
+          applyReviewRun.stderr?.trim() ||
+          applyReviewRun.stdout?.trim() ||
+          `apply review exited with code ${applyReviewRun.status ?? "unknown"}`;
+        updateWorkerResultWithApplyReviewFailure(manifest, worker.role, failureMessage);
         if (!continueOnError) {
           if (rollbackAfterVerify) {
             workflowExitCode = applyReviewRun.status ?? 1;
@@ -786,6 +817,11 @@ async function main() {
             process.exit(applyRun.status ?? 1);
           }
         }
+      } else {
+        const resultAfterApply = readWorkerResult(manifest, worker.role);
+        if (resultAfterApply.status === "succeeded" && (resultAfterApply.changedFiles?.length ?? 0) > 0) {
+          appliedRoles.add(worker.role);
+        }
       }
 
       if (rollbackAfterVerify) {
@@ -810,11 +846,21 @@ async function main() {
   }
 
   console.log("## Running verification");
+  const verificationWorkers = skipWorkers
+    ? targetWorkers
+    : targetWorkers.filter((worker) => appliedRoles.has(worker.role));
+
   if (!applyEdits && !skipWorkers) {
     console.log("Skipping verification: no files were applied. Re-run with --apply to modify files and verify them.");
     console.log("");
   }
-  for (const worker of applyEdits || skipWorkers ? targetWorkers : []) {
+
+  if (applyEdits && !skipWorkers && verificationWorkers.length === 0) {
+    console.log("Skipping verification: no worker edits were applied.");
+    console.log("");
+  }
+
+  for (const worker of applyEdits || skipWorkers ? verificationWorkers : []) {
     const result = readWorkerResult(manifest, worker.role);
     if (result.status !== "succeeded") {
       console.log(`Skipping verification for ${worker.role}: worker status is ${result.status}.`);

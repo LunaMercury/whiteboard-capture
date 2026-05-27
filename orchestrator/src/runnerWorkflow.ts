@@ -576,6 +576,43 @@ async function main() {
   };
   let workflowExitCode = 0;
   const rollbackPathspecs: string[] = [];
+  let rollbackCompleted = false;
+
+  function performRollback() {
+    if (!rollbackAfterVerify || rollbackCompleted) {
+      return;
+    }
+
+    console.log("## Rolling back applied edits");
+    const finalSnapshot = captureGitSnapshot(manifest, "after-verification-before-rollback");
+    rollbackSummary.snapshots.push({
+      label: "after-verification-before-rollback",
+      diffPath: runRelativePath(manifest, finalSnapshot.diffPath),
+      statusPath: runRelativePath(manifest, finalSnapshot.statusPath),
+      diffTruncated: finalSnapshot.diffWrite.truncated,
+      statusTruncated: finalSnapshot.statusWrite.truncated,
+    });
+
+    const rollback = rollbackWorktree(manifest, rollbackPathspecs);
+    printChildOutput(rollback.restore, "rollback restore");
+    printChildOutput(rollback.clean, "rollback clean");
+    rollbackSummary.rollback = {
+      restoreStatus: rollback.restore.status,
+      cleanStatus: rollback.clean.status,
+      finalWorktreeClean: rollback.succeeded,
+      finalStatus: rollback.finalStatus,
+    };
+    writeJson(path.join(getWorkflowDirs(manifest).metaDir, "rollback-summary.json"), rollbackSummary);
+    rollbackCompleted = true;
+
+    console.log(`Rollback status: ${rollback.succeeded ? "succeeded" : "failed"}`);
+    console.log(`Rollback summary: ${path.join(getWorkflowDirs(manifest).metaDir, "rollback-summary.json")}`);
+    if (!rollback.succeeded) {
+      console.error(rollback.finalStatus || "Rollback failed but no git status output was available.");
+      workflowExitCode = workflowExitCode || 1;
+    }
+    console.log("");
+  }
 
   if (rollbackAfterVerify) {
     const beforeSnapshot = captureGitSnapshot(manifest, "before-apply");
@@ -588,6 +625,7 @@ async function main() {
     });
   }
 
+  try {
   if (skipWorkers) {
     console.log("## Worker/apply stage skipped");
     console.log("Using existing worker result packets for verification and finalization.");
@@ -827,37 +865,11 @@ async function main() {
     }
   }
 
-  if (rollbackAfterVerify) {
-    console.log("## Rolling back applied edits");
-    const finalSnapshot = captureGitSnapshot(manifest, "after-verification-before-rollback");
-    rollbackSummary.snapshots.push({
-      label: "after-verification-before-rollback",
-      diffPath: runRelativePath(manifest, finalSnapshot.diffPath),
-      statusPath: runRelativePath(manifest, finalSnapshot.statusPath),
-      diffTruncated: finalSnapshot.diffWrite.truncated,
-      statusTruncated: finalSnapshot.statusWrite.truncated,
-    });
-
-    const rollback = rollbackWorktree(manifest, rollbackPathspecs);
-    printChildOutput(rollback.restore, "rollback restore");
-    printChildOutput(rollback.clean, "rollback clean");
-    rollbackSummary.rollback = {
-      restoreStatus: rollback.restore.status,
-      cleanStatus: rollback.clean.status,
-      finalWorktreeClean: rollback.succeeded,
-      finalStatus: rollback.finalStatus,
-    };
-    writeJson(path.join(getWorkflowDirs(manifest).metaDir, "rollback-summary.json"), rollbackSummary);
-
-    console.log(`Rollback status: ${rollback.succeeded ? "succeeded" : "failed"}`);
-    console.log(`Rollback summary: ${path.join(getWorkflowDirs(manifest).metaDir, "rollback-summary.json")}`);
-    if (!rollback.succeeded) {
-      console.error(rollback.finalStatus || "Rollback failed but no git status output was available.");
-      if (!continueOnError) {
-        process.exit(1);
-      }
-    }
-    console.log("");
+  } catch (error) {
+    workflowExitCode = workflowExitCode || 1;
+    console.error(error instanceof Error ? error.message : error);
+  } finally {
+    performRollback();
   }
 
   console.log("## Collecting results");

@@ -50,10 +50,63 @@ function isBlockedPath(filePath: string, task: WorkerTaskPacket) {
   return task.blockedPaths.some((rule) => matchesPathRule(filePath, rule));
 }
 
+const dependencyManifestFiles = new Set([
+  "package.json",
+  "package-lock.json",
+  "pnpm-lock.yaml",
+  "yarn.lock",
+  "build.gradle",
+  "settings.gradle",
+  "gradle.properties",
+  "Cargo.toml",
+  "Cargo.lock",
+  "pom.xml",
+]);
+
+const dependencySignalPatterns = [
+  /\badd\s+(?:a\s+)?(?:new\s+)?dependenc(?:y|ies)\b/i,
+  /\binstall\s+(?:a\s+)?(?:new\s+)?(?:package|dependenc(?:y|ies)|library)\b/i,
+  /npm\s+install/i,
+  /yarn\s+add/i,
+  /pnpm\s+add/i,
+  /\bgradle\s+dependenc/i,
+  /\badd\s+crate\b/i,
+  /\badd\s+(?:a\s+)?(?:new\s+)?library\b/i,
+  /react-router-dom/i,
+  /spring-boot-starter/i,
+  /redis/i,
+];
+
+const dependencyNegationPatterns = [
+  /do\s+not\s+add\s+(?:a\s+)?(?:new\s+)?dependenc(?:y|ies)/i,
+  /without\s+adding\s+(?:a\s+)?(?:new\s+)?dependenc(?:y|ies)/i,
+  /no\s+(?:new\s+)?dependenc(?:y|ies)/i,
+];
+
+function isDependencyManifestPath(filePath: string) {
+  const normalizedPath = normalizePath(filePath);
+  const baseName = normalizedPath.split("/").at(-1) ?? normalizedPath;
+  return dependencyManifestFiles.has(baseName);
+}
+
+function textMentionsDependencyChange(text: string) {
+  if (dependencyNegationPatterns.some((pattern) => pattern.test(text))) {
+    return false;
+  }
+
+  return dependencySignalPatterns.some((pattern) => pattern.test(text));
+}
+
+function editMentionsDependencyChange(edit: { summary: string; instructions: string[] }) {
+  return textMentionsDependencyChange([edit.summary, ...edit.instructions].join("\n"));
+}
+
 function buildDecision(runId: string, task: WorkerTaskPacket, result: ReturnType<typeof readWorkerResult>): ApplyReviewDecision {
   const findings: string[] = [];
   const blockedReasons: string[] = [];
   const approvedEdits: string[] = [];
+  let dependencyManifestEditCount = 0;
+  let dependencySignalCount = 0;
 
   if (result.status !== "succeeded") {
     blockedReasons.push(`Worker status is ${result.status}, not succeeded.`);
@@ -77,10 +130,28 @@ function buildDecision(runId: string, task: WorkerTaskPacket, result: ReturnType
     if (allowed && !blocked) {
       approvedEdits.push(edit.path);
     }
+    if (isDependencyManifestPath(editPath)) {
+      dependencyManifestEditCount += 1;
+    }
+    if (editMentionsDependencyChange(edit)) {
+      dependencySignalCount += 1;
+    }
   }
 
   if (result.contractsChanged.length > 0) {
     blockedReasons.push(`Worker reported contract changes: ${result.contractsChanged.join("; ")}`);
+  }
+
+  if (dependencyManifestEditCount > 0) {
+    blockedReasons.push(
+      "Dependency manifest or build file edits require explicit manual approval before apply.",
+    );
+  }
+
+  if (dependencySignalCount > 0 && result.contractsChanged.length === 0) {
+    blockedReasons.push(
+      "Worker proposed or implied dependency changes without reporting contractsChanged/questions.",
+    );
   }
 
   if (task.requiredVerification.length === 0) {

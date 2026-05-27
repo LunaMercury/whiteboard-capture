@@ -98,6 +98,15 @@ function runNodeScript(scriptPath: string, scriptArgs: string[], cwd: string) {
   });
 }
 
+function runNodeScriptInherited(scriptPath: string, scriptArgs: string[], cwd: string) {
+  const tsxCliPath = path.join(cwd, "node_modules", "tsx", "dist", "cli.mjs");
+  return spawnSync(process.execPath, [tsxCliPath, scriptPath, ...scriptArgs], {
+    cwd,
+    encoding: "utf8",
+    stdio: "inherit",
+  });
+}
+
 function printChildOutput(child: ReturnType<typeof runNodeScript>, label: string) {
   if (child.stdout?.trim()) {
     console.log(child.stdout.trim());
@@ -161,27 +170,27 @@ async function main() {
 
   console.log("");
   console.log("## Running workflow");
-  const workflow = runNodeScript(
-    path.join("src", "runnerWorkflow.ts"),
-    [runId, ...args.workflowArgs],
-    orchestratorRoot,
-  );
   if (args.compact) {
-    printChildSummary(workflow, "runner:workflow");
-    const rollbackSummary = workflow.stdout?.match(/Rollback summary:\s*(.+)/)?.[1]?.trim();
-    const report = workflow.stdout?.match(/Report:\s*(.+)/)?.[1]?.trim();
-    if (rollbackSummary) {
-      console.log(`Rollback summary: ${rollbackSummary}`);
-    }
-    if (report) {
-      console.log(`Report: ${report}`);
+    const workflow = runNodeScriptInherited(
+      path.join("src", "runnerWorkflow.ts"),
+      [runId, ...args.workflowArgs],
+      orchestratorRoot,
+    );
+    console.log(`runner:workflow: exit=${workflow.status ?? "null"}`);
+    if (workflow.status !== 0) {
+      process.exit(workflow.status ?? 1);
     }
   } else {
+    const workflow = runNodeScript(
+      path.join("src", "runnerWorkflow.ts"),
+      [runId, ...args.workflowArgs],
+      orchestratorRoot,
+    );
     printChildOutput(workflow, "runner:workflow");
-  }
 
-  if (workflow.status !== 0) {
-    process.exit(workflow.status ?? 1);
+    if (workflow.status !== 0) {
+      process.exit(workflow.status ?? 1);
+    }
   }
 }
 

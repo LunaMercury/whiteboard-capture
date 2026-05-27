@@ -643,6 +643,20 @@ async function main() {
     console.log("");
   }
 
+  function handleTermination(signal: NodeJS.Signals) {
+    console.error(`Received ${signal}. Attempting rollback before exit.`);
+    try {
+      performRollback();
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+    process.exit(workflowExitCode || 130);
+  }
+
+  process.once("SIGINT", handleTermination);
+  process.once("SIGTERM", handleTermination);
+
   if (rollbackAfterVerify) {
     const beforeSnapshot = captureGitSnapshot(manifest, "before-apply");
     rollbackSummary.snapshots.push({

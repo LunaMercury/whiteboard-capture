@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResult, readWorkerTask, writeWorkerResult } from "./packetStore.js";
 import { workerResultPacketSchema, type WorkerResultPacket } from "./resultSchemas.js";
 import type { WorkerTaskPacket } from "./taskSchemas.js";
+import { withOpenAIRetry } from "./openaiRetry.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -199,64 +200,69 @@ async function runOpenAIWorker(prompt: string, schema: ReturnType<typeof createR
   }
 
   const model = process.env.OPENAI_WORKER_MODEL || "gpt-4.1";
-  const response = await fetch(process.env.OPENAI_WORKER_API_URL || "https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      input: [
-        {
-          role: "system",
-          content:
-            "You are a coding worker for the Whiteboard Capture repository. Follow the task exactly. Return only valid JSON that matches the provided schema.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "worker_result",
-          strict: true,
-          schema,
-        },
+  return withOpenAIRetry("OpenAI worker", async () => {
+    const response = await fetch(process.env.OPENAI_WORKER_API_URL || "https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
       },
-    }),
+      body: JSON.stringify({
+        model,
+        input: [
+          {
+            role: "system",
+            content:
+              "You are a coding worker for the Whiteboard Capture repository. Follow the task exactly. Return only valid JSON that matches the provided schema.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "worker_result",
+            strict: true,
+            schema,
+          },
+        },
+      }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok) {
+      const retryAfter = response.headers.get("retry-after");
+      const message =
+        payload?.error?.message ||
+        payload?.message ||
+        `OpenAI API request failed with status ${response.status}`;
+      const error = new Error(retryAfter ? `${message} retry-after=${retryAfter}s` : message) as Error & { status?: number };
+      error.status = response.status;
+      throw error;
+    }
+
+    const outputTextFromItems = Array.isArray(payload?.output)
+      ? payload.output
+          .flatMap((item: { content?: Array<{ type?: string; text?: string }> }) => item?.content ?? [])
+          .filter((item: { type?: string; text?: string }) => item?.type === "output_text" && typeof item.text === "string")
+          .map((item: { text?: string }) => item.text ?? "")
+          .join("\n")
+          .trim()
+      : "";
+
+    const outputText =
+      typeof payload?.output_text === "string" && payload.output_text.trim()
+        ? payload.output_text
+        : outputTextFromItems || undefined;
+
+    if (!outputText) {
+      throw new Error("OpenAI response did not contain output_text.");
+    }
+
+    return JSON.parse(outputText);
   });
-
-  const payload = await response.json();
-  if (!response.ok) {
-    const message =
-      payload?.error?.message ||
-      payload?.message ||
-      `OpenAI API request failed with status ${response.status}`;
-    throw new Error(message);
-  }
-
-  const outputTextFromItems = Array.isArray(payload?.output)
-    ? payload.output
-        .flatMap((item: { content?: Array<{ type?: string; text?: string }> }) => item?.content ?? [])
-        .filter((item: { type?: string; text?: string }) => item?.type === "output_text" && typeof item.text === "string")
-        .map((item: { text?: string }) => item.text ?? "")
-        .join("\n")
-        .trim()
-    : "";
-
-  const outputText =
-    typeof payload?.output_text === "string" && payload.output_text.trim()
-      ? payload.output_text
-      : outputTextFromItems || undefined;
-
-  if (!outputText) {
-    throw new Error("OpenAI response did not contain output_text.");
-  }
-
-  return JSON.parse(outputText);
 }
 
 async function main() {

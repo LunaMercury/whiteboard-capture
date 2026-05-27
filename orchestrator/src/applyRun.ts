@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { readRunnerManifest, readWorkerResult, writeWorkerResult } from "./packetStore.js";
 import { applyPacketSchema, type ApplyPacket } from "./applySchemas.js";
+import { withOpenAIRetry } from "./openaiRetry.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -180,60 +181,66 @@ async function runOpenAIApply(prompt: string) {
     required: ["status", "summary", "changedFiles", "verificationRun", "risks", "questions", "fileEdits"],
   };
 
-  const response = await fetch(process.env.OPENAI_WORKER_API_URL || "https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_APPLY_MODEL || process.env.OPENAI_WORKER_MODEL || "gpt-4.1",
-      input: [
-        {
-          role: "system",
-          content:
-            "You are a coding apply executor for the Whiteboard Capture repository. Produce exact final file contents and return only valid JSON.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "apply_execution",
-          strict: true,
-          schema,
-        },
+  return withOpenAIRetry("OpenAI apply", async () => {
+    const response = await fetch(process.env.OPENAI_WORKER_API_URL || "https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
       },
-    }),
+      body: JSON.stringify({
+        model: process.env.OPENAI_APPLY_MODEL || process.env.OPENAI_WORKER_MODEL || "gpt-4.1",
+        input: [
+          {
+            role: "system",
+            content:
+              "You are a coding apply executor for the Whiteboard Capture repository. Produce exact final file contents and return only valid JSON.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "apply_execution",
+            strict: true,
+            schema,
+          },
+        },
+      }),
+    });
+
+    const payload = await response.json();
+    if (!response.ok) {
+      const retryAfter = response.headers.get("retry-after");
+      const message = payload?.error?.message || `OpenAI apply request failed with status ${response.status}`;
+      const error = new Error(retryAfter ? `${message} retry-after=${retryAfter}s` : message) as Error & { status?: number };
+      error.status = response.status;
+      throw error;
+    }
+
+    const outputTextFromItems = Array.isArray(payload?.output)
+      ? payload.output
+          .flatMap((item: { content?: Array<{ type?: string; text?: string }> }) => item?.content ?? [])
+          .filter((item: { type?: string; text?: string }) => item?.type === "output_text" && typeof item.text === "string")
+          .map((item: { text?: string }) => item.text ?? "")
+          .join("\n")
+          .trim()
+      : "";
+
+    const outputText =
+      typeof payload?.output_text === "string" && payload.output_text.trim()
+        ? payload.output_text
+        : outputTextFromItems || undefined;
+
+    if (!outputText) {
+      throw new Error("OpenAI apply response did not contain output_text.");
+    }
+
+    return applyExecutionSchema.parse(JSON.parse(outputText));
   });
-
-  const payload = await response.json();
-  if (!response.ok) {
-    throw new Error(payload?.error?.message || `OpenAI apply request failed with status ${response.status}`);
-  }
-
-  const outputTextFromItems = Array.isArray(payload?.output)
-    ? payload.output
-        .flatMap((item: { content?: Array<{ type?: string; text?: string }> }) => item?.content ?? [])
-        .filter((item: { type?: string; text?: string }) => item?.type === "output_text" && typeof item.text === "string")
-        .map((item: { text?: string }) => item.text ?? "")
-        .join("\n")
-        .trim()
-    : "";
-
-  const outputText =
-    typeof payload?.output_text === "string" && payload.output_text.trim()
-      ? payload.output_text
-      : outputTextFromItems || undefined;
-
-  if (!outputText) {
-    throw new Error("OpenAI apply response did not contain output_text.");
-  }
-
-  return applyExecutionSchema.parse(JSON.parse(outputText));
 }
 
 function writeExecutionArtifacts(manifestRunDir: string, role: string, prompt: string, execution: ApplyExecution) {

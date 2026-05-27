@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResult, readWorkerTask, writeWorkerResult } from "./packetStore.js";
@@ -23,6 +23,7 @@ type Args = {
   skipWorkers: boolean;
   verifyAll: boolean;
   skipFinalize: boolean;
+  concurrency: number;
 };
 
 const primaryVerificationByRole: Record<WorkerTaskPacket["role"], string> = {
@@ -44,6 +45,7 @@ function parseArgs(argv: string[]): Args {
   let skipWorkers = false;
   let verifyAll = false;
   let skipFinalize = false;
+  let concurrency = Number.parseInt(process.env.RUNNER_CONCURRENCY || "1", 10);
 
   for (let index = 0; index < argv.length; index += 1) {
     const item = argv[index];
@@ -93,6 +95,11 @@ function parseArgs(argv: string[]): Args {
       skipFinalize = true;
       continue;
     }
+    if (item === "--concurrency") {
+      concurrency = Number.parseInt(argv[index + 1] || "1", 10);
+      index += 1;
+      continue;
+    }
     remaining.push(item);
   }
 
@@ -100,7 +107,7 @@ function parseArgs(argv: string[]): Args {
 
   if (!runId) {
     throw new Error(
-      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual] [--apply-provider openai|manual] [--roles frontend,java] [--apply] [--allow-dirty] [--apply-review] [--continue-on-error] [--skip-workers] [--verify-all] [--skip-finalize]",
+      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual] [--apply-provider openai|manual] [--roles frontend,java] [--concurrency 2] [--apply] [--allow-dirty] [--apply-review] [--continue-on-error] [--skip-workers] [--verify-all] [--skip-finalize]",
     );
   }
 
@@ -116,8 +123,17 @@ function parseArgs(argv: string[]): Args {
     skipWorkers,
     verifyAll,
     skipFinalize,
+    concurrency: Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 1,
   };
 }
+
+type ChildResult = {
+  stdout: string;
+  stderr: string;
+  status: number | null;
+  signal: NodeJS.Signals | null;
+  error?: Error;
+};
 
 function runNodeScript(scriptPath: string, scriptArgs: string[], cwd: string) {
   const tsxCliPath = path.join(cwd, "node_modules", "tsx", "dist", "cli.mjs");
@@ -125,6 +141,36 @@ function runNodeScript(scriptPath: string, scriptArgs: string[], cwd: string) {
     cwd,
     encoding: "utf8",
     stdio: "pipe",
+  });
+}
+
+function runNodeScriptAsync(scriptPath: string, scriptArgs: string[], cwd: string): Promise<ChildResult> {
+  const tsxCliPath = path.join(cwd, "node_modules", "tsx", "dist", "cli.mjs");
+
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [tsxCliPath, scriptPath, ...scriptArgs], {
+      cwd,
+      stdio: "pipe",
+    });
+
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+    let spawnError: Error | undefined;
+
+    child.stdout.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
+    child.stderr.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
+    child.on("error", (error) => {
+      spawnError = error;
+    });
+    child.on("close", (status, signal) => {
+      resolve({
+        stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+        stderr: Buffer.concat(stderrChunks).toString("utf8"),
+        status,
+        signal,
+        error: spawnError,
+      });
+    });
   });
 }
 
@@ -136,7 +182,7 @@ function runCommand(command: string, args: string[], cwd: string) {
   });
 }
 
-function printChildOutput(child: ReturnType<typeof runNodeScript>, label: string) {
+function printChildOutput(child: ChildResult | ReturnType<typeof runNodeScript>, label: string) {
   if (child.stdout?.trim()) {
     console.log(child.stdout.trim());
   }
@@ -149,6 +195,28 @@ function printChildOutput(child: ReturnType<typeof runNodeScript>, label: string
   if (child.signal) {
     console.error(`${label} signal: ${child.signal}`);
   }
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<R>,
+) {
+  const results = new Map<T, R>();
+  let nextIndex = 0;
+  const workerCount = Math.min(concurrency, items.length);
+
+  async function runNext() {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+      const item = items[currentIndex];
+      results.set(item, await worker(item));
+    }
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, () => runNext()));
+  return results;
 }
 
 function shouldApplyRole(
@@ -262,7 +330,7 @@ function getDirtyWorktreeOutput(repoRoot: string) {
 }
 
 async function main() {
-  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, applyEdits, allowDirty, skipWorkers, verifyAll, skipFinalize } = parseArgs(
+  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, applyEdits, allowDirty, skipWorkers, verifyAll, skipFinalize, concurrency } = parseArgs(
     process.argv.slice(2),
   );
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -297,6 +365,7 @@ async function main() {
   console.log(`Apply review roles: ${applyReview ? "yes" : "no"}`);
   console.log(`Skip workers/apply: ${skipWorkers ? "yes" : "no"}`);
   console.log(`Verify all: ${verifyAll ? "yes" : "no"}`);
+  console.log(`Worker concurrency: ${concurrency}`);
   console.log("");
 
   if (skipWorkers) {
@@ -304,15 +373,22 @@ async function main() {
     console.log("Using existing worker result packets for verification and finalization.");
     console.log("");
   } else {
-    for (const worker of targetWorkers) {
+    const workerRuns = await mapWithConcurrency(targetWorkers, concurrency, async (worker) => {
       console.log(`## Worker ${worker.role}`);
-      const workerRun = runNodeScript(
+      const workerRun = await runNodeScriptAsync(
         path.join("src", "workerRun.ts"),
         [runId, worker.role, "--provider", workerProvider],
         orchestratorRoot,
       );
       printChildOutput(workerRun, `worker ${worker.role}`);
+      return workerRun;
+    });
 
+    for (const worker of targetWorkers) {
+      const workerRun = workerRuns.get(worker);
+      if (!workerRun) {
+        throw new Error(`Worker result missing for ${worker.role}`);
+      }
       if (workerRun.status !== 0) {
         console.error(`worker ${worker.role} failed with exit code ${workerRun.status}`);
         if (!continueOnError) {

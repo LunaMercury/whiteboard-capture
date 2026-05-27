@@ -19,6 +19,9 @@ target/
 # Logs
 *.log
 
+# Orchestrator run artifacts
+orchestrator/runs/
+
 # Node (Web)
 node_modules/
 npm-debug.log*

@@ -113,7 +113,35 @@ review mode worker의 proposed edits도 적용 대상으로 허용합니다.
 
 기본적으로 review worker는 apply하지 않습니다.
 
-## 7. 권장 작업 순서
+## 7. OpenAI rate limit 재시도
+
+OpenAI worker/apply 실행 중 429 rate limit이 발생하면 runner가 자동으로 대기 후 재시도합니다.
+
+조정 가능한 환경변수:
+
+```text
+OPENAI_MAX_RETRIES=6
+OPENAI_RETRY_BASE_MS=3000
+OPENAI_RETRY_MAX_MS=60000
+```
+
+TPM 한도가 낮은 계정에서는 전체 역할을 한 번에 실행하기보다 `--roles java`처럼 작은 범위부터 실행하는 것이 안전합니다.
+
+worker를 제한 병렬로 실행하려면 `--concurrency`를 사용합니다.
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run runner:full -- --roles frontend,java,rust,mobile --concurrency 2 "네이버 로그인 구현해줘"
+```
+
+권장값:
+
+- `--concurrency 1`: 가장 안전합니다.
+- `--concurrency 2`: 속도와 TPM 안정성 사이의 권장 타협점입니다.
+- `--concurrency 3` 이상: API 한도가 충분할 때만 사용합니다.
+
+주의: apply와 verification은 파일 충돌을 막기 위해 worker 이후 순차적으로 처리합니다.
+
+## 8. 권장 작업 순서
 
 큰 작업은 다음 순서로 진행합니다.
 
@@ -141,7 +169,7 @@ review mode worker의 proposed edits도 적용 대상으로 허용합니다.
 & "C:\Program Files\nodejs\npm.cmd" run runner:full -- --roles frontend --apply "버튼 문구만 수정해줘"
 ```
 
-## 8. 산출물 위치
+## 9. 산출물 위치
 
 각 run은 아래 위치에 저장됩니다.
 

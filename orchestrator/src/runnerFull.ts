@@ -15,6 +15,7 @@ const workflowFlagsWithValue = new Set([
   "--worker-provider",
   "--apply-provider",
   "--roles",
+  "--concurrency",
 ]);
 
 const workflowBooleanFlags = new Set([
@@ -61,7 +62,7 @@ function parseArgs(argv: string[]): Args {
   const request = requestParts.join(" ").trim();
   if (!request) {
     throw new Error(
-      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--worker-provider openai|manual|claude] [--apply-provider openai|manual] [--apply] \"request\"",
+      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--worker-provider openai|manual|claude] [--apply-provider openai|manual] [--apply] \"request\"",
     );
   }
 

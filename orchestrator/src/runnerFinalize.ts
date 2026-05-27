@@ -14,11 +14,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function parseArgs(argv: string[]) {
-  const runId = argv.join(" ").trim();
+  const compact = argv.includes("--compact") || argv.includes("--summary-only");
+  const runId = argv.filter((item) => item !== "--compact" && item !== "--summary-only").join(" ").trim();
   if (!runId) {
-    throw new Error("Usage: npm run runner:finalize -- <run-id>");
+    throw new Error("Usage: npm run runner:finalize -- <run-id> [--compact]");
   }
-  return { runId };
+  return { runId, compact };
 }
 
 function countStatuses(results: WorkerResultPacket[]) {
@@ -144,7 +145,7 @@ function renderFinalReport(
 }
 
 async function main() {
-  const { runId } = parseArgs(process.argv.slice(2));
+  const { runId, compact } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
   const manifest = readRunnerManifest(orchestratorRoot, runId);
   const summary = readRunnerSummary(manifest);
@@ -190,7 +191,9 @@ async function main() {
   console.log("# Runner Finalize");
   console.log(`Run ID: ${runId}`);
   console.log(`Summary: ${finalSummary}`);
-  console.log(`Report: ${manifest.reportPath}`);
+  if (!compact) {
+    console.log(`Report: ${manifest.reportPath}`);
+  }
 }
 
 main().catch((error) => {

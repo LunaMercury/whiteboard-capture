@@ -7,6 +7,7 @@ const __dirname = path.dirname(__filename);
 
 type Args = {
   mock: boolean;
+  compact: boolean;
   request: string;
   workflowArgs: string[];
 };
@@ -26,6 +27,8 @@ const workflowBooleanFlags = new Set([
   "--skip-workers",
   "--verify-all",
   "--rollback-after-verify",
+  "--compact",
+  "--summary-only",
   "--skip-finalize",
 ]);
 
@@ -33,12 +36,19 @@ function parseArgs(argv: string[]): Args {
   const workflowArgs: string[] = [];
   const requestParts: string[] = [];
   let mock = false;
+  let compact = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const item = argv[index];
 
     if (item === "--mock") {
       mock = true;
+      continue;
+    }
+
+    if (item === "--compact" || item === "--summary-only") {
+      compact = true;
+      workflowArgs.push("--compact");
       continue;
     }
 
@@ -73,6 +83,7 @@ function parseArgs(argv: string[]): Args {
 
   return {
     mock,
+    compact,
     request,
     workflowArgs,
   };
@@ -102,6 +113,16 @@ function printChildOutput(child: ReturnType<typeof runNodeScript>, label: string
   }
 }
 
+function printChildSummary(child: ReturnType<typeof runNodeScript>, label: string) {
+  console.log(`${label}: exit=${child.status ?? "null"}`);
+  if (child.status !== 0) {
+    const message = child.stderr?.trim() || child.stdout?.trim();
+    if (message) {
+      console.error(message.split(/\r?\n/).slice(0, 8).join("\n"));
+    }
+  }
+}
+
 function extractRunId(output: string) {
   const match = output.match(/^Run ID:\s*(run-[^\r\n]+)/m);
   return match?.[1]?.trim();
@@ -115,11 +136,16 @@ async function main() {
   console.log(`Request: ${args.request}`);
   console.log(`Mode: ${args.mock ? "mock" : "live"}`);
   console.log(`Workflow args: ${args.workflowArgs.join(" ") || "none"}`);
+  console.log(`Compact output: ${args.compact ? "yes" : "no"}`);
   console.log("");
 
-  const prepareArgs = [...(args.mock ? ["--mock"] : []), args.request];
+  const prepareArgs = [...(args.mock ? ["--mock"] : []), ...(args.compact ? ["--compact"] : []), args.request];
   const prepare = runNodeScript(path.join("src", "prepareRunner.ts"), prepareArgs, orchestratorRoot);
-  printChildOutput(prepare, "runner:prepare");
+  if (args.compact) {
+    printChildSummary(prepare, "runner:prepare");
+  } else {
+    printChildOutput(prepare, "runner:prepare");
+  }
 
   if (prepare.status !== 0) {
     process.exit(prepare.status ?? 1);
@@ -129,6 +155,9 @@ async function main() {
   if (!runId) {
     throw new Error("Could not extract run ID from runner:prepare output.");
   }
+  if (args.compact) {
+    console.log(`Run ID: ${runId}`);
+  }
 
   console.log("");
   console.log("## Running workflow");
@@ -137,7 +166,19 @@ async function main() {
     [runId, ...args.workflowArgs],
     orchestratorRoot,
   );
-  printChildOutput(workflow, "runner:workflow");
+  if (args.compact) {
+    printChildSummary(workflow, "runner:workflow");
+    const rollbackSummary = workflow.stdout?.match(/Rollback summary:\s*(.+)/)?.[1]?.trim();
+    const report = workflow.stdout?.match(/Report:\s*(.+)/)?.[1]?.trim();
+    if (rollbackSummary) {
+      console.log(`Rollback summary: ${rollbackSummary}`);
+    }
+    if (report) {
+      console.log(`Report: ${report}`);
+    }
+  } else {
+    printChildOutput(workflow, "runner:workflow");
+  }
 
   if (workflow.status !== 0) {
     process.exit(workflow.status ?? 1);

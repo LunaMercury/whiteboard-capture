@@ -26,6 +26,7 @@ type Args = {
   skipFinalize: boolean;
   concurrency: number;
   rollbackAfterVerify: boolean;
+  compact: boolean;
 };
 
 const primaryVerificationByRole: Record<WorkerTaskPacket["role"], string> = {
@@ -51,6 +52,7 @@ function parseArgs(argv: string[]): Args {
   let verifyAll = false;
   let skipFinalize = false;
   let rollbackAfterVerify = false;
+  let compact = false;
   let concurrency = Number.parseInt(process.env.RUNNER_CONCURRENCY || "1", 10);
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -101,6 +103,10 @@ function parseArgs(argv: string[]): Args {
       rollbackAfterVerify = true;
       continue;
     }
+    if (item === "--compact" || item === "--summary-only") {
+      compact = true;
+      continue;
+    }
     if (item === "--skip-finalize") {
       skipFinalize = true;
       continue;
@@ -117,7 +123,7 @@ function parseArgs(argv: string[]): Args {
 
   if (!runId) {
     throw new Error(
-      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify] [--allow-dirty] [--apply-review] [--continue-on-error] [--skip-workers] [--verify-all] [--skip-finalize]",
+      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify] [--compact] [--allow-dirty] [--apply-review] [--continue-on-error] [--skip-workers] [--verify-all] [--skip-finalize]",
     );
   }
 
@@ -139,6 +145,7 @@ function parseArgs(argv: string[]): Args {
     skipFinalize,
     concurrency: Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 1,
     rollbackAfterVerify,
+    compact,
   };
 }
 
@@ -261,6 +268,27 @@ function printChildOutput(child: ChildResult | ReturnType<typeof runNodeScript>,
   if (child.signal) {
     console.error(`${label} signal: ${child.signal}`);
   }
+}
+
+function printChildSummary(child: ChildResult | ReturnType<typeof runNodeScript>, label: string) {
+  const status = child.status ?? "null";
+  const signal = child.signal ? ` signal=${child.signal}` : "";
+  const error = child.error ? ` error=${child.error.message}` : "";
+  console.log(`${label}: exit=${status}${signal}${error}`);
+  if (child.status !== 0) {
+    const message = child.stderr?.trim() || child.stdout?.trim();
+    if (message) {
+      console.error(message.split(/\r?\n/).slice(0, 8).join("\n"));
+    }
+  }
+}
+
+function printWorkflowChild(child: ChildResult | ReturnType<typeof runNodeScript>, label: string, compact: boolean) {
+  if (compact) {
+    printChildSummary(child, label);
+    return;
+  }
+  printChildOutput(child, label);
 }
 
 async function mapWithConcurrency<T, R>(
@@ -520,7 +548,7 @@ function rollbackWorktree(manifest: ReturnType<typeof readRunnerManifest>, paths
 }
 
 async function main() {
-  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, applyEdits, allowDirty, skipWorkers, verifyAll, skipFinalize, concurrency, rollbackAfterVerify } = parseArgs(
+  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, applyEdits, allowDirty, skipWorkers, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, compact } = parseArgs(
     process.argv.slice(2),
   );
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -557,6 +585,7 @@ async function main() {
   console.log(`Verify all: ${verifyAll ? "yes" : "no"}`);
   console.log(`Worker concurrency: ${concurrency}`);
   console.log(`Rollback after verify: ${rollbackAfterVerify ? "yes" : "no"}`);
+  console.log(`Compact output: ${compact ? "yes" : "no"}`);
   console.log("");
 
   const rollbackSummary: {
@@ -594,8 +623,8 @@ async function main() {
     });
 
     const rollback = rollbackWorktree(manifest, rollbackPathspecs);
-    printChildOutput(rollback.restore, "rollback restore");
-    printChildOutput(rollback.clean, "rollback clean");
+    printWorkflowChild(rollback.restore, "rollback restore", compact);
+    printWorkflowChild(rollback.clean, "rollback clean", compact);
     rollbackSummary.rollback = {
       restoreStatus: rollback.restore.status,
       cleanStatus: rollback.clean.status,
@@ -638,7 +667,7 @@ async function main() {
         [runId, worker.role, "--provider", workerProvider],
         orchestratorRoot,
       );
-      printChildOutput(workerRun, `worker ${worker.role}`);
+      printWorkflowChild(workerRun, `worker ${worker.role}`, compact);
       return workerRun;
     });
 
@@ -689,7 +718,7 @@ async function main() {
         [runId, worker.role],
         orchestratorRoot,
       );
-      printChildOutput(applyReviewRun, `apply:review ${worker.role}`);
+      printWorkflowChild(applyReviewRun, `apply:review ${worker.role}`, compact);
 
       if (applyReviewRun.status !== 0) {
         console.error(`apply:review ${worker.role} blocked or failed with exit code ${applyReviewRun.status}`);
@@ -711,7 +740,7 @@ async function main() {
         [runId, worker.role],
         orchestratorRoot,
       );
-      printChildOutput(applyPrepare, `apply:prepare ${worker.role}`);
+      printWorkflowChild(applyPrepare, `apply:prepare ${worker.role}`, compact);
 
       if (applyPrepare.status !== 0) {
         console.error(`apply:prepare ${worker.role} failed with exit code ${applyPrepare.status}`);
@@ -732,7 +761,7 @@ async function main() {
         [runId, worker.role, "--provider", applyProvider],
         orchestratorRoot,
       );
-      printChildOutput(applyRun, `apply:run ${worker.role}`);
+      printWorkflowChild(applyRun, `apply:run ${worker.role}`, compact);
 
       if (applyRun.status !== 0) {
         console.error(`apply:run ${worker.role} failed with exit code ${applyRun.status}`);
@@ -826,7 +855,7 @@ async function main() {
       ["-ExecutionPolicy", "Bypass", "-File", verificationScript],
       manifest.repoRoot,
     );
-    printChildOutput(verify, "verify all");
+    printWorkflowChild(verify, "verify all", compact);
     if (rollbackAfterVerify) {
       const logPath = path.join(getWorkflowDirs(manifest).verificationDir, "verify-all.log");
       const logWrite = writeTextLimited(logPath, formatChildLog(verify), verificationLogMaxBytes);
@@ -873,8 +902,9 @@ async function main() {
   }
 
   console.log("## Collecting results");
-  const collect = runNodeScript(path.join("src", "collectResults.ts"), [runId], orchestratorRoot);
-  printChildOutput(collect, "collect");
+  const collectArgs = compact ? [runId, "--compact"] : [runId];
+  const collect = runNodeScript(path.join("src", "collectResults.ts"), collectArgs, orchestratorRoot);
+  printWorkflowChild(collect, "collect", compact);
   if (collect.status !== 0 && !continueOnError) {
     process.exit(collect.status ?? 1);
   }
@@ -882,8 +912,9 @@ async function main() {
   if (!skipFinalize) {
     console.log("");
     console.log("## Finalizing run");
-    const finalize = runNodeScript(path.join("src", "runnerFinalize.ts"), [runId], orchestratorRoot);
-    printChildOutput(finalize, "finalize");
+    const finalizeArgs = compact ? [runId, "--compact"] : [runId];
+    const finalize = runNodeScript(path.join("src", "runnerFinalize.ts"), finalizeArgs, orchestratorRoot);
+    printWorkflowChild(finalize, "finalize", compact);
     if (finalize.status !== 0 && !continueOnError) {
       process.exit(finalize.status ?? 1);
     }

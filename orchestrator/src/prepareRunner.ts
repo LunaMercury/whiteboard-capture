@@ -15,16 +15,18 @@ loadEnv({ path: path.resolve(__dirname, "../../.env") });
 
 function parseArgs(argv: string[]) {
   const mock = argv.includes("--mock");
-  const filtered = argv.filter((arg) => arg !== "--mock");
+  const compact = argv.includes("--compact") || argv.includes("--summary-only");
+  const filtered = argv.filter((arg) => arg !== "--mock" && arg !== "--compact" && arg !== "--summary-only");
   const userRequest = filtered.join(" ").trim();
   return {
     mock,
+    compact,
     userRequest,
   };
 }
 
 async function main() {
-  const { mock, userRequest } = parseArgs(process.argv.slice(2));
+  const { mock, compact, userRequest } = parseArgs(process.argv.slice(2));
 
   if (!userRequest) {
     throw new Error("Usage: npm run runner:prepare -- [--mock] \"네이버 로그인 기능을 만들어줘\"");
@@ -57,6 +59,16 @@ async function main() {
     taskPackets: (result.taskPackets ?? []) as WorkerTaskPacket[],
     workerResults: (result.workerResults ?? []) as WorkerResultPacket[],
   });
+
+  if (compact) {
+    console.log("# Runner Bundle");
+    console.log(`Run ID: ${manifest.runId}`);
+    console.log(`Request: ${manifest.request}`);
+    console.log(`Mode: ${manifest.mode}`);
+    console.log(`Report: ${manifest.reportPath}`);
+    console.log(`Manifest: ${path.join(manifest.runDir, "meta", "manifest.json")}`);
+    return;
+  }
 
   console.log(result.finalReport ?? "No orchestration output was produced.");
   console.log("");

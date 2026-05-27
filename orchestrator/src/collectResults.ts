@@ -6,16 +6,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function parseArgs(argv: string[]) {
-  const runId = argv.join(" ").trim();
+  const compact = argv.includes("--compact") || argv.includes("--summary-only");
+  const runId = argv.filter((item) => item !== "--compact" && item !== "--summary-only").join(" ").trim();
   if (!runId) {
-    throw new Error("Usage: npm run runner:collect -- <run-id>");
+    throw new Error("Usage: npm run runner:collect -- <run-id> [--compact]");
   }
 
-  return { runId };
+  return { runId, compact };
 }
 
 async function main() {
-  const { runId } = parseArgs(process.argv.slice(2));
+  const { runId, compact } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
   const manifest = readRunnerManifest(orchestratorRoot, runId);
   const results = readWorkerResults(manifest);
@@ -40,7 +41,9 @@ async function main() {
   for (const result of results) {
     console.log(`  - role: ${result.role}`);
     console.log(`    status: ${result.status}`);
-    console.log(`    summary: ${result.summary}`);
+    if (!compact) {
+      console.log(`    summary: ${result.summary}`);
+    }
     console.log(`    changed_files: ${result.changedFiles.length}`);
     console.log(`    verification_run: ${result.verificationRun.length}`);
     console.log(`    proposed_edits: ${result.proposedEdits?.length ?? 0}`);

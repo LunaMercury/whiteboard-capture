@@ -5,6 +5,8 @@
 ## 핵심 원칙
 
 - 기본 실행은 dry-run입니다. `--apply`를 붙이지 않으면 저장소 파일을 수정하지 않습니다.
+- worker 단계는 실제 파일 수정 단계가 아닙니다. worker는 `proposedEdits`만 작성합니다.
+- 실제 파일 수정과 검증 결과 기록은 apply/verification 단계에서만 수행합니다.
 - 실제 적용은 `--apply`를 명시한 경우에만 실행됩니다.
 - `--apply`는 기본적으로 깨끗한 git worktree에서만 실행됩니다.
 - dependency/build manifest 변경은 apply review 단계에서 차단됩니다.

@@ -1,0 +1,55 @@
+{
+  "role": "rust",
+  "participationMode": "review",
+  "goal": "네이버 OAuth2 로그인을 통한 JWT 발급 및 인증 플로우가 Rust 백엔드(backend-fast)에서 정상적으로 검증되고, 기존 JWT 파싱/검증 로직이 네이버 계정 기반 JWT에도 호환되는지 확인합니다.",
+  "allowedPaths": [
+    "backend-fast/**"
+  ],
+  "blockedPaths": [
+    "web/**",
+    "backend-core/**",
+    "mobile/**"
+  ],
+  "touchedAreas": [
+    "backend-fast/src/handlers.rs",
+    "backend-fast/src/services.rs",
+    "backend-fast/src/main.rs"
+  ],
+  "implementationSteps": [
+    "1. Java(Spring Boot)에서 네이버 OAuth2 인증 성공 시 발급하는 JWT의 payload 구조와 claim(예: sub, provider, email 등)이 기존 JWT와 동일한지 확인합니다.",
+    "2. backend-fast/src/services.rs 또는 JWT 검증 관련 코드에서 JWT 파싱 시 provider(google, naver 등) 구분이 필요한지, 혹은 claim 구조가 달라질 경우 예외가 발생하지 않는지 검토합니다.",
+    "3. JWT_SECRET_KEY가 동일하게 공유되고 있는지, 네이버 로그인으로 발급된 JWT도 정상적으로 verify되는지 로컬 환경(run.bat)에서 end-to-end 테스트를 진행합니다.",
+    "4. JWT 내 provider 구분이 필요한 경우, Rust 쪽에서 provider 필드가 누락되었을 때의 fallback 처리나, 신규 provider 추가에 따른 확장성(예: enum Provider { Google, Naver })을 고려한 코드 구조를 리뷰합니다.",
+    "5. 인증 실패/claim 불일치/만료 등 예외 상황에서 적절한 에러 메시지와 HTTP 상태코드가 반환되는지 확인합니다."
+  ],
+  "dependencies": [
+    "Java(Spring Boot)에서 네이버 OAuth2 인증 및 JWT 발급 구현이 선행되어야 함 (backend-core)",
+    "JWT_SECRET_KEY가 .env 및 환경변수로 일치하게 전달되어야 함"
+  ],
+  "requiredVerification": [
+    ".skills/verify-fast.ps1",
+    ".skills/verify-core.ps1",
+    ".skills/verify-all.ps1"
+  ],
+  "contracts": [
+    "기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.",
+    "변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.",
+    "JWT_SECRET_KEY, ALLOWED_WEB_ORIGINS, PUBLIC_BASE_URL 계약을 유지합니다.",
+    "업로드 hot path와 websocket fan-out의 성능 특성을 해치지 않습니다.",
+    "JWT_SECRET_KEY, claim 구조, 만료 정책이 Spring 발급 토큰과 일치해야 합니다."
+  ],
+  "policyChecks": [
+    "JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인",
+    "OAuth redirect URI와 토큰 전달 방식 합의 여부 확인",
+    "HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인",
+    "JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인"
+  ],
+  "handoffOutput": [
+    "changed_files",
+    "summary",
+    "contracts_changed",
+    "verification_run",
+    "risks",
+    "questions"
+  ]
+}

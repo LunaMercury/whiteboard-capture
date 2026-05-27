@@ -1,0 +1,49 @@
+{
+  "role": "mobile",
+  "participationMode": "review",
+  "goal": "네이버 로그인(OAuth2) 기능 추가에 대해 모바일(Android) 모듈의 영향 및 호환성, 정책 준수 여부를 검토합니다.",
+  "allowedPaths": [
+    "mobile/**"
+  ],
+  "blockedPaths": [
+    "web/**",
+    "backend-fast/**",
+    "backend-core/**"
+  ],
+  "touchedAreas": [
+    "mobile/android_context.md"
+  ],
+  "implementationSteps": [
+    "네이버 로그인 연동이 모바일(Android) 앱에 요구되는지 명확히 확인합니다. 현재 요구사항 및 정책상 이번 작업에서는 모바일 구현이 제외되어 있습니다.",
+    "향후 모바일에서 네이버 로그인을 지원할 경우, Android OAuth2 연동(네이버 SDK 또는 Custom OAuth Flow), JWT 수신 및 저장, Rust/Java 백엔드와의 인증 플로우 호환성 검토가 필요합니다.",
+    "정책상 로그인 제공자 추가 작업에는 모바일도 최소 리뷰 이상 참여해야 하므로, 백엔드(JAVA/RUST)에서 발급하는 JWT가 모바일에서도 동일하게 검증 및 활용 가능한지 확인합니다."
+  ],
+  "dependencies": [
+    "backend-core (Spring Boot)에서 네이버 OAuth2 인증 및 JWT 발급 구현",
+    "backend-fast (Rust)에서 JWT 파싱 및 검증 로직이 네이버 계정도 지원하는지 확인"
+  ],
+  "requiredVerification": [
+    ".skills/verify-mobile.ps1"
+  ],
+  "contracts": [
+    "기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.",
+    "변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.",
+    "Spring 로그인 계약과 Rust 업로드 인증 계약을 임의로 바꾸지 않습니다.",
+    "모바일의 JWT 저장/복원 흐름이 기존 업로드 경로와 호환되어야 합니다.",
+    "모바일 로그인 진입점이 추가되면 JWT 저장/복원과 업로드 인증 흐름이 기존 계약을 유지해야 합니다."
+  ],
+  "policyChecks": [
+    "JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인",
+    "OAuth redirect URI와 토큰 전달 방식 합의 여부 확인",
+    "HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인",
+    "JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인"
+  ],
+  "handoffOutput": [
+    "changed_files",
+    "summary",
+    "contracts_changed",
+    "verification_run",
+    "risks",
+    "questions"
+  ]
+}

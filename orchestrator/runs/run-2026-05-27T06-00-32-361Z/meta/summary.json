@@ -1,0 +1,57 @@
+{
+  "request": "네이버 로그인 기능을 만들어줘",
+  "managerDecision": {
+    "summary": "네이버 로그인 기능을 만들어줘 요청에 대해 Java(Spring Boot)는 구현, Rust(backend-fast)는 리뷰, 웹 프론트엔드는 구현, 모바일(Android)은 리뷰 모드로 참여합니다. 최종 참여 수준은 프로젝트 강제 정책과 저장소 구조를 기준으로 정해졌습니다.",
+    "frontendMode": "implement",
+    "rustMode": "review",
+    "javaMode": "implement",
+    "mobileMode": "review",
+    "integrationNotes": [
+      "Java(Spring Boot)는 OAuth와 JWT 발급 로직을 구현해야 합니다.",
+      "Rust(backend-fast)는 JWT 검증과 업로드/웹소켓 인증 경로 호환성을 검토해야 합니다.",
+      "웹 프론트엔드는 로그인 UI와 인증 플로우 연동을 구현해야 합니다.",
+      "모바일(Android)은 모바일 로그인 진입점과 JWT 저장/복원 흐름 영향 여부를 검토해야 합니다."
+    ],
+    "exclusionReasons": {
+      "frontend": "",
+      "rust": "",
+      "java": "",
+      "mobile": ""
+    }
+  },
+  "verifierReport": {
+    "summary": "네이버 로그인(OAuth2) 기능 추가에 대한 전체 계획과 작업 패킷이 준비되어 있습니다. 각 모듈별 역할 분담, 정책 준수, 보안 요구사항, 계약 일치 여부가 명확히 정의되어 있으나, 실제 구현은 아직 시작되지 않았으며 worker 실행 결과도 수집되지 않았습니다. 아래는 검토 결과 요약입니다.",
+    "findings": [
+      "매니저 결정과 스페셜리스트 계획 모두 정책(AGENTS.md, security_guidelines.md, module context)에 부합합니다.",
+      "네이버 OAuth2는 인증, JWT 발급, 검증 경로에 영향을 주므로 Java(Spring Boot)와 Rust(backend-fast)가 반드시 참여해야 하며, 프론트엔드는 UI/플로우 구현, 모바일은 정책상 리뷰만 참여합니다.",
+      "각 모듈별 작업 패킷은 실제 경로, 정책, 계약, 검증 스크립트, 위험요소를 명확히 명시하고 있습니다."
+    ],
+    "contractChecks": [
+      "JWT_SECRET_KEY, claim 구조, 만료 정책이 Spring과 Rust에서 반드시 동기화되어야 함.",
+      "OAuth redirect URI, JWT 전달 방식(쿼리스트링/해시/쿠키 등)은 프론트엔드와 백엔드가 합의한 계약만 사용해야 함.",
+      "환경변수(VITE_API_BASE_URL 등)와 인증 계약을 임의로 변경하면 안 됨.",
+      "User 엔티티에 provider/providerId 필드 추가 시 DB 마이그레이션 필요 여부 확인.",
+      "JWT 저장 위치(localStorage 등)는 security_guidelines.md의 XSS/CSRF 방지 기준을 따라야 함.",
+      "JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인",
+      "OAuth redirect URI와 토큰 전달 방식 합의 여부 확인",
+      "HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인",
+      "JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인"
+    ],
+    "recommendedVerification": [
+      ".skills/verify-web.ps1 (프론트엔드)",
+      ".skills/verify-core.ps1 (Spring Boot)",
+      ".skills/verify-fast.ps1 (Rust)",
+      ".skills/verify-all.ps1 (통합)",
+      ".skills/verify-mobile.ps1 (모바일 영향도 리뷰)"
+    ],
+    "releaseBlockers": [
+      "네이버 OAuth2 인증 콜백 URI가 프론트엔드와 백엔드에서 정확히 일치하지 않으면 인증이 실패할 수 있음. 반드시 URI를 맞춰야 함.",
+      "JWT claim 구조가 기존 Google/IDPW와 다를 경우 Rust(backend-fast)에서 인증이 실패할 수 있음. claim 구조 일치 여부를 반드시 검증해야 함.",
+      "User 엔티티에 provider/providerId 필드가 없다면 DB 마이그레이션이 필요하며, 이 과정에서 데이터 손실/불일치 위험이 있음.",
+      "네이버 OAuth2 클라이언트 등록이 테스트 환경에 미비할 경우 로컬 인증 테스트가 불가함.",
+      "JWT 저장 방식(localStorage 등)에서 XSS/CSRF 등 보안 이슈가 발생할 수 있으므로 security_guidelines.md 기준을 반드시 준수해야 함."
+    ]
+  },
+  "taskPacketCount": 4,
+  "workerResultCount": 4
+}

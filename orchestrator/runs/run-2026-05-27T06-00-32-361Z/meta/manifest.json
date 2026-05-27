@@ -1,0 +1,38 @@
+{
+  "runId": "run-2026-05-27T06-00-32-361Z",
+  "createdAt": "2026-05-27T06:00:32.367Z",
+  "request": "네이버 로그인 기능을 만들어줘",
+  "mode": "live",
+  "repoRoot": "D:\\개발\\whiteboard capture",
+  "runDir": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z",
+  "tasksDir": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z\\tasks",
+  "resultsDir": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z\\results",
+  "reportPath": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z\\report.md",
+  "summaryPath": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z\\meta\\summary.json",
+  "workers": [
+    {
+      "role": "frontend",
+      "taskFile": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z\\tasks\\frontend.task.json",
+      "resultFile": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z\\results\\frontend.result.json",
+      "status": "pending"
+    },
+    {
+      "role": "rust",
+      "taskFile": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z\\tasks\\rust.task.json",
+      "resultFile": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z\\results\\rust.result.json",
+      "status": "pending"
+    },
+    {
+      "role": "java",
+      "taskFile": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z\\tasks\\java.task.json",
+      "resultFile": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z\\results\\java.result.json",
+      "status": "pending"
+    },
+    {
+      "role": "mobile",
+      "taskFile": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z\\tasks\\mobile.task.json",
+      "resultFile": "D:\\개발\\whiteboard capture\\orchestrator\\runs\\run-2026-05-27T06-00-32-361Z\\results\\mobile.result.json",
+      "status": "pending"
+    }
+  ]
+}

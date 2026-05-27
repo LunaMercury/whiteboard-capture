@@ -158,6 +158,12 @@ function buildDecision(runId: string, task: WorkerTaskPacket, result: ReturnType
     blockedReasons.push("Task has no required verification scripts.");
   }
 
+  if (result.verificationRun.length > 0) {
+    blockedReasons.push(
+      "Worker result claims verificationRun before apply. Verification must be recorded by the runner after actual file changes.",
+    );
+  }
+
   if (task.policyChecks.length > 0) {
     findings.push(`Policy checks attached: ${task.policyChecks.length}`);
   }

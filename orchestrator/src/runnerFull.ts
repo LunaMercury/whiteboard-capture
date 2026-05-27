@@ -23,6 +23,7 @@ const workflowBooleanFlags = new Set([
   "--apply-review",
   "--continue-on-error",
   "--skip-workers",
+  "--verify-all",
   "--skip-finalize",
 ]);
 

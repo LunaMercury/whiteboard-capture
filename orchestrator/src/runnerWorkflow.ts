@@ -21,6 +21,7 @@ type Args = {
   applyEdits: boolean;
   allowDirty: boolean;
   skipWorkers: boolean;
+  verifyAll: boolean;
   skipFinalize: boolean;
 };
 
@@ -41,6 +42,7 @@ function parseArgs(argv: string[]): Args {
   let applyEdits = false;
   let allowDirty = false;
   let skipWorkers = false;
+  let verifyAll = false;
   let skipFinalize = false;
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -83,6 +85,10 @@ function parseArgs(argv: string[]): Args {
       skipWorkers = true;
       continue;
     }
+    if (item === "--verify-all") {
+      verifyAll = true;
+      continue;
+    }
     if (item === "--skip-finalize") {
       skipFinalize = true;
       continue;
@@ -94,7 +100,7 @@ function parseArgs(argv: string[]): Args {
 
   if (!runId) {
     throw new Error(
-      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual] [--apply-provider openai|manual] [--roles frontend,java] [--apply] [--allow-dirty] [--apply-review] [--continue-on-error] [--skip-workers] [--skip-finalize]",
+      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual] [--apply-provider openai|manual] [--roles frontend,java] [--apply] [--allow-dirty] [--apply-review] [--continue-on-error] [--skip-workers] [--verify-all] [--skip-finalize]",
     );
   }
 
@@ -108,6 +114,7 @@ function parseArgs(argv: string[]): Args {
     applyEdits,
     allowDirty,
     skipWorkers,
+    verifyAll,
     skipFinalize,
   };
 }
@@ -232,6 +239,19 @@ function getWorkflowVerificationScripts(role: WorkerTaskPacket["role"]) {
   return [primaryVerificationByRole[role]];
 }
 
+function updateWorkerResultWithVerificationSuccess(
+  manifest: ReturnType<typeof readRunnerManifest>,
+  role: WorkerTaskPacket["role"],
+  verificationLabel: string,
+) {
+  const existing = readWorkerResult(manifest, role);
+  const verificationRun = Array.from(new Set([...existing.verificationRun, verificationLabel]));
+  writeWorkerResult(manifest, {
+    ...existing,
+    verificationRun,
+  });
+}
+
 function getDirtyWorktreeOutput(repoRoot: string) {
   const child = runCommand("git", ["status", "--porcelain"], repoRoot);
   if (child.status !== 0) {
@@ -242,7 +262,7 @@ function getDirtyWorktreeOutput(repoRoot: string) {
 }
 
 async function main() {
-  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, applyEdits, allowDirty, skipWorkers, skipFinalize } = parseArgs(
+  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, applyEdits, allowDirty, skipWorkers, verifyAll, skipFinalize } = parseArgs(
     process.argv.slice(2),
   );
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -276,6 +296,7 @@ async function main() {
   console.log(`Allow dirty worktree: ${allowDirty ? "yes" : "no"}`);
   console.log(`Apply review roles: ${applyReview ? "yes" : "no"}`);
   console.log(`Skip workers/apply: ${skipWorkers ? "yes" : "no"}`);
+  console.log(`Verify all: ${verifyAll ? "yes" : "no"}`);
   console.log("");
 
   if (skipWorkers) {
@@ -399,6 +420,45 @@ async function main() {
       const verify = runVerificationScript(manifest, worker.role, verificationScript);
       if (verify.status !== 0 && !continueOnError) {
         process.exit(verify.status ?? 1);
+      }
+    }
+  }
+
+  if (verifyAll && !applyEdits && !skipWorkers) {
+    console.log("## Running full project verification");
+    console.log("Skipping verify-all: no files were applied in this dry-run. Re-run with --apply or --skip-workers to verify existing applied results.");
+    console.log("");
+  }
+
+  if (verifyAll && (applyEdits || skipWorkers)) {
+    console.log("## Running full project verification");
+    const verificationScript = ".skills/verify-all.ps1";
+    console.log(`Running ${verificationScript}`);
+    const verify = runCommand(
+      "powershell",
+      ["-ExecutionPolicy", "Bypass", "-File", verificationScript],
+      manifest.repoRoot,
+    );
+    printChildOutput(verify, "verify all");
+
+    const succeededWorkers = targetWorkers
+      .map((worker) => worker.role)
+      .filter((role) => readWorkerResult(manifest, role).status === "succeeded");
+
+    if (verify.status !== 0) {
+      const failureMessage =
+        verify.stderr?.trim() ||
+        verify.stdout?.trim() ||
+        `verification exited with code ${verify.status ?? "unknown"}`;
+      for (const role of succeededWorkers) {
+        updateWorkerResultWithVerificationFailure(manifest, role, verificationScript, failureMessage);
+      }
+      if (!continueOnError) {
+        process.exit(verify.status ?? 1);
+      }
+    } else {
+      for (const role of succeededWorkers) {
+        updateWorkerResultWithVerificationSuccess(manifest, role, verificationScript);
       }
     }
   }

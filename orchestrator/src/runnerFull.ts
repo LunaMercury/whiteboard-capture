@@ -25,6 +25,7 @@ const workflowBooleanFlags = new Set([
   "--continue-on-error",
   "--skip-workers",
   "--verify-all",
+  "--rollback-after-verify",
   "--skip-finalize",
 ]);
 
@@ -62,8 +63,12 @@ function parseArgs(argv: string[]): Args {
   const request = requestParts.join(" ").trim();
   if (!request) {
     throw new Error(
-      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--worker-provider openai|manual|claude] [--apply-provider openai|manual] [--apply] \"request\"",
+      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--worker-provider openai|manual|claude] [--apply-provider openai|manual] [--apply] [--rollback-after-verify] \"request\"",
     );
+  }
+
+  if (workflowArgs.includes("--rollback-after-verify") && !workflowArgs.includes("--apply")) {
+    throw new Error("--rollback-after-verify requires --apply so runner:full does not create a throwaway run before failing.");
   }
 
   return {

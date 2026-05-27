@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResult, readWorkerTask, writeWorkerResult } from "./packetStore.js";
@@ -24,6 +25,7 @@ type Args = {
   verifyAll: boolean;
   skipFinalize: boolean;
   concurrency: number;
+  rollbackAfterVerify: boolean;
 };
 
 const primaryVerificationByRole: Record<WorkerTaskPacket["role"], string> = {
@@ -45,6 +47,7 @@ function parseArgs(argv: string[]): Args {
   let skipWorkers = false;
   let verifyAll = false;
   let skipFinalize = false;
+  let rollbackAfterVerify = false;
   let concurrency = Number.parseInt(process.env.RUNNER_CONCURRENCY || "1", 10);
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -91,6 +94,10 @@ function parseArgs(argv: string[]): Args {
       verifyAll = true;
       continue;
     }
+    if (item === "--rollback-after-verify") {
+      rollbackAfterVerify = true;
+      continue;
+    }
     if (item === "--skip-finalize") {
       skipFinalize = true;
       continue;
@@ -107,8 +114,12 @@ function parseArgs(argv: string[]): Args {
 
   if (!runId) {
     throw new Error(
-      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual] [--apply-provider openai|manual] [--roles frontend,java] [--concurrency 2] [--apply] [--allow-dirty] [--apply-review] [--continue-on-error] [--skip-workers] [--verify-all] [--skip-finalize]",
+      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual] [--apply-provider openai|manual] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify] [--allow-dirty] [--apply-review] [--continue-on-error] [--skip-workers] [--verify-all] [--skip-finalize]",
     );
+  }
+
+  if (rollbackAfterVerify && !applyEdits) {
+    throw new Error("--rollback-after-verify requires --apply so there are applied edits to verify and roll back.");
   }
 
   return {
@@ -124,6 +135,7 @@ function parseArgs(argv: string[]): Args {
     verifyAll,
     skipFinalize,
     concurrency: Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 1,
+    rollbackAfterVerify,
   };
 }
 
@@ -180,6 +192,33 @@ function runCommand(command: string, args: string[], cwd: string) {
     encoding: "utf8",
     stdio: "pipe",
   });
+}
+
+function ensureDir(dirPath: string) {
+  fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function writeText(filePath: string, content: string) {
+  ensureDir(path.dirname(filePath));
+  fs.writeFileSync(filePath, content, "utf8");
+}
+
+function writeJson(filePath: string, data: unknown) {
+  writeText(filePath, `${JSON.stringify(data, null, 2)}\n`);
+}
+
+function formatChildLog(child: ChildResult | ReturnType<typeof runNodeScript>) {
+  return [
+    `status: ${child.status ?? "null"}`,
+    `signal: ${child.signal ?? "null"}`,
+    child.error ? `error: ${child.error.message}` : undefined,
+    "",
+    "## stdout",
+    child.stdout || "",
+    "",
+    "## stderr",
+    child.stderr || "",
+  ].filter((item): item is string => item !== undefined).join("\n");
 }
 
 function printChildOutput(child: ChildResult | ReturnType<typeof runNodeScript>, label: string) {
@@ -276,6 +315,7 @@ function runVerificationScript(
   manifest: ReturnType<typeof readRunnerManifest>,
   role: WorkerTaskPacket["role"],
   verificationScript: string,
+  logFile?: string,
 ) {
   const child = runCommand(
     "powershell",
@@ -284,6 +324,9 @@ function runVerificationScript(
   );
 
   printChildOutput(child, `verify ${role}`);
+  if (logFile) {
+    writeText(logFile, formatChildLog(child));
+  }
 
   if (child.status !== 0) {
     const failureMessage =
@@ -329,8 +372,53 @@ function getDirtyWorktreeOutput(repoRoot: string) {
   return child.stdout.trim();
 }
 
+function getWorkflowDirs(manifest: ReturnType<typeof readRunnerManifest>) {
+  return {
+    snapshotsDir: path.join(manifest.runDir, "snapshots"),
+    verificationDir: path.join(manifest.runDir, "verification"),
+    metaDir: path.join(manifest.runDir, "meta"),
+  };
+}
+
+function captureGitSnapshot(
+  manifest: ReturnType<typeof readRunnerManifest>,
+  name: string,
+  pathspecs: string[] = [],
+) {
+  const { snapshotsDir } = getWorkflowDirs(manifest);
+  const safeName = name.replace(/[^a-zA-Z0-9_.-]/g, "-");
+  const args = ["diff", "--binary", "--", ...pathspecs];
+  const diff = runCommand("git", args, manifest.repoRoot);
+  const status = runCommand("git", ["status", "--porcelain"], manifest.repoRoot);
+
+  const diffPath = path.join(snapshotsDir, `${safeName}.diff`);
+  const statusPath = path.join(snapshotsDir, `${safeName}.status.txt`);
+  writeText(diffPath, diff.stdout || "");
+  writeText(statusPath, status.stdout || "");
+
+  return {
+    diffPath,
+    statusPath,
+    diffStatus: diff.status,
+    statusStatus: status.status,
+  };
+}
+
+function rollbackWorktree(manifest: ReturnType<typeof readRunnerManifest>) {
+  const restore = runCommand("git", ["restore", "--worktree", "--staged", "--", "."], manifest.repoRoot);
+  const clean = runCommand("git", ["clean", "-fd", "--", "."], manifest.repoRoot);
+  const finalStatus = getDirtyWorktreeOutput(manifest.repoRoot);
+
+  return {
+    restore,
+    clean,
+    finalStatus,
+    succeeded: restore.status === 0 && clean.status === 0 && finalStatus.length === 0,
+  };
+}
+
 async function main() {
-  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, applyEdits, allowDirty, skipWorkers, verifyAll, skipFinalize, concurrency } = parseArgs(
+  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, applyEdits, allowDirty, skipWorkers, verifyAll, skipFinalize, concurrency, rollbackAfterVerify } = parseArgs(
     process.argv.slice(2),
   );
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -366,7 +454,30 @@ async function main() {
   console.log(`Skip workers/apply: ${skipWorkers ? "yes" : "no"}`);
   console.log(`Verify all: ${verifyAll ? "yes" : "no"}`);
   console.log(`Worker concurrency: ${concurrency}`);
+  console.log(`Rollback after verify: ${rollbackAfterVerify ? "yes" : "no"}`);
   console.log("");
+
+  const rollbackSummary: {
+    enabled: boolean;
+    snapshots: Array<{ label: string; diffPath: string; statusPath: string }>;
+    verificationLogs: Array<{ role: WorkerTaskPacket["role"] | "all"; script: string; logPath: string; status: number | null }>;
+    rollback?: {
+      restoreStatus: number | null;
+      cleanStatus: number | null;
+      finalWorktreeClean: boolean;
+      finalStatus: string;
+    };
+  } = {
+    enabled: rollbackAfterVerify,
+    snapshots: [],
+    verificationLogs: [],
+  };
+  let workflowExitCode = 0;
+
+  if (rollbackAfterVerify) {
+    const beforeSnapshot = captureGitSnapshot(manifest, "before-apply");
+    rollbackSummary.snapshots.push({ label: "before-apply", diffPath: beforeSnapshot.diffPath, statusPath: beforeSnapshot.statusPath });
+  }
 
   if (skipWorkers) {
     console.log("## Worker/apply stage skipped");
@@ -392,6 +503,11 @@ async function main() {
       if (workerRun.status !== 0) {
         console.error(`worker ${worker.role} failed with exit code ${workerRun.status}`);
         if (!continueOnError) {
+          if (rollbackAfterVerify) {
+            workflowExitCode = workerRun.status ?? 1;
+            console.log("");
+            continue;
+          }
           process.exit(workerRun.status ?? 1);
         }
         console.log("");
@@ -431,6 +547,11 @@ async function main() {
       if (applyReviewRun.status !== 0) {
         console.error(`apply:review ${worker.role} blocked or failed with exit code ${applyReviewRun.status}`);
         if (!continueOnError) {
+          if (rollbackAfterVerify) {
+            workflowExitCode = applyReviewRun.status ?? 1;
+            console.log("");
+            continue;
+          }
           process.exit(applyReviewRun.status ?? 1);
         }
         console.log("");
@@ -448,6 +569,11 @@ async function main() {
       if (applyPrepare.status !== 0) {
         console.error(`apply:prepare ${worker.role} failed with exit code ${applyPrepare.status}`);
         if (!continueOnError) {
+          if (rollbackAfterVerify) {
+            workflowExitCode = applyPrepare.status ?? 1;
+            console.log("");
+            continue;
+          }
           process.exit(applyPrepare.status ?? 1);
         }
         console.log("");
@@ -464,8 +590,22 @@ async function main() {
       if (applyRun.status !== 0) {
         console.error(`apply:run ${worker.role} failed with exit code ${applyRun.status}`);
         if (!continueOnError) {
-          process.exit(applyRun.status ?? 1);
+          if (rollbackAfterVerify) {
+            workflowExitCode = applyRun.status ?? 1;
+          } else {
+            process.exit(applyRun.status ?? 1);
+          }
         }
+      }
+
+      if (rollbackAfterVerify) {
+        const resultAfterApply = readWorkerResult(manifest, worker.role);
+        const rolePaths = Array.from(new Set([
+          ...(resultAfterApply.changedFiles ?? []),
+          ...((resultAfterApply.proposedEdits ?? []).map((edit) => edit.path)),
+        ])).filter(Boolean);
+        const snapshot = captureGitSnapshot(manifest, `${worker.role}-after-apply`, rolePaths);
+        rollbackSummary.snapshots.push({ label: `${worker.role}-after-apply`, diffPath: snapshot.diffPath, statusPath: snapshot.statusPath });
       }
 
       console.log("");
@@ -493,9 +633,19 @@ async function main() {
     console.log(`### Verify ${worker.role}`);
     for (const verificationScript of verificationScripts) {
       console.log(`Running ${verificationScript}`);
-      const verify = runVerificationScript(manifest, worker.role, verificationScript);
+      const logPath = rollbackAfterVerify
+        ? path.join(getWorkflowDirs(manifest).verificationDir, `${worker.role}.log`)
+        : undefined;
+      const verify = runVerificationScript(manifest, worker.role, verificationScript, logPath);
+      if (logPath) {
+        rollbackSummary.verificationLogs.push({ role: worker.role, script: verificationScript, logPath, status: verify.status });
+      }
       if (verify.status !== 0 && !continueOnError) {
-        process.exit(verify.status ?? 1);
+        if (rollbackAfterVerify) {
+          workflowExitCode = verify.status ?? 1;
+        } else {
+          process.exit(verify.status ?? 1);
+        }
       }
     }
   }
@@ -516,6 +666,11 @@ async function main() {
       manifest.repoRoot,
     );
     printChildOutput(verify, "verify all");
+    if (rollbackAfterVerify) {
+      const logPath = path.join(getWorkflowDirs(manifest).verificationDir, "verify-all.log");
+      writeText(logPath, formatChildLog(verify));
+      rollbackSummary.verificationLogs.push({ role: "all", script: verificationScript, logPath, status: verify.status });
+    }
 
     const succeededWorkers = targetWorkers
       .map((worker) => worker.role)
@@ -530,13 +685,48 @@ async function main() {
         updateWorkerResultWithVerificationFailure(manifest, role, verificationScript, failureMessage);
       }
       if (!continueOnError) {
-        process.exit(verify.status ?? 1);
+        if (rollbackAfterVerify) {
+          workflowExitCode = verify.status ?? 1;
+        } else {
+          process.exit(verify.status ?? 1);
+        }
       }
     } else {
       for (const role of succeededWorkers) {
         updateWorkerResultWithVerificationSuccess(manifest, role, verificationScript);
       }
     }
+  }
+
+  if (rollbackAfterVerify) {
+    console.log("## Rolling back applied edits");
+    const finalSnapshot = captureGitSnapshot(manifest, "after-verification-before-rollback");
+    rollbackSummary.snapshots.push({
+      label: "after-verification-before-rollback",
+      diffPath: finalSnapshot.diffPath,
+      statusPath: finalSnapshot.statusPath,
+    });
+
+    const rollback = rollbackWorktree(manifest);
+    printChildOutput(rollback.restore, "rollback restore");
+    printChildOutput(rollback.clean, "rollback clean");
+    rollbackSummary.rollback = {
+      restoreStatus: rollback.restore.status,
+      cleanStatus: rollback.clean.status,
+      finalWorktreeClean: rollback.succeeded,
+      finalStatus: rollback.finalStatus,
+    };
+    writeJson(path.join(getWorkflowDirs(manifest).metaDir, "rollback-summary.json"), rollbackSummary);
+
+    console.log(`Rollback status: ${rollback.succeeded ? "succeeded" : "failed"}`);
+    console.log(`Rollback summary: ${path.join(getWorkflowDirs(manifest).metaDir, "rollback-summary.json")}`);
+    if (!rollback.succeeded) {
+      console.error(rollback.finalStatus || "Rollback failed but no git status output was available.");
+      if (!continueOnError) {
+        process.exit(1);
+      }
+    }
+    console.log("");
   }
 
   console.log("## Collecting results");
@@ -554,6 +744,10 @@ async function main() {
     if (finalize.status !== 0 && !continueOnError) {
       process.exit(finalize.status ?? 1);
     }
+  }
+
+  if (workflowExitCode !== 0) {
+    process.exit(workflowExitCode);
   }
 }
 

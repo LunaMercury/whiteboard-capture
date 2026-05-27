@@ -101,6 +101,36 @@ function editMentionsDependencyChange(edit: { summary: string; instructions: str
   return textMentionsDependencyChange([edit.summary, ...edit.instructions].join("\n"));
 }
 
+const contractViolationRules: Array<{
+  roles: WorkerTaskPacket["role"][];
+  pattern: RegExp;
+  reason: string;
+}> = [
+  {
+    roles: ["frontend"],
+    pattern: /nid\.naver\.com\/oauth2\.0\/authorize|VITE_NAVER_CLIENT_ID|VITE_NAVER_REDIRECT_URI/i,
+    reason:
+      "Frontend proposed direct Naver OAuth/client env handling, but the current auth contract routes OAuth through backend-core.",
+  },
+  {
+    roles: ["frontend", "java"],
+    pattern: /query\/fragment\/cookie|쿼리\/fragment\/cookie|쿼리\/프래그먼트\/쿠키|쿼리\/해시\/쿠키/i,
+    reason:
+      "Worker proposed an ambiguous JWT delivery method. Current auth contract requires the agreed token handoff or an explicit contractsChanged report.",
+  },
+];
+
+function editText(edit: { summary: string; instructions: string[] }) {
+  return [edit.summary, ...edit.instructions].join("\n");
+}
+
+function findContractViolationReasons(task: WorkerTaskPacket, edit: { summary: string; instructions: string[] }) {
+  const text = editText(edit);
+  return contractViolationRules
+    .filter((rule) => rule.roles.includes(task.role) && rule.pattern.test(text))
+    .map((rule) => rule.reason);
+}
+
 function buildDecision(runId: string, task: WorkerTaskPacket, result: ReturnType<typeof readWorkerResult>): ApplyReviewDecision {
   const findings: string[] = [];
   const blockedReasons: string[] = [];
@@ -135,6 +165,9 @@ function buildDecision(runId: string, task: WorkerTaskPacket, result: ReturnType
     }
     if (editMentionsDependencyChange(edit)) {
       dependencySignalCount += 1;
+    }
+    for (const reason of findContractViolationReasons(task, edit)) {
+      blockedReasons.push(`${edit.path}: ${reason}`);
     }
   }
 

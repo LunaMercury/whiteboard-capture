@@ -30,6 +30,7 @@ export const categoryTemplateRegistry: Record<TemplateCategory, CategoryTemplate
       frontend: [
         "로그인 버튼, OAuth redirect, JWT 저장 방식은 백엔드와 합의된 계약만 사용합니다.",
         "현재 웹 OAuth 진입점은 `${VITE_API_BASE_URL}/auth/naver/login`을 기본값으로 사용합니다.",
+        "프론트엔드는 `https://nid.naver.com/oauth2.0/authorize`로 직접 이동하거나 VITE_NAVER_CLIENT_ID/VITE_NAVER_REDIRECT_URI를 새로 요구하지 않습니다.",
         "브라우저 OAuth 완료 후 프론트엔드는 현재 계약상 로그인 화면 URL의 `token` 쿼리 파라미터에서 JWT를 읽고 즉시 URL을 정리합니다.",
         "네이버 client secret, access token, provider API 호출은 프론트엔드에 노출하지 않고 backend-core에서만 처리합니다.",
       ],
@@ -41,7 +42,8 @@ export const categoryTemplateRegistry: Record<TemplateCategory, CategoryTemplate
       java: [
         "OAuth provider 연동, 사용자 식별, JWT 발급 구조를 전체 클라이언트와 일치시킵니다.",
         "네이버 OAuth 시작 엔드포인트는 `/api/auth/naver/login`이며, `NAVER_REDIRECT_URI`는 backend-core 콜백으로 등록합니다.",
-        "브라우저 OAuth 콜백 성공 후에는 현재 웹 계약과 맞게 프론트엔드 로그인 화면으로 JWT를 전달하거나, 전달 방식을 바꾸려면 contractsChanged로 보고합니다.",
+        "브라우저 OAuth 콜백 성공 후에는 현재 웹 계약과 맞게 프론트엔드 로그인 화면 URL의 `token` 쿼리 파라미터로 JWT를 전달합니다.",
+        "JWT 전달 방식을 쿠키/fragment/body 등으로 바꾸려면 반드시 contractsChanged로 보고하고 apply 대상에서 제외합니다.",
         "JWT는 HS256, `sub=email`, `provider`, 선택적 `provider_id`, `iat`, `exp` claim 구조를 유지합니다.",
         "NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI는 backend-core 환경변수/application.properties에서만 다룹니다.",
       ],

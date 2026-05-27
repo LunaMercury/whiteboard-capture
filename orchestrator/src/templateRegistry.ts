@@ -29,15 +29,25 @@ export const categoryTemplateRegistry: Record<TemplateCategory, CategoryTemplate
     roleContracts: {
       frontend: [
         "로그인 버튼, OAuth redirect, JWT 저장 방식은 백엔드와 합의된 계약만 사용합니다.",
+        "현재 웹 OAuth 진입점은 `${VITE_API_BASE_URL}/auth/naver/login`을 기본값으로 사용합니다.",
+        "브라우저 OAuth 완료 후 프론트엔드는 현재 계약상 로그인 화면 URL의 `token` 쿼리 파라미터에서 JWT를 읽고 즉시 URL을 정리합니다.",
+        "네이버 client secret, access token, provider API 호출은 프론트엔드에 노출하지 않고 backend-core에서만 처리합니다.",
       ],
       rust: [
         "JWT_SECRET_KEY, claim 구조, 만료 정책이 Spring 발급 토큰과 일치해야 합니다.",
+        "backend-fast는 HS256 JWT를 검증하고 `sub` claim을 이메일로 해석해 DB 사용자 id를 조회하는 현재 계약을 유지합니다.",
+        "provider/provider_id 등 소셜 로그인 추가 claim은 인증 실패 원인이 되지 않아야 하며, provider별 분기로 hot path를 느리게 만들지 않습니다.",
       ],
       java: [
         "OAuth provider 연동, 사용자 식별, JWT 발급 구조를 전체 클라이언트와 일치시킵니다.",
+        "네이버 OAuth 시작 엔드포인트는 `/api/auth/naver/login`이며, `NAVER_REDIRECT_URI`는 backend-core 콜백으로 등록합니다.",
+        "브라우저 OAuth 콜백 성공 후에는 현재 웹 계약과 맞게 프론트엔드 로그인 화면으로 JWT를 전달하거나, 전달 방식을 바꾸려면 contractsChanged로 보고합니다.",
+        "JWT는 HS256, `sub=email`, `provider`, 선택적 `provider_id`, `iat`, `exp` claim 구조를 유지합니다.",
+        "NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI는 backend-core 환경변수/application.properties에서만 다룹니다.",
       ],
       mobile: [
         "모바일 로그인 진입점이 추가되면 JWT 저장/복원과 업로드 인증 흐름이 기존 계약을 유지해야 합니다.",
+        "모바일이 직접 네이버 로그인을 구현하지 않는 경우에도 backend-core가 발급한 JWT를 업로드 요청의 Authorization 헤더에 싣는 기존 흐름은 유지합니다.",
       ],
     },
     verifierChecks: [

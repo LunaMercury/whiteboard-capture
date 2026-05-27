@@ -1,0 +1,56 @@
+{
+  "role": "rust",
+  "participationMode": "review",
+  "goal": "네이버 OAuth 2.0 로그인 기능 추가에 대해 Rust(backend-fast) 모듈의 JWT 검증 및 인증 경로 보호가 올바르게 연동되는지 검토하고, 정책 및 보안 요구사항 준수 여부를 확인합니다.",
+  "allowedPaths": [
+    "backend-fast/**"
+  ],
+  "blockedPaths": [
+    "web/**",
+    "backend-core/**",
+    "mobile/**"
+  ],
+  "touchedAreas": [
+    "backend-fast/src/handlers.rs",
+    "backend-fast/src/services.rs",
+    "backend-fast/src/main.rs"
+  ],
+  "implementationSteps": [
+    "1. Java(Spring Boot)에서 네이버 OAuth 인증 및 JWT 발급 로직이 추가될 예정이므로, Rust에서는 JWT 구조(클레임, 서명 방식, 시크릿 키 등)가 기존과 동일하게 유지되는지 확인해야 합니다.",
+    "2. Rust의 JWT 검증 로직(예: 업로드, WebSocket 핸들러 등)이 네이버 로그인으로 발급된 JWT도 정상적으로 처리하는지 점검합니다.",
+    "3. ALLOWED_WEB_ORIGINS, PUBLIC_BASE_URL 등 환경변수 및 CORS 정책이 네이버 로그인 플로우(리디렉션 등)에 영향이 없는지 확인합니다.",
+    "4. 인증 관련 핸들러(handlers.rs)에서 JWT 미인증 접근 차단이 일관되게 적용되는지, 신규 로그인 방식 추가로 인한 보안 허점이 없는지 리뷰합니다.",
+    "5. JWT_SECRET_KEY가 Spring과 Rust에서 반드시 동일하게 유지되는지, run.bat/.env/.properties 등 환경변수 전달 경로를 재확인합니다.",
+    "6. (필요시) JWT 파싱/검증 코드에 네이버 OAuth로 인한 클레임 구조 변화가 있으면 rustdoc 주석 및 테스트 케이스를 보강합니다."
+  ],
+  "dependencies": [
+    "Java(Spring Boot)에서 발급하는 JWT 구조 및 시크릿 키 정책",
+    ".env 및 run.bat의 JWT_SECRET_KEY 일치 여부",
+    "프론트엔드에서 전달하는 JWT 토큰 포맷"
+  ],
+  "requiredVerification": [
+    ".skills/verify-fast.ps1",
+    ".skills/verify-all.ps1"
+  ],
+  "contracts": [
+    "기존 환경변수 이름과 인증 계약을 임의로 바꾸지 않습니다.",
+    "변경이 필요한 계약은 master 세션에 명시적으로 보고합니다.",
+    "JWT_SECRET_KEY, ALLOWED_WEB_ORIGINS, PUBLIC_BASE_URL 계약을 유지합니다.",
+    "업로드 hot path와 websocket fan-out의 성능 특성을 해치지 않습니다.",
+    "JWT_SECRET_KEY, claim 구조, 만료 정책이 Spring 발급 토큰과 일치해야 합니다."
+  ],
+  "policyChecks": [
+    "JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인",
+    "OAuth redirect URI와 토큰 전달 방식 합의 여부 확인",
+    "HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인",
+    "JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인"
+  ],
+  "handoffOutput": [
+    "changed_files",
+    "summary",
+    "contracts_changed",
+    "verification_run",
+    "risks",
+    "questions"
+  ]
+}

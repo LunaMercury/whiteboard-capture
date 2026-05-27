@@ -1,0 +1,17 @@
+{
+  "role": "mobile",
+  "status": "skipped",
+  "changedFiles": [],
+  "summary": "네이버 OAuth 2.0 인증 기능은 현재 모바일(Android) 모듈에는 직접적인 변경 사항이나 연동이 필요하지 않습니다. 향후 네이버 로그인을 지원할 경우, 별도의 SDK 연동 및 인증 플로우 구현이 필요하며, 여기에 대한 계약 및 정책 준수사항을 종합적으로 검토해야 합니다.",
+  "contractsChanged": [],
+  "verificationRun": [],
+  "risks": [
+    "네이버 OAuth, JWT 토큰 발급 및 전달 방식 변경 시 모바일 모듈 인증 플로우에 영향 가능",
+    "정책상 JWT claim, 만료 정책, 저장 위치, 보안 기준(Security Guideline) 미준수 가능성"
+  ],
+  "questions": [
+    "네이버 OAuth 연동이 모바일(Android) 모듈에도 요구되는 시점이 도래하면, 백엔드(Java/Rust)와의 계약 및 인증 방식 명확화가 필요합니다.",
+    "OAuth redirect URI, JWT 전달/저장 방식, 환경변수 명 등의 계약 변경은 프론트엔드/백엔드 세션에서 사전 합의되어야 하며, 모바일 담당자가 독립적으로 변경해서는 안 됨을 재확인합니다."
+  ],
+  "proposedEdits": []
+}

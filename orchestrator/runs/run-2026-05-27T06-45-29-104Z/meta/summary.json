@@ -1,0 +1,56 @@
+{
+  "request": "네이버 로그인 기능을 만들어줘",
+  "managerDecision": {
+    "summary": "네이버 로그인 기능을 만들어줘 요청에 대해 Java(Spring Boot)는 구현, Rust(backend-fast)는 리뷰, 웹 프론트엔드는 구현, 모바일(Android)은 리뷰 모드로 참여합니다. 최종 참여 수준은 프로젝트 강제 정책과 저장소 구조를 기준으로 정해졌습니다.",
+    "frontendMode": "implement",
+    "rustMode": "review",
+    "javaMode": "implement",
+    "mobileMode": "review",
+    "integrationNotes": [
+      "Java(Spring Boot)는 OAuth와 JWT 발급 로직을 구현해야 합니다.",
+      "Rust(backend-fast)는 JWT 검증과 업로드/웹소켓 인증 경로 호환성을 검토해야 합니다.",
+      "웹 프론트엔드는 로그인 UI와 인증 플로우 연동을 구현해야 합니다.",
+      "모바일(Android)은 모바일 로그인 진입점과 JWT 저장/복원 흐름 영향 여부를 검토해야 합니다."
+    ],
+    "exclusionReasons": {
+      "frontend": "",
+      "rust": "",
+      "java": "",
+      "mobile": ""
+    }
+  },
+  "verifierReport": {
+    "summary": "네이버 OAuth 2.0 로그인 기능 추가에 대한 전체 계획과 각 모듈별 작업 패킷, 정책 준수 여부, 위험 요소, 실행 가능성 등을 검토한 결과입니다. 현재 각 워커의 실제 코드 변경 결과는 수집되지 않았으나, 계획 및 정책 기준으로 사전 검토를 완료했습니다.",
+    "findings": [
+      "매니저 결정과 스페셜리스트 플랜 모두 정책 문서(AGENTS.md, security_guidelines.md 등)와 일치하며, 각 모듈의 역할 분담이 명확합니다.",
+      "프론트엔드, 백엔드(Java), Rust(리뷰), 모바일(리뷰) 모두 정책상 요구되는 참여 수준을 충족합니다.",
+      "네이버 OAuth2 인증 플로우, JWT 발급, 사용자 연동, JWT 검증 등 핵심 경로가 빠짐없이 포함되어 있습니다.",
+      "모든 작업 패킷이 실제 경로와 정책에 맞게 작성되어 있으며, 임의의 계약 변경 없이 기존 인증/환경변수 계약을 유지합니다."
+    ],
+    "contractChecks": [
+      "JWT_SECRET_KEY, claim 구조, 만료 정책이 Spring과 Rust에서 반드시 일치해야 함을 명확히 요구하고 있습니다.",
+      "OAuth redirect URI, JWT 전달 방식, 사용자 식별 방식 등은 기존 계약을 임의로 바꾸지 않고, 변경 시 반드시 master 세션에 보고하도록 되어 있습니다.",
+      "프론트엔드와 백엔드 간 JWT 저장/전달 방식, 환경변수(VITE_API_BASE_URL 등) 사용 정책이 유지됩니다.",
+      "보안 가이드라인(security_guidelines.md)에서 요구하는 HTTPS/WSS, 민감 정보 노출 방지, XSS/CSRF 완화 방안이 각 플랜에 반영되어 있습니다.",
+      "JWT_SECRET_KEY, claim 구조, 만료 정책 동기화 여부 확인",
+      "OAuth redirect URI와 토큰 전달 방식 합의 여부 확인",
+      "HTTPS/WSS 사용 경로와 민감 정보(.env, client secret) 노출 금지 여부 확인",
+      "JWT 저장 위치와 XSS/CSRF 완화 방안이 security_guidelines.md 기준을 따르는지 확인"
+    ],
+    "recommendedVerification": [
+      ".skills/verify-web.ps1 (프론트엔드)",
+      ".skills/verify-core.ps1 (Spring Boot)",
+      ".skills/verify-fast.ps1, .skills/verify-all.ps1 (Rust 및 통합)",
+      ".skills/verify-mobile.ps1 (모바일 영향도 점검)"
+    ],
+    "releaseBlockers": [
+      "실제 워커 실행 결과가 아직 수집되지 않아 코드 레벨의 계약 위반, 미구현, 테스트 실패 여부를 확정할 수 없습니다.",
+      "네이버 OAuth2 인증 성공 후 JWT 발급/파싱 포맷이 프론트엔드, Rust와 완전히 일치하지 않으면 인증 연동이 실패할 수 있습니다.",
+      "JWT_SECRET_KEY, claim 구조, 만료 정책이 Spring과 Rust에서 불일치할 경우 인증 우회 또는 서비스 장애가 발생할 수 있습니다.",
+      "네이버 OAuth2 리다이렉트 URI가 실제 배포 환경과 불일치하면 인증이 실패할 수 있습니다.",
+      "User 엔티티에 네이버 계정 연동 필드가 없다면 추가 구현이 필요할 수 있습니다."
+    ]
+  },
+  "taskPacketCount": 4,
+  "workerResultCount": 4
+}

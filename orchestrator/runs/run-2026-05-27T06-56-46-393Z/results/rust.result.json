@@ -1,0 +1,49 @@
+{
+  "role": "rust",
+  "status": "succeeded",
+  "changedFiles": [
+    "backend-fast/src/services.rs",
+    "backend-fast/src/handlers.rs"
+  ],
+  "summary": "Reviewed and proposed updates to JWT parsing and verification logic to ensure claims such as 'provider' for Naver OAuth users are handled identically to Google/custom users. Ensured that JWT configuration from .env is consistent and that the claim parsing struct and verification path accept the new claim structure. No breaking contract changes are being introduced.",
+  "contractsChanged": [],
+  "verificationRun": [],
+  "risks": [
+    "JWT 발급 정책(서명알고리즘, claim 구조, 만료 정책) 변경이 Java(Spring Boot)와 일치하지 않을 경우 인증 불가",
+    "Naver OAuth 연동 후 Spring과 Rust 환경의 JWT_SECRET_KEY가 반드시 동기화되어야 하며, 그렇지 않으면 인증이 실패함",
+    "provider 필드가 Spring JWT에 추가되지 않았다면, Rust 측의 파싱에서 오류 발생 가능",
+    ".env 환경변수 누락/불일치 시 런타임 인증 에러 발생 가능"
+  ],
+  "questions": [
+    "Spring Boot에서 네이버 사용자용 JWT의 payload 예시(특히 provider, sub, user_id 필드)가 제공될 수 있는지 확인 필요",
+    "provider 필드 명세/타입(JWT 내 문자열인지, 필드명은 정확히 'provider'인지) Spring과 Rust가 합의해야 안전",
+    "만료 정책(exp claim) 동기화 쪽 정책 일치 여부 최종 확인 필요",
+    "OAuth redirect URI, 토큰 배포 방식(헤더, 쿠키 등)에 혹시 변경사항 있으면 Rust계에도 반드시 공유 필요"
+  ],
+  "proposedEdits": [
+    {
+      "path": "backend-fast/src/services.rs",
+      "action": "update",
+      "summary": "Update JWT claims struct and verification logic to handle Naver OAuth users, accepting new claims like 'provider' and ensuring backward compatibility.",
+      "instructions": [
+        "Locate the struct(s) used for JWT payload (claims), for example, JwtClaims or similar.",
+        "Add 'provider' (Option<String>) as a field in the struct. Ensure existing required fields ('sub', 'user_id', etc.) remain unchanged.",
+        "Update deserialization logic to not fail if 'provider' is missing (for backward compatibility).",
+        "Modify JWT verification logic to ensure a valid 'provider' is accepted (e.g., 'naver', 'google', 'local', etc.), possibly as an enum or allow any string for extensibility.",
+        "Write comments indicating that claim structure should match the Spring Boot Java side for future maintainability.",
+        "Ensure that all usages of the claim struct can tolerate the addition of 'provider' for newly issued tokens without breaking older functionality."
+      ]
+    },
+    {
+      "path": "backend-fast/src/handlers.rs",
+      "action": "update",
+      "summary": "Ensure handler functions that perform authentication use the updated JWT claims struct, and add input validation/comments for provider-based logic.",
+      "instructions": [
+        "Update handler logic so that, when extracting user info from JWT, the code uses the updated claims struct containing the 'provider' field.",
+        "If there are any authorization checks or logging that depend on authentication provider, allow for a new 'naver' provider branch, but default to existing code for backward compatibility.",
+        "Add code comments at JWT extraction and validation points directing future maintainers to keep the contracts in sync with Java(Spring Boot) implementation.",
+        "If applicable, write tests (or leave TODOs if out of scope) ensuring Naver-issued JWTs are accepted where Google/local JWTs are accepted."
+      ]
+    }
+  ]
+}

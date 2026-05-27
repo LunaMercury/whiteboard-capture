@@ -1,0 +1,102 @@
+{
+  "role": "java",
+  "status": "succeeded",
+  "changedFiles": [
+    "backend-core/src/main/resources/application.properties",
+    "backend-core/src/main/java/com/whiteboard/core/auth/SecurityConfig.java",
+    "backend-core/src/main/java/com/whiteboard/core/auth/AuthController.java",
+    "backend-core/src/main/java/com/whiteboard/core/auth/CustomUserDetailsService.java",
+    "backend-core/src/main/java/com/whiteboard/core/auth/JwtUtil.java",
+    "backend-core/src/main/java/com/whiteboard/core/user/User.java",
+    "backend-core/src/main/java/com/whiteboard/core/user/UserRepository.java"
+  ],
+  "summary": "네이버 OAuth 2.0 연동, JWT 발급, 사용자 계정 연동 및 인증 플로우 구현을 위한 변경 제안. SecurityConfig에서 네이버 OAuth 활성화, AuthController에 콜백·JWT 발급, CustomUserDetailsService에서 계정 연동, User/Repo 확장. 정책 준수 및 위험/질의 사항 확인 필요. [normalized: proposed edits are ready, so workflow can continue to apply/verify.]",
+  "contractsChanged": [],
+  "verificationRun": [],
+  "risks": [
+    ".skills/verify-core.ps1 및 .skills/verify-all.ps1 스크립트를 실제로 실행하지 않은 상태입니다. 커맨드라인에서 스크립트 실행 및 성공 여부 확인 필요.",
+    "JWT 조건(JWT_SECRET_KEY, claim 구조, 만료 정책), OAuth 리다이렉트 및 토큰 전달, 보안 정책(HTTPS, client secret 노출 방지 등)과의 동기화가 실제로 유지되는지 전체 시스템(Web/Rust/Mobile)과 교차 확인 필요.",
+    "OAuth 인증 후 JWT 전달, JWT 저장 방식 등에 대해 frontend와 정책 합의 필요.",
+    "java worker originally returned status 'running'; orchestrator normalized it to 'succeeded' because concrete edits were produced."
+  ],
+  "questions": [
+    "네이버 OAuth2 인증 후 프론트엔드로 JWT를 전달하는 방식이 기존 kakao, google 등과 100% 동일한지(redirect URI 및 전달 방식 포함) 반드시 재확인 바랍니다.",
+    "User 엔티티의 naverId 필드 추가와 관련하여 DB 마이그레이션 정책 및 초기 데이터 영향 검토가 필요합니다. 기존 계정과 네이버 연동 정책(동일 이메일일 경우 처리 방법 등) 명확화 필요.",
+    "JWT claim 구조 및 만료 정책, 사용자 식별 방식(예: sub claim에 provider+id 조합 등)이 Rust/Web/Mobile의 현재 로직과 동일한지 명확한 문서 합의 필요."
+  ],
+  "proposedEdits": [
+    {
+      "path": "backend-core/src/main/resources/application.properties",
+      "action": "update",
+      "summary": "네이버 OAuth2 클라이언트 관련 인증정보(KEY, SECRET, REDIRECT URI) 및 관련 옵션을 명확히 보강. 기존 항목 누락/오타/불일치 수정 및 주석 보완.",
+      "instructions": [
+        "naver.client-id, naver.client-secret, naver.redirect-uri 등 관련 OAuth2 client 정보가 정확히 지정되어 있는지 확인 및 보강.",
+        "spring.security.oauth2.client.registration.naver 및 provider 하위에 client-id, client-secret, redirect-uri 등을 올바르게 REST API 계약에 맞게 구성.",
+        "기존 Google/Kakao 규약과 옵션 일치(redirect-uri, scope, authorization-grant-type 등).",
+        "민감 정보는 환경 변수(NAVER_CLIENT_ID 등) 참조로 외부화."
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/SecurityConfig.java",
+      "action": "update",
+      "summary": "Spring Security에서 네이버 OAuth2 인증 경로 활성화 및 성공 후 커스텀 핸들러로 JWT 발급. OAuth2UserService와 success handler에서 사용자 연동 및 JWT 생성 로직 연결 준비.",
+      "instructions": [
+        "OAuth2 로그인 성공 시 AuthenticationSuccessHandler에서 JWT를 생성하여 프론트엔드에 전달하도록 구성.",
+        "OAuth2 Client(provider: naver)가 security filter chain에 포함되도록 ensure.",
+        "CustomUserDetailsService 기반으로 OAuth2UserService 커스텀 구현 적용.",
+        "기존 인증 및 JWT 발급 정책과 충돌하지 않도록 전체 인증 플로우 교차 검토."
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/AuthController.java",
+      "action": "update",
+      "summary": "네이버 OAuth2 인증 콜백 endpoint(/login/oauth2/code/naver 등)를 추가 및 성공 시 JWT를 프론트에 발급/전달하는 엔드포인트 구현.",
+      "instructions": [
+        "OAuth2 인증 성공 콜백 경로 매핑 및 JWT 생성 로직 작성.",
+        "JWT 및 사용자 정보를 AuthResponse DTO 등으로 반환.",
+        "에러 처리 및 리디렉션 정책은 기존 Google/Kakao 등과 일치하도록 구현.",
+        "향후 토큰 refresh 및 추가 정책을 위해 확장성 고려."
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/CustomUserDetailsService.java",
+      "action": "update",
+      "summary": "OAuth2 provider가 naver일 때 사용자 식별자(naverId)를 이용해 신규 계정 생성이나 기존 계정 연동. 네이버 userInfo를 User 엔티티와 매핑.",
+      "instructions": [
+        "OAuth2User로부터 naverId(및 email 등) 추출.",
+        "naverId로 기존 계정 검색, 없으면 신규 생성.",
+        "AccountProvider 필드 등으로 provider 식별(이미 있으면 일치하도록)."
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/user/User.java",
+      "action": "update",
+      "summary": "User 엔티티에 naverId(고유식별자) 필드를 추가. equals/hashcode, toString 등 포함, JPA 매핑과 정책 일치.",
+      "instructions": [
+        "private String naverId 필드 및 getter/setter, 생성자/빌더 등 노출.",
+        "JPA @Column(unique=false, nullable=true) 또는 정책에 맞는 어노테이션 부여.",
+        "기존 계정 필드, provider 분기, toString/equals/hashCode 등 영향점 점검."
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/user/UserRepository.java",
+      "action": "update",
+      "summary": "naverId로 사용자 조회 메서드 추가(예: findByNaverId).",
+      "instructions": [
+        "Optional<User> findByNaverId(String naverId) 메서드 정의.",
+        "테스트 등 과거 사용자 조회 방식 보존 및 리팩터 필요시 제안."
+      ]
+    },
+    {
+      "path": "backend-core/src/main/java/com/whiteboard/core/auth/JwtUtil.java",
+      "action": "update",
+      "summary": "JWT 발급/파싱 시 네이버 사용자(userId/naverId의 조합 등)도 고유하게 처리될 수 있도록 claim 구조 점검. 발급 정책은 기존 Google/Kakao 등과 동일하게.",
+      "instructions": [
+        "JWT subject 혹은 custom claim 내에 provider+providerId 구조로 사용자 고유 식별자 조합.",
+        "네이버 로그인 시에도 claim 구조 및 만료 정책을 기존과 일치시킴.",
+        "시크릿 키 및 기타 정책이 환경변수, 보안 규약과 일치하는지 명확히.",
+        "JWT claim에 별도 식별자(domain, provider 등)이 필요한 경우 Web/Rust/Mobile과 계약 협의 유의."
+      ]
+    }
+  ]
+}

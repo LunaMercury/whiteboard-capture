@@ -1,0 +1,19 @@
+{
+  "runId": "run-2026-05-27T06-45-29-104Z",
+  "role": "java",
+  "status": "approved",
+  "summary": "java proposed edits passed path, contract, and verification gate checks.",
+  "findings": [
+    "Policy checks attached: 4",
+    "Contract constraints attached: 5"
+  ],
+  "blockedReasons": [],
+  "approvedEdits": [
+    "backend-core/src/main/resources/application.properties",
+    "backend-core/src/main/java/com/whiteboard/core/auth/SecurityConfig.java",
+    "backend-core/src/main/java/com/whiteboard/core/auth/AuthController.java"
+  ],
+  "requiredVerification": [
+    ".skills/verify-core.ps1"
+  ]
+}

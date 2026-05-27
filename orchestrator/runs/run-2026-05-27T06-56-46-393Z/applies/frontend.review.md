@@ -1,0 +1,24 @@
+# Apply Review
+
+- run_id: run-2026-05-27T06-56-46-393Z
+- role: frontend
+- status: blocked
+- summary: frontend proposed edits are blocked before apply.
+
+## Approved Edits
+- web/src/components/Login.tsx
+- web/src/components/Login.module.css
+- web/src/config.ts
+
+## Blocked Reasons
+- Worker reported contract changes: Spring Boot 백엔드의 /oauth2/authorization/naver 엔드포인트, OAuth redirect URI, JWT 토큰 전달 포맷 등과 연동 정책이 합의되어야 함. JWT claim 구조/만료 정책, HTTPS 적용, 프론트 callback URL, JWT 저장위치 등은 보안 계약에 따라 동기화 필요.
+
+## Findings
+- Policy checks attached: 4
+- Contract constraints attached: 5
+
+## Required Verification
+- .skills/verify-web.ps1
+- .skills/verify-core.ps1
+- .skills/verify-fast.ps1
+- .skills/verify-all.ps1

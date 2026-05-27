@@ -13,6 +13,8 @@
     "runner:collect": "tsx src/collectResults.ts",
     "runner:execute": "tsx src/runnerExecute.ts",
     "runner:workflow": "tsx src/runnerWorkflow.ts",
+    "runner:full": "tsx src/runnerFull.ts",
+    "runner:full:mock": "tsx src/runnerFull.ts --mock",
     "runner:finalize": "tsx src/runnerFinalize.ts",
     "runner:review": "tsx src/applyReview.ts",
     "worker:prepare": "tsx src/workerExecutor.ts",

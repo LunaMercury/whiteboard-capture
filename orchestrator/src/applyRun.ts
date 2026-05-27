@@ -9,7 +9,7 @@ import { withOpenAIRetry } from "./openaiRetry.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-type SupportedProvider = "openai" | "manual";
+type SupportedProvider = "openai" | "manual" | "test";
 
 const applyExecutionSchema = z.object({
   status: z.enum(["succeeded", "failed", "skipped"]),
@@ -45,7 +45,7 @@ function parseArgs(argv: string[]) {
     throw new Error("Usage: npm run apply:run -- <run-id> <frontend|rust|java|mobile> [--provider openai|manual]");
   }
 
-  if (!["openai", "manual"].includes(provider)) {
+  if (!["openai", "manual", "test"].includes(provider)) {
     throw new Error(`Unsupported provider: ${provider}`);
   }
 
@@ -274,6 +274,34 @@ function applyFileEdits(repoRoot: string, packet: ApplyPacket, execution: ApplyE
   }
 }
 
+function runTestApply(packet: ApplyPacket): ApplyExecution {
+  return {
+    status: "succeeded",
+    summary: `[TEST] Applied ${packet.role} rollback pipeline test edits.`,
+    changedFiles: packet.proposedEdits.map((edit) => edit.path),
+    verificationRun: [],
+    risks: [
+      "This is a local test apply execution used only to exercise apply, verify, and rollback plumbing.",
+    ],
+    questions: [],
+    fileEdits: packet.proposedEdits.map((edit) => ({
+      path: edit.path,
+      action: edit.action,
+      summary: edit.summary,
+      content:
+        edit.action === "delete"
+          ? ""
+          : [
+              "orchestrator rollback test",
+              `role=${packet.role}`,
+              `run_id=${packet.runId}`,
+              "This file should be removed by --rollback-after-verify.",
+              "",
+            ].join("\n"),
+    })),
+  };
+}
+
 function syncWorkerResultAfterApply(
   manifest: ReturnType<typeof readRunnerManifest>,
   role: string,
@@ -313,7 +341,9 @@ async function main() {
     return;
   }
 
-  const execution = await runOpenAIApply(prompt);
+  const execution = provider === "test"
+    ? runTestApply(packet)
+    : await runOpenAIApply(prompt);
   writeExecutionArtifacts(manifest.runDir, role, prompt, execution);
   applyFileEdits(manifest.repoRoot, packet, execution);
   syncWorkerResultAfterApply(manifest, role, execution);

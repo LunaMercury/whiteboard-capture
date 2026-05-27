@@ -9,8 +9,8 @@ import type { WorkerResultPacket } from "./resultSchemas.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-type WorkerProvider = "claude" | "openai" | "manual";
-type ApplyProvider = "openai" | "manual";
+type WorkerProvider = "claude" | "openai" | "manual" | "test";
+type ApplyProvider = "openai" | "manual" | "test";
 
 type Args = {
   runId: string;
@@ -117,7 +117,7 @@ function parseArgs(argv: string[]): Args {
 
   if (!runId) {
     throw new Error(
-      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual] [--apply-provider openai|manual] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify] [--allow-dirty] [--apply-review] [--continue-on-error] [--skip-workers] [--verify-all] [--skip-finalize]",
+      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify] [--allow-dirty] [--apply-review] [--continue-on-error] [--skip-workers] [--verify-all] [--skip-finalize]",
     );
   }
 
@@ -408,6 +408,39 @@ function runRelativePath(manifest: ReturnType<typeof readRunnerManifest>, filePa
   return path.relative(manifest.runDir, filePath).replaceAll("\\", "/");
 }
 
+function renderAddedFileDiff(repoRoot: string, repoRelativePath: string) {
+  const fullPath = path.join(repoRoot, repoRelativePath);
+  if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
+    return "";
+  }
+
+  const content = fs.readFileSync(fullPath, "utf8");
+  const normalizedPath = repoRelativePath.replaceAll("\\", "/");
+  const lines = content.split(/\r?\n/);
+  return [
+    `diff --git a/${normalizedPath} b/${normalizedPath}`,
+    "new file mode 100644",
+    "index 0000000..0000000",
+    "--- /dev/null",
+    `+++ b/${normalizedPath}`,
+    "@@",
+    ...lines.map((line) => `+${line}`),
+    "",
+  ].join("\n");
+}
+
+function renderUntrackedDiff(repoRoot: string, statusOutput: string) {
+  return statusOutput
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => line.startsWith("?? "))
+    .map((line) => line.slice(3).trim())
+    .filter(Boolean)
+    .map((repoRelativePath) => renderAddedFileDiff(repoRoot, repoRelativePath))
+    .filter(Boolean)
+    .join("\n");
+}
+
 function captureGitSnapshot(
   manifest: ReturnType<typeof readRunnerManifest>,
   name: string,
@@ -417,11 +450,16 @@ function captureGitSnapshot(
   const safeName = name.replace(/[^a-zA-Z0-9_.-]/g, "-");
   const args = ["diff", "--binary", "--", ...pathspecs];
   const diff = runCommand("git", args, manifest.repoRoot);
-  const status = runCommand("git", ["status", "--porcelain"], manifest.repoRoot);
+  const statusArgs = pathspecs.length > 0
+    ? ["status", "--porcelain", "--", ...pathspecs]
+    : ["status", "--porcelain"];
+  const status = runCommand("git", statusArgs, manifest.repoRoot);
+  const untrackedDiff = renderUntrackedDiff(manifest.repoRoot, status.stdout || "");
+  const combinedDiff = [diff.stdout || "", untrackedDiff].filter((item) => item.trim()).join("\n");
 
   const diffPath = path.join(snapshotsDir, `${safeName}.diff`);
   const statusPath = path.join(snapshotsDir, `${safeName}.status.txt`);
-  const diffWrite = writeTextLimited(diffPath, diff.stdout || "", snapshotMaxBytes);
+  const diffWrite = writeTextLimited(diffPath, combinedDiff, snapshotMaxBytes);
   const statusWrite = writeTextLimited(statusPath, status.stdout || "", snapshotMaxBytes);
 
   return {
@@ -434,10 +472,44 @@ function captureGitSnapshot(
   };
 }
 
-function rollbackWorktree(manifest: ReturnType<typeof readRunnerManifest>) {
-  const restore = runCommand("git", ["restore", "--worktree", "--staged", "--", "."], manifest.repoRoot);
-  const clean = runCommand("git", ["clean", "-fd", "--", "."], manifest.repoRoot);
-  const finalStatus = getDirtyWorktreeOutput(manifest.repoRoot);
+function getPathStatus(repoRoot: string, pathspecs: string[]) {
+  const args = pathspecs.length > 0
+    ? ["status", "--porcelain", "--", ...pathspecs]
+    : ["status", "--porcelain"];
+  const child = runCommand("git", args, repoRoot);
+  if (child.status !== 0) {
+    throw new Error(child.stderr?.trim() || child.stdout?.trim() || "git status failed");
+  }
+
+  return child.stdout.trim();
+}
+
+function getTrackedPaths(repoRoot: string, pathspecs: string[]) {
+  if (pathspecs.length === 0) {
+    return [];
+  }
+
+  const child = runCommand("git", ["ls-files", "--", ...pathspecs], repoRoot);
+  if (child.status !== 0) {
+    throw new Error(child.stderr?.trim() || child.stdout?.trim() || "git ls-files failed");
+  }
+
+  return child.stdout
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function rollbackWorktree(manifest: ReturnType<typeof readRunnerManifest>, pathspecs: string[]) {
+  const uniquePathspecs = Array.from(new Set(pathspecs)).filter(Boolean);
+  const trackedPaths = getTrackedPaths(manifest.repoRoot, uniquePathspecs);
+  const restore = trackedPaths.length > 0
+    ? runCommand("git", ["restore", "--worktree", "--staged", "--", ...trackedPaths], manifest.repoRoot)
+    : ({ stdout: "", stderr: "", status: 0, signal: null } as ReturnType<typeof runCommand>);
+  const clean = uniquePathspecs.length > 0
+    ? runCommand("git", ["clean", "-fd", "--", ...uniquePathspecs], manifest.repoRoot)
+    : ({ stdout: "", stderr: "", status: 0, signal: null } as ReturnType<typeof runCommand>);
+  const finalStatus = getPathStatus(manifest.repoRoot, uniquePathspecs);
 
   return {
     restore,
@@ -503,6 +575,7 @@ async function main() {
     verificationLogs: [],
   };
   let workflowExitCode = 0;
+  const rollbackPathspecs: string[] = [];
 
   if (rollbackAfterVerify) {
     const beforeSnapshot = captureGitSnapshot(manifest, "before-apply");
@@ -640,6 +713,7 @@ async function main() {
           ...(resultAfterApply.changedFiles ?? []),
           ...((resultAfterApply.proposedEdits ?? []).map((edit) => edit.path)),
         ])).filter(Boolean);
+        rollbackPathspecs.push(...rolePaths);
         const snapshot = captureGitSnapshot(manifest, `${worker.role}-after-apply`, rolePaths);
         rollbackSummary.snapshots.push({
           label: `${worker.role}-after-apply`,
@@ -764,7 +838,7 @@ async function main() {
       statusTruncated: finalSnapshot.statusWrite.truncated,
     });
 
-    const rollback = rollbackWorktree(manifest);
+    const rollback = rollbackWorktree(manifest, rollbackPathspecs);
     printChildOutput(rollback.restore, "rollback restore");
     printChildOutput(rollback.clean, "rollback clean");
     rollbackSummary.rollback = {

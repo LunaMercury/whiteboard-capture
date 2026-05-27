@@ -10,7 +10,7 @@ import { withOpenAIRetry } from "./openaiRetry.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-type SupportedProvider = "claude" | "openai" | "manual";
+type SupportedProvider = "claude" | "openai" | "manual" | "test";
 
 type Args = {
   runId: string;
@@ -34,7 +34,7 @@ function parseArgs(argv: string[]): Args {
     throw new Error("Usage: npm run worker:run -- <run-id> <frontend|rust|java|mobile> [--provider openai|claude|manual]");
   }
 
-  if (!["openai", "claude", "manual"].includes(provider)) {
+  if (!["openai", "claude", "manual", "test"].includes(provider)) {
     throw new Error(`Unsupported provider: ${provider}`);
   }
 
@@ -151,6 +151,43 @@ function writeFailureResult(
   };
 
   fs.writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
+}
+
+function testEditPathForRole(role: WorkerTaskPacket["role"]) {
+  const paths: Record<WorkerTaskPacket["role"], string> = {
+    frontend: "web/.orchestrator-rollback-test.txt",
+    rust: "backend-fast/.orchestrator-rollback-test.txt",
+    java: "backend-core/src/main/resources/orchestrator-rollback-test.txt",
+    mobile: "mobile/.orchestrator-rollback-test.txt",
+  };
+  return paths[role];
+}
+
+function createTestWorkerResult(task: WorkerTaskPacket): WorkerResultPacket {
+  const editPath = testEditPathForRole(task.role);
+  return {
+    role: task.role,
+    status: "succeeded",
+    changedFiles: [],
+    summary: `[TEST] ${task.role} rollback pipeline test proposed one safe temporary edit.`,
+    contractsChanged: [],
+    verificationRun: [],
+    risks: [
+      "This is a local test worker result used only to exercise apply, verify, and rollback plumbing.",
+    ],
+    questions: [],
+    proposedEdits: [
+      {
+        path: editPath,
+        action: "create",
+        summary: "Create a tiny temporary file so rollback-after-verify can prove it removes applied edits.",
+        instructions: [
+          "Create this file with a short deterministic test message.",
+          "Do not modify any other files.",
+        ],
+      },
+    ],
+  };
 }
 
 function normalizeWorkerResult(
@@ -299,6 +336,19 @@ async function main() {
     console.log(`Role: ${role}`);
     console.log(`Prompt: ${promptPath}`);
     console.log(`Result: ${resultPath}`);
+    return;
+  }
+
+  if (provider === "test") {
+    const testResult = createTestWorkerResult(task);
+    writeWorkerResult(manifest, testResult);
+    console.log(`# Worker Run Complete`);
+    console.log(`Run ID: ${runId}`);
+    console.log(`Role: ${role}`);
+    console.log(`Provider: ${provider}`);
+    console.log(`Prompt: ${promptPath}`);
+    console.log(`Result: ${resultPath}`);
+    console.log(`Status: ${testResult.status}`);
     return;
   }
 

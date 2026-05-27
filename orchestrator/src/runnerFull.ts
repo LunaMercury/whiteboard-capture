@@ -63,7 +63,7 @@ function parseArgs(argv: string[]): Args {
   const request = requestParts.join(" ").trim();
   if (!request) {
     throw new Error(
-      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--worker-provider openai|manual|claude] [--apply-provider openai|manual] [--apply] [--rollback-after-verify] \"request\"",
+      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--worker-provider openai|manual|claude|test] [--apply-provider openai|manual|test] [--apply] [--rollback-after-verify] \"request\"",
     );
   }
 

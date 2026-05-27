@@ -35,6 +35,9 @@ const primaryVerificationByRole: Record<WorkerTaskPacket["role"], string> = {
   mobile: ".skills/verify-mobile.ps1",
 };
 
+const snapshotMaxBytes = Number.parseInt(process.env.RUNNER_SNAPSHOT_MAX_BYTES || `${2 * 1024 * 1024}`, 10);
+const verificationLogMaxBytes = Number.parseInt(process.env.RUNNER_VERIFICATION_LOG_MAX_BYTES || `${5 * 1024 * 1024}`, 10);
+
 function parseArgs(argv: string[]): Args {
   let workerProvider: WorkerProvider = (process.env.WORKER_PROVIDER as WorkerProvider) || "openai";
   let applyProvider: ApplyProvider = (process.env.APPLY_PROVIDER as ApplyProvider) || "openai";
@@ -203,6 +206,30 @@ function writeText(filePath: string, content: string) {
   fs.writeFileSync(filePath, content, "utf8");
 }
 
+function writeTextLimited(filePath: string, content: string, maxBytes: number) {
+  const contentBuffer = Buffer.from(content, "utf8");
+  if (!Number.isFinite(maxBytes) || maxBytes <= 0 || contentBuffer.byteLength <= maxBytes) {
+    writeText(filePath, content);
+    return {
+      truncated: false,
+      originalBytes: contentBuffer.byteLength,
+      writtenBytes: contentBuffer.byteLength,
+    };
+  }
+
+  const marker = `\n\n[truncated: original ${contentBuffer.byteLength} bytes exceeded limit ${maxBytes} bytes]\n`;
+  const markerBuffer = Buffer.from(marker, "utf8");
+  const sliceBytes = Math.max(0, maxBytes - markerBuffer.byteLength);
+  const truncatedContent = Buffer.concat([contentBuffer.subarray(0, sliceBytes), markerBuffer]).toString("utf8");
+  writeText(filePath, truncatedContent);
+
+  return {
+    truncated: true,
+    originalBytes: contentBuffer.byteLength,
+    writtenBytes: Buffer.byteLength(truncatedContent, "utf8"),
+  };
+}
+
 function writeJson(filePath: string, data: unknown) {
   writeText(filePath, `${JSON.stringify(data, null, 2)}\n`);
 }
@@ -324,9 +351,6 @@ function runVerificationScript(
   );
 
   printChildOutput(child, `verify ${role}`);
-  if (logFile) {
-    writeText(logFile, formatChildLog(child));
-  }
 
   if (child.status !== 0) {
     const failureMessage =
@@ -380,6 +404,10 @@ function getWorkflowDirs(manifest: ReturnType<typeof readRunnerManifest>) {
   };
 }
 
+function runRelativePath(manifest: ReturnType<typeof readRunnerManifest>, filePath: string) {
+  return path.relative(manifest.runDir, filePath).replaceAll("\\", "/");
+}
+
 function captureGitSnapshot(
   manifest: ReturnType<typeof readRunnerManifest>,
   name: string,
@@ -393,14 +421,16 @@ function captureGitSnapshot(
 
   const diffPath = path.join(snapshotsDir, `${safeName}.diff`);
   const statusPath = path.join(snapshotsDir, `${safeName}.status.txt`);
-  writeText(diffPath, diff.stdout || "");
-  writeText(statusPath, status.stdout || "");
+  const diffWrite = writeTextLimited(diffPath, diff.stdout || "", snapshotMaxBytes);
+  const statusWrite = writeTextLimited(statusPath, status.stdout || "", snapshotMaxBytes);
 
   return {
     diffPath,
     statusPath,
     diffStatus: diff.status,
     statusStatus: status.status,
+    diffWrite,
+    statusWrite,
   };
 }
 
@@ -459,8 +489,8 @@ async function main() {
 
   const rollbackSummary: {
     enabled: boolean;
-    snapshots: Array<{ label: string; diffPath: string; statusPath: string }>;
-    verificationLogs: Array<{ role: WorkerTaskPacket["role"] | "all"; script: string; logPath: string; status: number | null }>;
+    snapshots: Array<{ label: string; diffPath: string; statusPath: string; diffTruncated: boolean; statusTruncated: boolean }>;
+    verificationLogs: Array<{ role: WorkerTaskPacket["role"] | "all"; script: string; logPath: string; status: number | null; truncated: boolean }>;
     rollback?: {
       restoreStatus: number | null;
       cleanStatus: number | null;
@@ -476,7 +506,13 @@ async function main() {
 
   if (rollbackAfterVerify) {
     const beforeSnapshot = captureGitSnapshot(manifest, "before-apply");
-    rollbackSummary.snapshots.push({ label: "before-apply", diffPath: beforeSnapshot.diffPath, statusPath: beforeSnapshot.statusPath });
+    rollbackSummary.snapshots.push({
+      label: "before-apply",
+      diffPath: runRelativePath(manifest, beforeSnapshot.diffPath),
+      statusPath: runRelativePath(manifest, beforeSnapshot.statusPath),
+      diffTruncated: beforeSnapshot.diffWrite.truncated,
+      statusTruncated: beforeSnapshot.statusWrite.truncated,
+    });
   }
 
   if (skipWorkers) {
@@ -605,7 +641,13 @@ async function main() {
           ...((resultAfterApply.proposedEdits ?? []).map((edit) => edit.path)),
         ])).filter(Boolean);
         const snapshot = captureGitSnapshot(manifest, `${worker.role}-after-apply`, rolePaths);
-        rollbackSummary.snapshots.push({ label: `${worker.role}-after-apply`, diffPath: snapshot.diffPath, statusPath: snapshot.statusPath });
+        rollbackSummary.snapshots.push({
+          label: `${worker.role}-after-apply`,
+          diffPath: runRelativePath(manifest, snapshot.diffPath),
+          statusPath: runRelativePath(manifest, snapshot.statusPath),
+          diffTruncated: snapshot.diffWrite.truncated,
+          statusTruncated: snapshot.statusWrite.truncated,
+        });
       }
 
       console.log("");
@@ -638,7 +680,14 @@ async function main() {
         : undefined;
       const verify = runVerificationScript(manifest, worker.role, verificationScript, logPath);
       if (logPath) {
-        rollbackSummary.verificationLogs.push({ role: worker.role, script: verificationScript, logPath, status: verify.status });
+        const logWrite = writeTextLimited(logPath, formatChildLog(verify), verificationLogMaxBytes);
+        rollbackSummary.verificationLogs.push({
+          role: worker.role,
+          script: verificationScript,
+          logPath: runRelativePath(manifest, logPath),
+          status: verify.status,
+          truncated: logWrite.truncated,
+        });
       }
       if (verify.status !== 0 && !continueOnError) {
         if (rollbackAfterVerify) {
@@ -668,8 +717,14 @@ async function main() {
     printChildOutput(verify, "verify all");
     if (rollbackAfterVerify) {
       const logPath = path.join(getWorkflowDirs(manifest).verificationDir, "verify-all.log");
-      writeText(logPath, formatChildLog(verify));
-      rollbackSummary.verificationLogs.push({ role: "all", script: verificationScript, logPath, status: verify.status });
+      const logWrite = writeTextLimited(logPath, formatChildLog(verify), verificationLogMaxBytes);
+      rollbackSummary.verificationLogs.push({
+        role: "all",
+        script: verificationScript,
+        logPath: runRelativePath(manifest, logPath),
+        status: verify.status,
+        truncated: logWrite.truncated,
+      });
     }
 
     const succeededWorkers = targetWorkers
@@ -703,8 +758,10 @@ async function main() {
     const finalSnapshot = captureGitSnapshot(manifest, "after-verification-before-rollback");
     rollbackSummary.snapshots.push({
       label: "after-verification-before-rollback",
-      diffPath: finalSnapshot.diffPath,
-      statusPath: finalSnapshot.statusPath,
+      diffPath: runRelativePath(manifest, finalSnapshot.diffPath),
+      statusPath: runRelativePath(manifest, finalSnapshot.statusPath),
+      diffTruncated: finalSnapshot.diffWrite.truncated,
+      statusTruncated: finalSnapshot.statusWrite.truncated,
     });
 
     const rollback = rollbackWorktree(manifest);

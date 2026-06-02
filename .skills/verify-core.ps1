@@ -32,9 +32,32 @@ Write-Host ($javaVersionOutput -join "`n") -ForegroundColor DarkGray
 $env:GRADLE_USER_HOME = "C:\Users\Public\Documents\ESTsoft\CreatorTemp\whiteboard-capture-core-gradle"
 New-Item -ItemType Directory -Force -Path $env:GRADLE_USER_HOME | Out-Null
 
+function Stop-ProjectGradleDaemons {
+    try {
+        Get-CimInstance Win32_Process -Filter "Name = 'java.exe'" -ErrorAction Stop |
+            Where-Object {
+                $_.CommandLine -like "*$env:GRADLE_USER_HOME*" -and
+                $_.CommandLine -like "*GradleDaemon*"
+            } |
+            ForEach-Object {
+                Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+            }
+    }
+    catch {
+        Write-Warning "Could not inspect project Gradle daemons: $($_.Exception.Message)"
+    }
+}
+
 Write-Host "Running gradlew classes..." -ForegroundColor Yellow
-.\gradlew.bat --no-daemon --console=plain classes
-if ($LASTEXITCODE -ne 0) { throw "gradlew classes failed" }
+.\gradlew.bat --stop | Out-Host
+try {
+    .\gradlew.bat --no-daemon --console=plain classes
+    if ($LASTEXITCODE -ne 0) { throw "gradlew classes failed" }
+}
+finally {
+    .\gradlew.bat --stop | Out-Host
+    Stop-ProjectGradleDaemons
+}
 
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host "BACKEND-CORE Verification Completed Successfully" -ForegroundColor Green

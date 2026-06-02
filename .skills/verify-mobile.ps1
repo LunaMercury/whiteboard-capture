@@ -30,10 +30,35 @@ if ($javaVersionText -notmatch '"26(\.|")') {
 Write-Host "Using JAVA_HOME=$env:JAVA_HOME" -ForegroundColor Yellow
 Write-Host ($javaVersionOutput -join "`n") -ForegroundColor DarkGray
 
+$env:GRADLE_USER_HOME = Join-Path $mobileRoot ".gradle-user-home"
+New-Item -ItemType Directory -Force -Path $env:GRADLE_USER_HOME | Out-Null
+
+function Stop-ProjectGradleDaemons {
+    try {
+        Get-CimInstance Win32_Process -Filter "Name = 'java.exe'" -ErrorAction Stop |
+            Where-Object {
+                $_.CommandLine -like "*$env:GRADLE_USER_HOME*" -and
+                $_.CommandLine -like "*GradleDaemon*"
+            } |
+            ForEach-Object {
+                Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+            }
+    }
+    catch {
+        Write-Warning "Could not inspect project Gradle daemons: $($_.Exception.Message)"
+    }
+}
+
 Write-Host "Running gradlew compileDebugSources..." -ForegroundColor Yellow
 .\gradlew.bat --stop | Out-Host
-& .\gradlew.bat --no-daemon "-Dorg.gradle.vfs.watch=false" :app:compileDebugSources --console=plain
-if ($LASTEXITCODE -ne 0) { throw "gradlew compileDebugSources failed" }
+try {
+    & .\gradlew.bat --no-daemon "-Dorg.gradle.vfs.watch=false" :app:compileDebugSources --console=plain
+    if ($LASTEXITCODE -ne 0) { throw "gradlew compileDebugSources failed" }
+}
+finally {
+    .\gradlew.bat --stop | Out-Host
+    Stop-ProjectGradleDaemons
+}
 
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host "MOBILE Verification Completed Successfully" -ForegroundColor Green

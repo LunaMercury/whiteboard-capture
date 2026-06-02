@@ -124,7 +124,26 @@ export function writeRunnerBundle(orchestratorRoot: string, input: RunnerBundleI
 
 export function readRunnerManifest(orchestratorRoot: string, runId: string): RunnerManifest {
   const manifestPath = path.join(orchestratorRoot, "runs", runId, "meta", "manifest.json");
-  return JSON.parse(fs.readFileSync(manifestPath, "utf8")) as RunnerManifest;
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")) as RunnerManifest;
+  const runDir = path.join(orchestratorRoot, "runs", runId);
+  const tasksDir = path.join(runDir, "tasks");
+  const resultsDir = path.join(runDir, "results");
+  const metaDir = path.join(runDir, "meta");
+
+  return {
+    ...manifest,
+    repoRoot: path.resolve(orchestratorRoot, ".."),
+    runDir,
+    tasksDir,
+    resultsDir,
+    reportPath: path.join(runDir, "report.md"),
+    summaryPath: path.join(metaDir, "summary.json"),
+    workers: manifest.workers.map((worker) => ({
+      ...worker,
+      taskFile: path.join(tasksDir, `${worker.role}.task.json`),
+      resultFile: path.join(resultsDir, `${worker.role}.result.json`),
+    })),
+  };
 }
 
 export function readRunnerSummary(manifest: RunnerManifest): RunnerSummary {

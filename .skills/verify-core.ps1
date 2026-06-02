@@ -33,7 +33,7 @@ $env:GRADLE_USER_HOME = "C:\Users\Public\Documents\ESTsoft\CreatorTemp\whiteboar
 New-Item -ItemType Directory -Force -Path $env:GRADLE_USER_HOME | Out-Null
 
 Write-Host "Running gradlew classes..." -ForegroundColor Yellow
-.\gradlew.bat classes
+.\gradlew.bat --no-daemon --console=plain classes
 if ($LASTEXITCODE -ne 0) { throw "gradlew classes failed" }
 
 Write-Host "==========================================" -ForegroundColor Green

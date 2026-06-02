@@ -38,6 +38,7 @@ const primaryVerificationByRole: Record<WorkerTaskPacket["role"], string> = {
 
 const snapshotMaxBytes = Number.parseInt(process.env.RUNNER_SNAPSHOT_MAX_BYTES || `${2 * 1024 * 1024}`, 10);
 const verificationLogMaxBytes = Number.parseInt(process.env.RUNNER_VERIFICATION_LOG_MAX_BYTES || `${5 * 1024 * 1024}`, 10);
+const verificationTimeoutMs = Number.parseInt(process.env.RUNNER_VERIFICATION_TIMEOUT_MS || `${10 * 60 * 1000}`, 10);
 
 function parseArgs(argv: string[]): Args {
   let workerProvider: WorkerProvider = (process.env.WORKER_PROVIDER as WorkerProvider) || "openai";
@@ -196,11 +197,12 @@ function runNodeScriptAsync(scriptPath: string, scriptArgs: string[], cwd: strin
   });
 }
 
-function runCommand(command: string, args: string[], cwd: string) {
+function runCommand(command: string, args: string[], cwd: string, timeoutMs?: number) {
   return spawnSync(command, args, {
     cwd,
     encoding: "utf8",
     stdio: "pipe",
+    timeout: timeoutMs,
   });
 }
 
@@ -392,6 +394,7 @@ function runVerificationScript(
     "powershell",
     ["-ExecutionPolicy", "Bypass", "-File", verificationScript],
     manifest.repoRoot,
+    verificationTimeoutMs,
   );
 
   printChildOutput(child, `verify ${role}`);
@@ -914,6 +917,7 @@ async function main() {
       "powershell",
       ["-ExecutionPolicy", "Bypass", "-File", verificationScript],
       manifest.repoRoot,
+      verificationTimeoutMs,
     );
     printWorkflowChild(verify, "verify all", compact);
     if (rollbackAfterVerify) {

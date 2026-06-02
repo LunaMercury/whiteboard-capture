@@ -9,6 +9,7 @@ type Args = {
   dryRun: boolean;
   keepLast: number;
   keepDays: number;
+  protectedRuns: Set<string>;
 };
 
 type RunEntry = {
@@ -27,6 +28,7 @@ function parseArgs(argv: string[]): Args {
   let dryRun = false;
   let keepLast = parsePositiveInt(process.env.RUNNER_CLEANUP_KEEP_LAST, 10);
   let keepDays = parsePositiveInt(process.env.RUNNER_CLEANUP_KEEP_DAYS, 7);
+  const protectedRuns = new Set<string>();
 
   for (let index = 0; index < argv.length; index += 1) {
     const item = argv[index];
@@ -44,10 +46,19 @@ function parseArgs(argv: string[]): Args {
       index += 1;
       continue;
     }
-    throw new Error("Usage: npm run runner:cleanup -- [--dry-run] [--keep-last 10] [--keep-days 7]");
+    if (item === "--protect-run") {
+      const runId = argv[index + 1];
+      if (!runId || !/^run-\d{4}-/.test(runId)) {
+        throw new Error(`Invalid protected run ID: ${runId || "<missing>"}`);
+      }
+      protectedRuns.add(runId);
+      index += 1;
+      continue;
+    }
+    throw new Error("Usage: npm run runner:cleanup -- [--dry-run] [--keep-last 10] [--keep-days 7] [--protect-run <run-id>]");
   }
 
-  return { dryRun, keepLast, keepDays };
+  return { dryRun, keepLast, keepDays, protectedRuns };
 }
 
 function getDirectorySize(dirPath: string): number {
@@ -69,6 +80,20 @@ function formatMb(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
+function assertSafeRunDirectory(runsRoot: string, entry: fs.Dirent) {
+  if (entry.isSymbolicLink()) {
+    throw new Error(`Refusing to inspect symbolic link in runs directory: ${entry.name}`);
+  }
+
+  const resolvedRoot = path.resolve(runsRoot);
+  const fullPath = path.resolve(resolvedRoot, entry.name);
+  if (path.dirname(fullPath) !== resolvedRoot || !/^run-\d{4}-/.test(entry.name)) {
+    throw new Error(`Refusing unsafe run directory path: ${entry.name}`);
+  }
+
+  return fullPath;
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -79,6 +104,7 @@ function main() {
   console.log(`Dry run: ${args.dryRun ? "yes" : "no"}`);
   console.log(`Keep last: ${args.keepLast}`);
   console.log(`Keep days: ${args.keepDays}`);
+  console.log(`Protected runs: ${[...args.protectedRuns].join(", ") || "none"}`);
   console.log("");
 
   if (!fs.existsSync(runsRoot)) {
@@ -91,7 +117,7 @@ function main() {
   const entries: RunEntry[] = fs.readdirSync(runsRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && /^run-\d{4}-/.test(entry.name))
     .map((entry) => {
-      const fullPath = path.join(runsRoot, entry.name);
+      const fullPath = assertSafeRunDirectory(runsRoot, entry);
       const stat = fs.statSync(fullPath);
       return {
         name: entry.name,
@@ -111,9 +137,10 @@ function main() {
     totalBytes += entry.sizeBytes;
     const withinKeepLast = index < args.keepLast;
     const withinKeepDays = now - entry.mtimeMs <= keepMs;
-    const shouldDelete = !withinKeepLast && !withinKeepDays;
+    const protectedRun = args.protectedRuns.has(entry.name);
+    const shouldDelete = !protectedRun && !withinKeepLast && !withinKeepDays;
 
-    const action = shouldDelete ? (args.dryRun ? "would delete" : "delete") : "keep";
+    const action = protectedRun ? "protect" : shouldDelete ? (args.dryRun ? "would delete" : "delete") : "keep";
     console.log(`${action}: ${entry.name} (${formatMb(entry.sizeBytes)})`);
 
     if (shouldDelete) {

@@ -31,6 +31,8 @@ type Args = {
   concurrency: number;
   rollbackAfterVerify: boolean;
   keepApplied: boolean;
+  cleanupRuns: boolean;
+  cleanupDryRun: boolean;
   compact: boolean;
 };
 
@@ -62,6 +64,8 @@ function parseArgs(argv: string[]): Args {
   let skipFinalize = false;
   let rollbackAfterVerify = false;
   let keepApplied = false;
+  let cleanupRuns = process.env.RUNNER_AUTO_CLEANUP !== "false";
+  let cleanupDryRun = false;
   let compact = false;
   let concurrency = Number.parseInt(process.env.RUNNER_CONCURRENCY || "1", 10);
 
@@ -129,6 +133,14 @@ function parseArgs(argv: string[]): Args {
       keepApplied = true;
       continue;
     }
+    if (item === "--skip-cleanup") {
+      cleanupRuns = false;
+      continue;
+    }
+    if (item === "--cleanup-dry-run") {
+      cleanupDryRun = true;
+      continue;
+    }
     if (item === "--compact" || item === "--summary-only") {
       compact = true;
       continue;
@@ -149,7 +161,7 @@ function parseArgs(argv: string[]): Args {
 
   if (!runId) {
     throw new Error(
-      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify|--keep-applied] [--compact] [--allow-dirty] [--apply-review] [--approve-contract-changes] [--approve-open-questions] [--continue-on-error] [--skip-workers] [--reuse-worker-results] [--verify-all] [--skip-finalize]",
+      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify|--keep-applied] [--compact] [--allow-dirty] [--apply-review] [--approve-contract-changes] [--approve-open-questions] [--continue-on-error] [--skip-workers] [--reuse-worker-results] [--verify-all] [--skip-finalize] [--skip-cleanup|--cleanup-dry-run]",
     );
   }
 
@@ -184,6 +196,8 @@ function parseArgs(argv: string[]): Args {
     concurrency: Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 1,
     rollbackAfterVerify,
     keepApplied,
+    cleanupRuns,
+    cleanupDryRun,
     compact,
   };
 }
@@ -758,7 +772,7 @@ function rollbackWorktree(manifest: ReturnType<typeof readRunnerManifest>, paths
 }
 
 async function main() {
-  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, approveOpenQuestions, applyEdits, allowDirty, skipWorkers, reuseWorkerResults, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, keepApplied, compact } = parseArgs(
+  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, approveOpenQuestions, applyEdits, allowDirty, skipWorkers, reuseWorkerResults, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, keepApplied, cleanupRuns, cleanupDryRun, compact } = parseArgs(
     process.argv.slice(2),
   );
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -813,6 +827,8 @@ async function main() {
   console.log(`Worker concurrency: ${concurrency}`);
   console.log(`Rollback after verify: ${rollbackAfterVerify ? "yes" : "no"}`);
   console.log(`Keep applied edits: ${keepApplied ? "yes" : "no"}`);
+  console.log(`Cleanup runs: ${cleanupRuns ? "yes" : "no"}`);
+  console.log(`Cleanup dry run: ${cleanupDryRun ? "yes" : "no"}`);
   console.log(`Compact output: ${compact ? "yes" : "no"}`);
   console.log("");
 
@@ -1206,6 +1222,20 @@ async function main() {
     printWorkflowChild(finalize, "finalize", compact);
     if (finalize.status !== 0 && !continueOnError) {
       process.exit(finalize.status ?? 1);
+    }
+  }
+
+  if (cleanupRuns) {
+    console.log("");
+    console.log("## Cleaning old run artifacts");
+    const cleanup = runNodeScript(
+      path.join("src", "runnerCleanup.ts"),
+      [...(cleanupDryRun ? ["--dry-run"] : []), "--protect-run", runId],
+      orchestratorRoot,
+    );
+    printWorkflowChild(cleanup, "cleanup", compact);
+    if (cleanup.status !== 0) {
+      workflowExitCode = workflowExitCode || cleanup.status || 1;
     }
   }
 

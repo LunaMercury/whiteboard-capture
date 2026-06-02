@@ -34,6 +34,8 @@ const workflowBooleanFlags = new Set([
   "--compact",
   "--summary-only",
   "--skip-finalize",
+  "--skip-cleanup",
+  "--cleanup-dry-run",
 ]);
 
 function parseArgs(argv: string[]): Args {

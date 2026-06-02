@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { applyPacketSchema, type ApplyPacket } from "./applySchemas.js";
+import { assertPacketMatchesApprovedReview, loadApprovedApplyReview } from "./applyApproval.js";
 import { readRunnerManifest, readWorkerResult, readWorkerTask } from "./packetStore.js";
 import type { WorkerTaskPacket } from "./taskSchemas.js";
 
@@ -101,6 +102,8 @@ async function main() {
   fs.mkdirSync(appliesDir, { recursive: true });
 
   const packet = buildApplyPacket(runId, task, result);
+  const review = loadApprovedApplyReview(orchestratorRoot, runId, role);
+  assertPacketMatchesApprovedReview(packet, review.approvedEdits);
   const packetPath = path.join(appliesDir, `${role}.apply.json`);
   const promptPath = path.join(appliesDir, `${role}.apply.md`);
 

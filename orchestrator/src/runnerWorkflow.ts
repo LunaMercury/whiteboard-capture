@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResult, readWorkerTask, writeWorkerResult } from "./packetStore.js";
+import { normalizeRepoRelativePath } from "./pathSafety.js";
 import type { WorkerTaskPacket } from "./taskSchemas.js";
 import type { WorkerResultPacket } from "./resultSchemas.js";
 
@@ -29,6 +30,7 @@ type Args = {
   skipFinalize: boolean;
   concurrency: number;
   rollbackAfterVerify: boolean;
+  keepApplied: boolean;
   compact: boolean;
 };
 
@@ -59,6 +61,7 @@ function parseArgs(argv: string[]): Args {
   let verifyAll = false;
   let skipFinalize = false;
   let rollbackAfterVerify = false;
+  let keepApplied = false;
   let compact = false;
   let concurrency = Number.parseInt(process.env.RUNNER_CONCURRENCY || "1", 10);
 
@@ -122,6 +125,10 @@ function parseArgs(argv: string[]): Args {
       rollbackAfterVerify = true;
       continue;
     }
+    if (item === "--keep-applied") {
+      keepApplied = true;
+      continue;
+    }
     if (item === "--compact" || item === "--summary-only") {
       compact = true;
       continue;
@@ -142,12 +149,21 @@ function parseArgs(argv: string[]): Args {
 
   if (!runId) {
     throw new Error(
-      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify] [--compact] [--allow-dirty] [--apply-review] [--approve-contract-changes] [--approve-open-questions] [--continue-on-error] [--skip-workers] [--reuse-worker-results] [--verify-all] [--skip-finalize]",
+      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify|--keep-applied] [--compact] [--allow-dirty] [--apply-review] [--approve-contract-changes] [--approve-open-questions] [--continue-on-error] [--skip-workers] [--reuse-worker-results] [--verify-all] [--skip-finalize]",
     );
   }
 
   if (rollbackAfterVerify && !applyEdits) {
     throw new Error("--rollback-after-verify requires --apply so there are applied edits to verify and roll back.");
+  }
+  if (keepApplied && !applyEdits) {
+    throw new Error("--keep-applied requires --apply so there are edits to preserve.");
+  }
+  if (rollbackAfterVerify && keepApplied) {
+    throw new Error("--rollback-after-verify and --keep-applied are mutually exclusive.");
+  }
+  if (applyEdits && !rollbackAfterVerify && !keepApplied) {
+    throw new Error("--apply requires --rollback-after-verify for a safe trial or --keep-applied for intentional permanent changes.");
   }
 
   return {
@@ -167,6 +183,7 @@ function parseArgs(argv: string[]): Args {
     skipFinalize,
     concurrency: Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 1,
     rollbackAfterVerify,
+    keepApplied,
     compact,
   };
 }
@@ -677,6 +694,25 @@ function getPathStatus(repoRoot: string, pathspecs: string[]) {
   return child.stdout.trim();
 }
 
+function getRollbackScopePathspecs(
+  manifest: ReturnType<typeof readRunnerManifest>,
+  workers: ReturnType<typeof readRunnerManifest>["workers"],
+) {
+  return Array.from(new Set(
+    workers.flatMap((worker) => {
+      const task = readWorkerTask(manifest, worker.role);
+      return task.allowedPaths.map((rule) => {
+        const scope = rule.replaceAll("\\", "/").replace(/\/\*\*?$/, "");
+        const normalized = normalizeRepoRelativePath(scope);
+        if (!normalized) {
+          throw new Error(`Unsafe allowed path rule for rollback scope: ${rule}`);
+        }
+        return normalized;
+      });
+    }),
+  ));
+}
+
 function getTrackedPaths(repoRoot: string, pathspecs: string[]) {
   if (pathspecs.length === 0) {
     return [];
@@ -722,7 +758,7 @@ function rollbackWorktree(manifest: ReturnType<typeof readRunnerManifest>, paths
 }
 
 async function main() {
-  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, approveOpenQuestions, applyEdits, allowDirty, skipWorkers, reuseWorkerResults, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, compact } = parseArgs(
+  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, approveOpenQuestions, applyEdits, allowDirty, skipWorkers, reuseWorkerResults, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, keepApplied, compact } = parseArgs(
     process.argv.slice(2),
   );
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -746,6 +782,20 @@ async function main() {
       );
     }
   }
+  if (applyEdits && rollbackAfterVerify && allowDirty) {
+    const rollbackScopes = getRollbackScopePathspecs(manifest, targetWorkers);
+    const dirtyTargetOutput = getPathStatus(manifest.repoRoot, rollbackScopes);
+    if (dirtyTargetOutput) {
+      throw new Error(
+        [
+          "Refusing rollback trial because target module scopes already contain changes.",
+          "--allow-dirty may only be used when pre-existing edits are outside worker target scopes.",
+          "",
+          dirtyTargetOutput,
+        ].join("\n"),
+      );
+    }
+  }
 
   console.log("# Runner Workflow");
   console.log(`Run ID: ${runId}`);
@@ -762,6 +812,7 @@ async function main() {
   console.log(`Verify all: ${verifyAll ? "yes" : "no"}`);
   console.log(`Worker concurrency: ${concurrency}`);
   console.log(`Rollback after verify: ${rollbackAfterVerify ? "yes" : "no"}`);
+  console.log(`Keep applied edits: ${keepApplied ? "yes" : "no"}`);
   console.log(`Compact output: ${compact ? "yes" : "no"}`);
   console.log("");
 

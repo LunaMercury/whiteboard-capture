@@ -30,6 +30,7 @@ const workflowBooleanFlags = new Set([
   "--reuse-worker-results",
   "--verify-all",
   "--rollback-after-verify",
+  "--keep-applied",
   "--compact",
   "--summary-only",
   "--skip-finalize",
@@ -76,12 +77,25 @@ function parseArgs(argv: string[]): Args {
   const request = requestParts.join(" ").trim();
   if (!request) {
     throw new Error(
-      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--worker-provider openai|manual|claude|test] [--apply-provider openai|manual|test] [--apply] [--approve-contract-changes] [--approve-open-questions] [--rollback-after-verify] \"request\"",
+      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--worker-provider openai|manual|claude|test] [--apply-provider openai|manual|test] [--apply] [--approve-contract-changes] [--approve-open-questions] [--rollback-after-verify|--keep-applied] \"request\"",
     );
   }
 
   if (workflowArgs.includes("--rollback-after-verify") && !workflowArgs.includes("--apply")) {
     throw new Error("--rollback-after-verify requires --apply so runner:full does not create a throwaway run before failing.");
+  }
+  if (workflowArgs.includes("--keep-applied") && !workflowArgs.includes("--apply")) {
+    throw new Error("--keep-applied requires --apply so runner:full does not create a throwaway run before failing.");
+  }
+  if (workflowArgs.includes("--rollback-after-verify") && workflowArgs.includes("--keep-applied")) {
+    throw new Error("--rollback-after-verify and --keep-applied are mutually exclusive.");
+  }
+  if (
+    workflowArgs.includes("--apply")
+    && !workflowArgs.includes("--rollback-after-verify")
+    && !workflowArgs.includes("--keep-applied")
+  ) {
+    throw new Error("--apply requires --rollback-after-verify for a safe trial or --keep-applied for intentional permanent changes.");
   }
 
   return {

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResult, readWorkerTask } from "./packetStore.js";
+import { matchesRepoPathRule, normalizeRepoRelativePath } from "./pathSafety.js";
 import { applyReviewDecisionSchema, type ApplyReviewDecision } from "./reviewSchemas.js";
 import type { WorkerTaskPacket } from "./taskSchemas.js";
 
@@ -29,26 +30,8 @@ function parseArgs(argv: string[]) {
   };
 }
 
-function normalizePath(filePath: string) {
-  return filePath.replace(/\\/g, "/").replace(/^\/+/, "");
-}
-
 function matchesPathRule(filePath: string, rule: string) {
-  const normalizedPath = normalizePath(filePath);
-  const normalizedRule = normalizePath(rule);
-
-  if (normalizedRule.endsWith("/**")) {
-    const prefix = normalizedRule.slice(0, -3);
-    return normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`);
-  }
-
-  if (normalizedRule.endsWith("/*")) {
-    const prefix = normalizedRule.slice(0, -2);
-    const rest = normalizedPath.startsWith(`${prefix}/`) ? normalizedPath.slice(prefix.length + 1) : "";
-    return Boolean(rest) && !rest.includes("/");
-  }
-
-  return normalizedPath === normalizedRule || normalizedPath.startsWith(`${normalizedRule}/`);
+  return matchesRepoPathRule(filePath, rule);
 }
 
 function isAllowedPath(filePath: string, task: WorkerTaskPacket) {
@@ -93,7 +76,10 @@ const dependencyNegationPatterns = [
 ];
 
 function isDependencyManifestPath(filePath: string) {
-  const normalizedPath = normalizePath(filePath);
+  const normalizedPath = normalizeRepoRelativePath(filePath);
+  if (!normalizedPath) {
+    return false;
+  }
   const baseName = normalizedPath.split("/").at(-1) ?? normalizedPath;
   return dependencyManifestFiles.has(baseName);
 }
@@ -162,7 +148,11 @@ function buildDecision(
   }
 
   for (const edit of result.proposedEdits ?? []) {
-    const editPath = normalizePath(edit.path);
+    const editPath = normalizeRepoRelativePath(edit.path);
+    if (!editPath) {
+      blockedReasons.push(`${edit.path} is not a safe repository-relative path.`);
+      continue;
+    }
     const allowed = isAllowedPath(editPath, task);
     const blocked = isBlockedPath(editPath, task);
 
@@ -173,7 +163,7 @@ function buildDecision(
       blockedReasons.push(`${edit.path} matches blocked paths: ${task.blockedPaths.join(", ")}`);
     }
     if (allowed && !blocked) {
-      approvedEdits.push(edit.path);
+      approvedEdits.push(editPath);
     }
     if (isDependencyManifestPath(editPath)) {
       dependencyManifestEditCount += 1;

@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { readRunnerManifest, readWorkerResult, writeWorkerResult } from "./packetStore.js";
 import { applyPacketSchema, type ApplyPacket } from "./applySchemas.js";
+import { assertPacketMatchesApprovedReview, loadApprovedApplyReview } from "./applyApproval.js";
 import { withOpenAIRetry } from "./openaiRetry.js";
+import { assertSamePathSet, matchesRepoPathRule, normalizeRepoRelativePath, resolveRepoPath } from "./pathSafety.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,20 +58,9 @@ function parseArgs(argv: string[]) {
   };
 }
 
-function normalizePrefix(pattern: string) {
-  return pattern.replace(/\/\*\*$/, "").replaceAll("\\", "/");
-}
-
 function isAllowedPath(repoRelativePath: string, packet: ApplyPacket) {
-  const normalized = repoRelativePath.replaceAll("\\", "/");
-  const allowed = packet.allowedPaths.some((pattern) => {
-    const prefix = normalizePrefix(pattern);
-    return normalized === prefix || normalized.startsWith(`${prefix}/`);
-  });
-  const blocked = packet.blockedPaths.some((pattern) => {
-    const prefix = normalizePrefix(pattern);
-    return normalized === prefix || normalized.startsWith(`${prefix}/`);
-  });
+  const allowed = packet.allowedPaths.some((pattern) => matchesRepoPathRule(repoRelativePath, pattern));
+  const blocked = packet.blockedPaths.some((pattern) => matchesRepoPathRule(repoRelativePath, pattern));
   return allowed && !blocked;
 }
 
@@ -83,7 +74,7 @@ function loadApplyPacket(orchestratorRoot: string, runId: string, role: string) 
 
 function loadCurrentContexts(repoRoot: string, packet: ApplyPacket) {
   return packet.proposedEdits.map((edit) => {
-    const fullPath = path.join(repoRoot, edit.path);
+    const { resolvedPath: fullPath } = resolveRepoPath(repoRoot, edit.path);
     const exists = fs.existsSync(fullPath);
     const currentContent = exists ? fs.readFileSync(fullPath, "utf8") : "";
     return {
@@ -256,7 +247,7 @@ function applyFileEdits(repoRoot: string, packet: ApplyPacket, execution: ApplyE
       throw new Error(`Apply edit path is outside allowed scope: ${fileEdit.path}`);
     }
 
-    const fullPath = path.join(repoRoot, fileEdit.path);
+    const { resolvedPath: fullPath } = resolveRepoPath(repoRoot, fileEdit.path);
 
     if (fileEdit.action === "delete") {
       if (fs.existsSync(fullPath)) {
@@ -272,6 +263,51 @@ function applyFileEdits(repoRoot: string, packet: ApplyPacket, execution: ApplyE
     fs.mkdirSync(path.dirname(fullPath), { recursive: true });
     fs.writeFileSync(fullPath, fileEdit.content, "utf8");
   }
+}
+
+function normalizePathList(paths: string[], label: string) {
+  return paths.map((candidate) => {
+    const normalized = normalizeRepoRelativePath(candidate);
+    if (!normalized) {
+      throw new Error(`${label} contains an unsafe repository-relative path: ${candidate}`);
+    }
+    return normalized;
+  });
+}
+
+function validateApplyExecution(packet: ApplyPacket, execution: ApplyExecution) {
+  if (execution.status !== "succeeded") {
+    if (execution.changedFiles.length > 0 || execution.fileEdits.length > 0) {
+      throw new Error(`Apply execution status ${execution.status} cannot include changed files or file edits.`);
+    }
+    return;
+  }
+
+  const proposedActions = new Map<string, ApplyPacket["proposedEdits"][number]["action"]>();
+  for (const edit of packet.proposedEdits) {
+    const normalized = normalizePathList([edit.path], "Apply packet")[0];
+    if (proposedActions.has(normalized)) {
+      throw new Error(`Apply packet contains duplicate proposed path: ${normalized}`);
+    }
+    if (!isAllowedPath(normalized, packet)) {
+      throw new Error(`Apply packet path is outside allowed scope: ${normalized}`);
+    }
+    proposedActions.set(normalized, edit.action);
+  }
+
+  const executionPaths = normalizePathList(execution.fileEdits.map((edit) => edit.path), "Apply execution");
+  assertSamePathSet("Apply execution fileEdits", [...proposedActions.keys()], executionPaths);
+
+  for (const fileEdit of execution.fileEdits) {
+    const normalized = normalizePathList([fileEdit.path], "Apply execution")[0];
+    const approvedAction = proposedActions.get(normalized);
+    if (approvedAction !== fileEdit.action) {
+      throw new Error(`Apply execution action for ${normalized} is ${fileEdit.action}, expected ${approvedAction}.`);
+    }
+  }
+
+  const changedFiles = normalizePathList(execution.changedFiles, "Apply execution changedFiles");
+  assertSamePathSet("Apply execution changedFiles", executionPaths, changedFiles);
 }
 
 function runTestApply(packet: ApplyPacket): ApplyExecution {
@@ -327,6 +363,8 @@ async function main() {
   const orchestratorRoot = path.resolve(__dirname, "..");
   const manifest = readRunnerManifest(orchestratorRoot, runId);
   const { packet } = loadApplyPacket(orchestratorRoot, runId, role);
+  const review = loadApprovedApplyReview(orchestratorRoot, runId, role);
+  assertPacketMatchesApprovedReview(packet, review.approvedEdits);
   const contexts = loadCurrentContexts(manifest.repoRoot, packet);
   const prompt = renderApplyPrompt(packet, contexts);
 
@@ -345,7 +383,10 @@ async function main() {
     ? runTestApply(packet)
     : await runOpenAIApply(prompt);
   writeExecutionArtifacts(manifest.runDir, role, prompt, execution);
-  applyFileEdits(manifest.repoRoot, packet, execution);
+  validateApplyExecution(packet, execution);
+  if (execution.status === "succeeded") {
+    applyFileEdits(manifest.repoRoot, packet, execution);
+  }
   syncWorkerResultAfterApply(manifest, role, execution);
 
   console.log(`# Apply Run Complete`);

@@ -2,7 +2,8 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readRunnerManifest } from "./packetStore.js";
+import { readRunnerManifest, readWorkerTask } from "./packetStore.js";
+import { matchesRepoPathRule, normalizeRepoRelativePath } from "./pathSafety.js";
 import type { WorkerResultPacket } from "./resultSchemas.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -68,24 +69,6 @@ function writeJson(filePath: string, data: unknown) {
   fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`, "utf8");
 }
 
-function normalizeRepoRelativePath(repoRoot: string, candidate: string) {
-  const normalizedCandidate = candidate.replaceAll("\\", "/").trim();
-  if (!normalizedCandidate) {
-    return undefined;
-  }
-
-  const absoluteCandidate = path.isAbsolute(candidate)
-    ? path.resolve(candidate)
-    : path.resolve(repoRoot, candidate);
-  const relative = path.relative(repoRoot, absoluteCandidate);
-
-  if (relative.startsWith("..") || path.isAbsolute(relative)) {
-    return undefined;
-  }
-
-  return relative.replaceAll("\\", "/");
-}
-
 function safeReadJson<T>(filePath: string): T | undefined {
   if (!fs.existsSync(filePath)) {
     return undefined;
@@ -98,7 +81,28 @@ function safeReadJson<T>(filePath: string): T | undefined {
   }
 }
 
-function collectApplyExecutionPaths(runDir: string) {
+function assertRecoveryPath(
+  manifest: ReturnType<typeof readRunnerManifest>,
+  role: WorkerResultPacket["role"],
+  candidate: string,
+) {
+  const normalized = normalizeRepoRelativePath(candidate);
+  if (!normalized) {
+    throw new Error(`Recovery artifact contains an unsafe repository-relative path for ${role}: ${candidate}`);
+  }
+
+  const task = readWorkerTask(manifest, role);
+  const allowed = task.allowedPaths.some((rule) => matchesRepoPathRule(normalized, rule));
+  const blocked = task.blockedPaths.some((rule) => matchesRepoPathRule(normalized, rule));
+  if (!allowed || blocked) {
+    throw new Error(`Recovery artifact path is outside the ${role} scope: ${candidate}`);
+  }
+
+  return normalized;
+}
+
+function collectApplyExecutionPaths(manifest: ReturnType<typeof readRunnerManifest>) {
+  const runDir = manifest.runDir;
   const appliesDir = path.join(runDir, "applies");
   if (!fs.existsSync(appliesDir)) {
     return [];
@@ -107,6 +111,10 @@ function collectApplyExecutionPaths(runDir: string) {
   return fs.readdirSync(appliesDir)
     .filter((fileName) => fileName.endsWith(".apply-result.json"))
     .flatMap((fileName) => {
+      const role = fileName.slice(0, -".apply-result.json".length) as WorkerResultPacket["role"];
+      if (!["frontend", "rust", "java", "mobile"].includes(role)) {
+        throw new Error(`Recovery artifact has an unknown role: ${fileName}`);
+      }
       const artifact = safeReadJson<ApplyExecutionArtifact>(path.join(appliesDir, fileName));
       if (!artifact) {
         return [];
@@ -115,7 +123,7 @@ function collectApplyExecutionPaths(runDir: string) {
       return [
         ...(artifact.changedFiles ?? []),
         ...((artifact.fileEdits ?? []).map((edit) => edit.path).filter((item): item is string => Boolean(item))),
-      ];
+      ].map((candidate) => assertRecoveryPath(manifest, role, candidate));
     });
 }
 
@@ -129,7 +137,7 @@ function collectWorkerResultPaths(manifest: ReturnType<typeof readRunnerManifest
     return [
       ...(result.changedFiles ?? []),
       ...(includeProposed ? (result.proposedEdits ?? []).map((edit) => edit.path) : []),
-    ];
+    ].map((candidate) => assertRecoveryPath(manifest, worker.role, candidate));
   });
 }
 
@@ -167,13 +175,13 @@ function main() {
   const manifest = readRunnerManifest(orchestratorRoot, runId);
 
   const rawPathspecs = [
-    ...collectApplyExecutionPaths(manifest.runDir),
+    ...collectApplyExecutionPaths(manifest),
     ...collectWorkerResultPaths(manifest, includeProposed),
   ];
   const pathspecs = Array.from(
     new Set(
       rawPathspecs
-        .map((item) => normalizeRepoRelativePath(manifest.repoRoot, item))
+        .map((item) => normalizeRepoRelativePath(item))
         .filter((item): item is string => Boolean(item)),
     ),
   ).sort();

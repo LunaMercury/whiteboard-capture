@@ -18,6 +18,43 @@ type Args = {
   provider: SupportedProvider;
 };
 
+const sourceContextTotalBytes = Number.parseInt(process.env.WORKER_SOURCE_CONTEXT_TOTAL_BYTES || `${32 * 1024}`, 10);
+const sourceContextFileBytes = Number.parseInt(process.env.WORKER_SOURCE_CONTEXT_FILE_BYTES || `${12 * 1024}`, 10);
+const skippedContextDirectories = new Set([
+  ".git",
+  ".gradle",
+  ".gradle-user-home",
+  ".idea",
+  "bin",
+  "build",
+  "captures",
+  "dist",
+  "gradle",
+  "node_modules",
+  "runs",
+  "target",
+]);
+const skippedContextFiles = new Set([
+  ".env",
+  ".env.local",
+  "local.properties",
+]);
+const textContextExtensions = new Set([
+  ".css",
+  ".gradle",
+  ".java",
+  ".json",
+  ".kt",
+  ".kts",
+  ".md",
+  ".properties",
+  ".rs",
+  ".toml",
+  ".ts",
+  ".tsx",
+  ".xml",
+]);
+
 function parseArgs(argv: string[]): Args {
   const providerFlagIndex = argv.findIndex((item) => item === "--provider");
   let provider: SupportedProvider = (process.env.WORKER_PROVIDER as SupportedProvider) || "openai";
@@ -77,7 +114,149 @@ function createResultJsonSchema() {
   };
 }
 
-function renderExecutionPrompt(runId: string, task: WorkerTaskPacket, resultPath: string): string {
+function normalizeRepoPath(filePath: string) {
+  return filePath.replaceAll("\\", "/").replace(/^\/+/, "");
+}
+
+function moduleRoot(task: WorkerTaskPacket) {
+  return normalizeRepoPath(task.allowedPaths[0] ?? "").replace(/\/\*\*$/, "");
+}
+
+function isSafeContextFile(repoRoot: string, task: WorkerTaskPacket, filePath: string) {
+  const resolvedRepoRoot = path.resolve(repoRoot);
+  const resolvedPath = path.resolve(filePath);
+  const relativePath = normalizeRepoPath(path.relative(resolvedRepoRoot, resolvedPath));
+  const root = moduleRoot(task);
+
+  if (!relativePath || relativePath.startsWith("../") || relativePath === "..") {
+    return false;
+  }
+
+  if (relativePath !== root && !relativePath.startsWith(`${root}/`)) {
+    return false;
+  }
+
+  if (relativePath.split("/").some((segment) => skippedContextDirectories.has(segment))) {
+    return false;
+  }
+
+  if (skippedContextFiles.has(path.basename(relativePath))) {
+    return false;
+  }
+
+  return textContextExtensions.has(path.extname(relativePath).toLowerCase());
+}
+
+function collectContextFiles(repoRoot: string, task: WorkerTaskPacket) {
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  const touchedFiles = new Set<string>();
+
+  const addFile = (filePath: string, touched = false) => {
+    if (!isSafeContextFile(repoRoot, task, filePath) || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+      return;
+    }
+
+    const resolved = path.resolve(filePath);
+    if (touched) {
+      touchedFiles.add(resolved);
+    }
+    if (!seen.has(resolved)) {
+      seen.add(resolved);
+      candidates.push(resolved);
+    }
+  };
+
+  const walk = (dirPath: string, touched = false) => {
+    if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+      return;
+    }
+
+    for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+      if (entry.isDirectory() && skippedContextDirectories.has(entry.name)) {
+        continue;
+      }
+
+      const fullPath = path.join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        walk(fullPath, touched);
+      } else {
+        addFile(fullPath, touched);
+      }
+    }
+  };
+
+  for (const touchedArea of task.touchedAreas) {
+    const fullPath = path.resolve(repoRoot, touchedArea);
+    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+      walk(fullPath, true);
+    } else {
+      addFile(fullPath, true);
+    }
+  }
+
+  walk(path.resolve(repoRoot, moduleRoot(task), "src"));
+  walk(path.resolve(repoRoot, moduleRoot(task)));
+  const touchedText = Array.from(touchedFiles)
+    .map((filePath) => fs.readFileSync(filePath, "utf8"))
+    .join("\n");
+
+  return candidates.sort((left, right) => {
+    const leftTouched = touchedFiles.has(left);
+    const rightTouched = touchedFiles.has(right);
+    if (leftTouched !== rightTouched) {
+      return leftTouched ? -1 : 1;
+    }
+
+    const leftReferenced = touchedText.includes(path.basename(left, path.extname(left)));
+    const rightReferenced = touchedText.includes(path.basename(right, path.extname(right)));
+    if (leftReferenced !== rightReferenced) {
+      return leftReferenced ? -1 : 1;
+    }
+
+    return normalizeRepoPath(path.relative(repoRoot, left))
+      .localeCompare(normalizeRepoPath(path.relative(repoRoot, right)));
+  });
+}
+
+function renderSourceContext(repoRoot: string, task: WorkerTaskPacket) {
+  const sections: string[] = [];
+  let remainingBytes = sourceContextTotalBytes;
+
+  for (const filePath of collectContextFiles(repoRoot, task)) {
+    if (remainingBytes <= 0) {
+      break;
+    }
+
+    const relativePath = normalizeRepoPath(path.relative(repoRoot, filePath));
+    const content = fs.readFileSync(filePath, "utf8");
+    const contentBytes = Buffer.from(content, "utf8");
+    const previewBytes = Math.min(sourceContextFileBytes, remainingBytes);
+    const preview = contentBytes.length <= previewBytes
+      ? content
+      : [
+          contentBytes.subarray(0, Math.floor(previewBytes * 0.7)).toString("utf8"),
+          "\n... [middle truncated by orchestrator] ...\n",
+          contentBytes.subarray(contentBytes.length - Math.ceil(previewBytes * 0.3)).toString("utf8"),
+        ].join("");
+    const truncated = contentBytes.length > previewBytes;
+    sections.push(
+      [
+        `### ${relativePath}${truncated ? " (truncated)" : ""}`,
+        "```",
+        preview,
+        "```",
+      ].join("\n"),
+    );
+    remainingBytes -= Buffer.byteLength(preview, "utf8");
+  }
+
+  return sections.length > 0
+    ? sections.join("\n\n")
+    : "(No safe source previews were selected for this role.)";
+}
+
+function renderExecutionPrompt(runId: string, task: WorkerTaskPacket, resultPath: string, repoRoot: string): string {
   return [
     `You are the ${task.role} worker for the Whiteboard Capture repository.`,
     `Work only inside the allowed paths.`,
@@ -112,6 +291,10 @@ function renderExecutionPrompt(runId: string, task: WorkerTaskPacket, resultPath
     `Required verification:`,
     ...task.requiredVerification.map((item) => `- ${item}`),
     ``,
+    `Repository source context:`,
+    `The following bounded source previews are authoritative for this planning pass.`,
+    renderSourceContext(repoRoot, task),
+    ``,
     `Instructions:`,
     `- Do not modify repository files in the worker phase.`,
     `- Produce proposedEdits only; the apply phase is responsible for actual file changes.`,
@@ -121,6 +304,9 @@ function renderExecutionPrompt(runId: string, task: WorkerTaskPacket, resultPath
     `- Use changedFiles as repository-relative paths.`,
     `- proposedEdits must list the concrete file-by-file changes that should be applied in this repository.`,
     `- Each proposedEdits item must include path, action, summary, and step-by-step instructions.`,
+    `- Do not propose a change that is already implemented in the repository source context.`,
+    `- Treat the supplied contracts and source context as authoritative. Do not repeat a question when they already answer it.`,
+    `- Use questions only for unresolved decisions that block a safe apply. Put non-blocking cautions in risks instead.`,
     `- If no file change is needed, return proposedEdits as an empty array.`,
     `- Treat every mandatory policy check as a hard requirement, not a suggestion.`,
     `- If any policy check cannot be satisfied in your scope, set status to 'failed' or report the blocker clearly in risks/questions.`,
@@ -318,7 +504,7 @@ async function main() {
   const workersDir = path.join(manifest.runDir, "workers");
   fs.mkdirSync(workersDir, { recursive: true });
   const promptPath = path.join(workersDir, `${role}.prompt.md`);
-  fs.writeFileSync(promptPath, `${renderExecutionPrompt(runId, task, resultPath)}\n`, "utf8");
+  fs.writeFileSync(promptPath, `${renderExecutionPrompt(runId, task, resultPath, manifest.repoRoot)}\n`, "utf8");
 
   if (provider === "manual") {
     const manualResult: WorkerResultPacket = {
@@ -354,7 +540,7 @@ async function main() {
 
   const resultJsonSchema = createResultJsonSchema();
   const schema = JSON.stringify(resultJsonSchema);
-  const prompt = renderExecutionPrompt(runId, task, resultPath);
+  const prompt = renderExecutionPrompt(runId, task, resultPath, manifest.repoRoot);
   let rawResult: unknown;
 
   if (provider === "openai") {

@@ -158,6 +158,8 @@ type ChildResult = {
   error?: Error;
 };
 
+const activeVerificationPids = new Set<number>();
+
 function runNodeScript(scriptPath: string, scriptArgs: string[], cwd: string) {
   const tsxCliPath = path.join(cwd, "node_modules", "tsx", "dist", "cli.mjs");
   return spawnSync(process.execPath, [tsxCliPath, scriptPath, ...scriptArgs], {
@@ -203,6 +205,98 @@ function runCommand(command: string, args: string[], cwd: string, timeoutMs?: nu
     encoding: "utf8",
     stdio: "pipe",
     timeout: timeoutMs,
+  });
+}
+
+function terminateProcessTree(pid: number) {
+  if (process.platform === "win32") {
+    return spawnSync("taskkill", ["/PID", `${pid}`, "/T", "/F"], {
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+  }
+
+  try {
+    process.kill(-pid, "SIGTERM");
+  } catch {
+    process.kill(pid, "SIGTERM");
+  }
+
+  return undefined;
+}
+
+function terminateActiveVerificationProcesses() {
+  for (const pid of activeVerificationPids) {
+    terminateProcessTree(pid);
+  }
+}
+
+function runCommandStreaming(command: string, args: string[], cwd: string, timeoutMs: number): Promise<ChildResult> {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, {
+      cwd,
+      stdio: "pipe",
+      detached: process.platform !== "win32",
+    });
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+    let spawnError: Error | undefined;
+    let timedOut = false;
+    let settled = false;
+
+    if (child.pid) {
+      activeVerificationPids.add(child.pid);
+    }
+
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdoutChunks.push(chunk);
+      process.stdout.write(chunk);
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderrChunks.push(chunk);
+      process.stderr.write(chunk);
+    });
+    child.on("error", (error) => {
+      spawnError = error;
+      settle(null, null, error);
+    });
+
+    function settle(status: number | null, signal: NodeJS.Signals | null, error?: Error) {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timer);
+      if (child.pid) {
+        activeVerificationPids.delete(child.pid);
+      }
+      child.stdout.destroy();
+      child.stderr.destroy();
+      resolve({
+        stdout: Buffer.concat(stdoutChunks).toString("utf8"),
+        stderr: Buffer.concat(stderrChunks).toString("utf8"),
+        status,
+        signal,
+        error,
+      });
+    }
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      if (child.pid) {
+        terminateProcessTree(child.pid);
+      }
+      settle(null, null, new Error(`Verification timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+
+    child.on("exit", (status, signal) => {
+      settle(
+        status,
+        signal,
+        timedOut ? new Error(`Verification timed out after ${timeoutMs}ms.`) : spawnError,
+      );
+    });
   });
 }
 
@@ -291,6 +385,13 @@ function printWorkflowChild(child: ChildResult | ReturnType<typeof runNodeScript
     return;
   }
   printChildOutput(child, label);
+}
+
+function printStreamingCompletion(child: ChildResult, label: string) {
+  const status = child.status ?? "null";
+  const signal = child.signal ? ` signal=${child.signal}` : "";
+  const error = child.error ? ` error=${child.error.message}` : "";
+  console.log(`${label}: exit=${status}${signal}${error}`);
 }
 
 async function mapWithConcurrency<T, R>(
@@ -384,20 +485,20 @@ function updateWorkerResultWithApplyReviewFailure(
   });
 }
 
-function runVerificationScript(
+async function runVerificationScript(
   manifest: ReturnType<typeof readRunnerManifest>,
   role: WorkerTaskPacket["role"],
   verificationScript: string,
   logFile?: string,
 ) {
-  const child = runCommand(
+  const child = await runCommandStreaming(
     "powershell",
     ["-ExecutionPolicy", "Bypass", "-File", verificationScript],
     manifest.repoRoot,
     verificationTimeoutMs,
   );
 
-  printChildOutput(child, `verify ${role}`);
+  printStreamingCompletion(child, `verify ${role}`);
 
   if (child.status !== 0) {
     const failureMessage =
@@ -675,6 +776,7 @@ async function main() {
   function handleTermination(signal: NodeJS.Signals) {
     console.error(`Received ${signal}. Attempting rollback before exit.`);
     try {
+      terminateActiveVerificationProcesses();
       performRollback();
     } catch (error) {
       console.error(error instanceof Error ? error.message : error);
@@ -882,7 +984,7 @@ async function main() {
       const logPath = rollbackAfterVerify
         ? path.join(getWorkflowDirs(manifest).verificationDir, `${worker.role}.log`)
         : undefined;
-      const verify = runVerificationScript(manifest, worker.role, verificationScript, logPath);
+      const verify = await runVerificationScript(manifest, worker.role, verificationScript, logPath);
       if (logPath) {
         const logWrite = writeTextLimited(logPath, formatChildLog(verify), verificationLogMaxBytes);
         rollbackSummary.verificationLogs.push({
@@ -913,13 +1015,13 @@ async function main() {
     console.log("## Running full project verification");
     const verificationScript = ".skills/verify-all.ps1";
     console.log(`Running ${verificationScript}`);
-    const verify = runCommand(
+    const verify = await runCommandStreaming(
       "powershell",
       ["-ExecutionPolicy", "Bypass", "-File", verificationScript],
       manifest.repoRoot,
       verificationTimeoutMs,
     );
-    printWorkflowChild(verify, "verify all", compact);
+    printStreamingCompletion(verify, "verify all");
     if (rollbackAfterVerify) {
       const logPath = path.join(getWorkflowDirs(manifest).verificationDir, "verify-all.log");
       const logWrite = writeTextLimited(logPath, formatChildLog(verify), verificationLogMaxBytes);

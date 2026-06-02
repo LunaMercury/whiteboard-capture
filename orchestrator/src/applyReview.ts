@@ -9,14 +9,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function parseArgs(argv: string[]) {
-  const [runId, role] = argv;
+  const approveContractChanges = argv.includes("--approve-contract-changes");
+  const filtered = argv.filter((item) => item !== "--approve-contract-changes");
+  const [runId, role] = filtered;
   if (!runId || !role || !["frontend", "rust", "java", "mobile"].includes(role)) {
-    throw new Error("Usage: npm run runner:review -- <run-id> <frontend|rust|java|mobile>");
+    throw new Error(
+      "Usage: npm run runner:review -- <run-id> <frontend|rust|java|mobile> [--approve-contract-changes]",
+    );
   }
 
   return {
     runId,
     role: role as WorkerTaskPacket["role"],
+    approveContractChanges,
   };
 }
 
@@ -131,7 +136,12 @@ function findContractViolationReasons(task: WorkerTaskPacket, edit: { summary: s
     .map((rule) => rule.reason);
 }
 
-function buildDecision(runId: string, task: WorkerTaskPacket, result: ReturnType<typeof readWorkerResult>): ApplyReviewDecision {
+function buildDecision(
+  runId: string,
+  task: WorkerTaskPacket,
+  result: ReturnType<typeof readWorkerResult>,
+  approveContractChanges: boolean,
+): ApplyReviewDecision {
   const findings: string[] = [];
   const blockedReasons: string[] = [];
   const approvedEdits: string[] = [];
@@ -172,7 +182,11 @@ function buildDecision(runId: string, task: WorkerTaskPacket, result: ReturnType
   }
 
   if (result.contractsChanged.length > 0) {
-    blockedReasons.push(`Worker reported contract changes: ${result.contractsChanged.join("; ")}`);
+    if (approveContractChanges) {
+      findings.push(`Contract changes explicitly approved: ${result.contractsChanged.join("; ")}`);
+    } else {
+      blockedReasons.push(`Worker reported contract changes: ${result.contractsChanged.join("; ")}`);
+    }
   }
 
   if (dependencyManifestEditCount > 0) {
@@ -272,7 +286,7 @@ function renderMarkdown(decision: ApplyReviewDecision) {
 }
 
 async function main() {
-  const { runId, role } = parseArgs(process.argv.slice(2));
+  const { runId, role, approveContractChanges } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
   const manifest = readRunnerManifest(orchestratorRoot, runId);
   const task = readWorkerTask(manifest, role);
@@ -281,7 +295,7 @@ async function main() {
   const appliesDir = path.join(manifest.runDir, "applies");
   fs.mkdirSync(appliesDir, { recursive: true });
 
-  const decision = buildDecision(runId, task, result);
+  const decision = buildDecision(runId, task, result, approveContractChanges);
   const jsonPath = path.join(appliesDir, `${role}.review.json`);
   const mdPath = path.join(appliesDir, `${role}.review.md`);
   fs.writeFileSync(jsonPath, `${JSON.stringify(decision, null, 2)}\n`, "utf8");

@@ -24,6 +24,7 @@ const workflowBooleanFlags = new Set([
   "--allow-dirty",
   "--apply-review",
   "--approve-contract-changes",
+  "--approve-open-questions",
   "--continue-on-error",
   "--skip-workers",
   "--reuse-worker-results",
@@ -75,7 +76,7 @@ function parseArgs(argv: string[]): Args {
   const request = requestParts.join(" ").trim();
   if (!request) {
     throw new Error(
-      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--worker-provider openai|manual|claude|test] [--apply-provider openai|manual|test] [--apply] [--approve-contract-changes] [--rollback-after-verify] \"request\"",
+      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--worker-provider openai|manual|claude|test] [--apply-provider openai|manual|test] [--apply] [--approve-contract-changes] [--approve-open-questions] [--rollback-after-verify] \"request\"",
     );
   }
 

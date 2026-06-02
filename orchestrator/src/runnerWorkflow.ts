@@ -20,6 +20,7 @@ type Args = {
   continueOnError: boolean;
   applyReview: boolean;
   approveContractChanges: boolean;
+  approveOpenQuestions: boolean;
   applyEdits: boolean;
   allowDirty: boolean;
   skipWorkers: boolean;
@@ -50,6 +51,7 @@ function parseArgs(argv: string[]): Args {
   let continueOnError = false;
   let applyReview = false;
   let approveContractChanges = false;
+  let approveOpenQuestions = false;
   let applyEdits = false;
   let allowDirty = false;
   let skipWorkers = false;
@@ -90,6 +92,10 @@ function parseArgs(argv: string[]): Args {
     }
     if (item === "--approve-contract-changes") {
       approveContractChanges = true;
+      continue;
+    }
+    if (item === "--approve-open-questions") {
+      approveOpenQuestions = true;
       continue;
     }
     if (item === "--apply") {
@@ -136,7 +142,7 @@ function parseArgs(argv: string[]): Args {
 
   if (!runId) {
     throw new Error(
-      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify] [--compact] [--allow-dirty] [--apply-review] [--approve-contract-changes] [--continue-on-error] [--skip-workers] [--reuse-worker-results] [--verify-all] [--skip-finalize]",
+      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify] [--compact] [--allow-dirty] [--apply-review] [--approve-contract-changes] [--approve-open-questions] [--continue-on-error] [--skip-workers] [--reuse-worker-results] [--verify-all] [--skip-finalize]",
     );
   }
 
@@ -152,6 +158,7 @@ function parseArgs(argv: string[]): Args {
     continueOnError,
     applyReview,
     approveContractChanges,
+    approveOpenQuestions,
     applyEdits,
     allowDirty,
     skipWorkers,
@@ -715,7 +722,7 @@ function rollbackWorktree(manifest: ReturnType<typeof readRunnerManifest>, paths
 }
 
 async function main() {
-  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, applyEdits, allowDirty, skipWorkers, reuseWorkerResults, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, compact } = parseArgs(
+  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, approveOpenQuestions, applyEdits, allowDirty, skipWorkers, reuseWorkerResults, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, compact } = parseArgs(
     process.argv.slice(2),
   );
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -749,6 +756,7 @@ async function main() {
   console.log(`Allow dirty worktree: ${allowDirty ? "yes" : "no"}`);
   console.log(`Apply review roles: ${applyReview ? "yes" : "no"}`);
   console.log(`Approve contract changes: ${approveContractChanges ? "yes" : "no"}`);
+  console.log(`Approve open questions: ${approveOpenQuestions ? "yes" : "no"}`);
   console.log(`Skip workers/apply: ${skipWorkers ? "yes" : "no"}`);
   console.log(`Reuse worker results: ${reuseWorkerResults ? "yes" : "no"}`);
   console.log(`Verify all: ${verifyAll ? "yes" : "no"}`);
@@ -914,7 +922,12 @@ async function main() {
       console.log(`Reviewing apply safety for ${worker.role}.`);
       const applyReviewRun = runNodeScript(
         path.join("src", "applyReview.ts"),
-        [runId, worker.role, ...(approveContractChanges ? ["--approve-contract-changes"] : [])],
+        [
+          runId,
+          worker.role,
+          ...(approveContractChanges ? ["--approve-contract-changes"] : []),
+          ...(approveOpenQuestions ? ["--approve-open-questions"] : []),
+        ],
         orchestratorRoot,
       );
       printWorkflowChild(applyReviewRun, `apply:review ${worker.role}`, compact);

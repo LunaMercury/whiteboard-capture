@@ -195,10 +195,14 @@ function buildDecision(
     );
   }
 
-  if (dependencySignalCount > 0 && result.contractsChanged.length === 0) {
+  if (dependencySignalCount > 0 && result.contractsChanged.length === 0 && result.questions.length === 0) {
     blockedReasons.push(
       "Worker proposed or implied dependency changes without reporting contractsChanged/questions.",
     );
+  }
+
+  if (dependencySignalCount > 0 && (result.contractsChanged.length > 0 || result.questions.length > 0)) {
+    findings.push("Worker reported dependency-related signals through contractsChanged/questions.");
   }
 
   if (task.requiredVerification.length === 0) {

@@ -26,6 +26,7 @@ const workflowBooleanFlags = new Set([
   "--approve-contract-changes",
   "--continue-on-error",
   "--skip-workers",
+  "--reuse-worker-results",
   "--verify-all",
   "--rollback-after-verify",
   "--compact",

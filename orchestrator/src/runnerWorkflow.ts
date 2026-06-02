@@ -23,6 +23,7 @@ type Args = {
   applyEdits: boolean;
   allowDirty: boolean;
   skipWorkers: boolean;
+  reuseWorkerResults: boolean;
   verifyAll: boolean;
   skipFinalize: boolean;
   concurrency: number;
@@ -52,6 +53,7 @@ function parseArgs(argv: string[]): Args {
   let applyEdits = false;
   let allowDirty = false;
   let skipWorkers = false;
+  let reuseWorkerResults = false;
   let verifyAll = false;
   let skipFinalize = false;
   let rollbackAfterVerify = false;
@@ -102,6 +104,10 @@ function parseArgs(argv: string[]): Args {
       skipWorkers = true;
       continue;
     }
+    if (item === "--reuse-worker-results") {
+      reuseWorkerResults = true;
+      continue;
+    }
     if (item === "--verify-all") {
       verifyAll = true;
       continue;
@@ -130,7 +136,7 @@ function parseArgs(argv: string[]): Args {
 
   if (!runId) {
     throw new Error(
-      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify] [--compact] [--allow-dirty] [--apply-review] [--approve-contract-changes] [--continue-on-error] [--skip-workers] [--verify-all] [--skip-finalize]",
+      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify] [--compact] [--allow-dirty] [--apply-review] [--approve-contract-changes] [--continue-on-error] [--skip-workers] [--reuse-worker-results] [--verify-all] [--skip-finalize]",
     );
   }
 
@@ -149,6 +155,7 @@ function parseArgs(argv: string[]): Args {
     applyEdits,
     allowDirty,
     skipWorkers,
+    reuseWorkerResults,
     verifyAll,
     skipFinalize,
     concurrency: Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 1,
@@ -276,6 +283,9 @@ function runCommandStreaming(command: string, args: string[], cwd: string, timeo
       settled = true;
       clearTimeout(timer);
       if (child.pid) {
+        if (process.platform === "win32") {
+          terminateProcessTree(child.pid);
+        }
         activeVerificationPids.delete(child.pid);
       }
       child.stdout.destroy();
@@ -492,6 +502,27 @@ function updateWorkerResultWithApplyReviewFailure(
   });
 }
 
+function prepareWorkerResultForReuse(
+  manifest: ReturnType<typeof readRunnerManifest>,
+  role: WorkerTaskPacket["role"],
+) {
+  const existing = readWorkerResult(manifest, role);
+  const applyReviewRisks = existing.risks.filter((item) => item.startsWith("Apply review blocked:"));
+  const retryingApplyReviewBlock = existing.status === "failed" && applyReviewRisks.length > 0;
+
+  if (existing.status !== "succeeded" && !retryingApplyReviewBlock) {
+    return;
+  }
+
+  writeWorkerResult(manifest, {
+    ...existing,
+    status: "succeeded",
+    summary: existing.summary.replace(/ Apply review blocked before file changes\.$/, ""),
+    verificationRun: [],
+    risks: existing.risks.filter((item) => !item.startsWith("Apply review blocked:")),
+  });
+}
+
 async function runVerificationScript(
   manifest: ReturnType<typeof readRunnerManifest>,
   role: WorkerTaskPacket["role"],
@@ -500,7 +531,7 @@ async function runVerificationScript(
 ) {
   const child = await runCommandStreaming(
     "powershell",
-    ["-ExecutionPolicy", "Bypass", "-File", verificationScript],
+    ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", verificationScript],
     manifest.repoRoot,
     verificationTimeoutMs,
   );
@@ -684,7 +715,7 @@ function rollbackWorktree(manifest: ReturnType<typeof readRunnerManifest>, paths
 }
 
 async function main() {
-  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, applyEdits, allowDirty, skipWorkers, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, compact } = parseArgs(
+  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, applyEdits, allowDirty, skipWorkers, reuseWorkerResults, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, compact } = parseArgs(
     process.argv.slice(2),
   );
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -719,6 +750,7 @@ async function main() {
   console.log(`Apply review roles: ${applyReview ? "yes" : "no"}`);
   console.log(`Approve contract changes: ${approveContractChanges ? "yes" : "no"}`);
   console.log(`Skip workers/apply: ${skipWorkers ? "yes" : "no"}`);
+  console.log(`Reuse worker results: ${reuseWorkerResults ? "yes" : "no"}`);
   console.log(`Verify all: ${verifyAll ? "yes" : "no"}`);
   console.log(`Worker concurrency: ${concurrency}`);
   console.log(`Rollback after verify: ${rollbackAfterVerify ? "yes" : "no"}`);
@@ -813,34 +845,48 @@ async function main() {
     console.log("Using existing worker result packets for verification and finalization.");
     console.log("");
   } else {
-    const workerRuns = await mapWithConcurrency(targetWorkers, concurrency, async (worker) => {
-      console.log(`## Worker ${worker.role}`);
-      const workerRun = await runNodeScriptAsync(
-        path.join("src", "workerRun.ts"),
-        [runId, worker.role, "--provider", workerProvider],
-        orchestratorRoot,
-      );
-      printWorkflowChild(workerRun, `worker ${worker.role}`, compact);
-      return workerRun;
-    });
+    const workerRuns = reuseWorkerResults
+      ? new Map()
+      : await mapWithConcurrency(targetWorkers, concurrency, async (worker) => {
+          console.log(`## Worker ${worker.role}`);
+          const workerRun = await runNodeScriptAsync(
+            path.join("src", "workerRun.ts"),
+            [runId, worker.role, "--provider", workerProvider],
+            orchestratorRoot,
+          );
+          printWorkflowChild(workerRun, `worker ${worker.role}`, compact);
+          return workerRun;
+        });
+
+    if (reuseWorkerResults) {
+      console.log("## Reusing worker result packets");
+      console.log("Skipping worker API calls and continuing with apply review.");
+      console.log("");
+      for (const worker of targetWorkers) {
+        prepareWorkerResultForReuse(manifest, worker.role);
+      }
+    }
 
     for (const worker of targetWorkers) {
-      const workerRun = workerRuns.get(worker);
-      if (!workerRun) {
-        throw new Error(`Worker result missing for ${worker.role}`);
-      }
+      if (!reuseWorkerResults) {
+        const workerRun = workerRuns.get(worker);
+        if (!workerRun) {
+          throw new Error(`Worker result missing for ${worker.role}`);
+        }
       if (workerRun.status !== 0) {
         console.error(`worker ${worker.role} failed with exit code ${workerRun.status}`);
+        workflowExitCode = workflowExitCode || workerRun.status || 1;
         if (!continueOnError) {
-          if (rollbackAfterVerify) {
-            workflowExitCode = workerRun.status ?? 1;
-            console.log("");
-            continue;
+            if (rollbackAfterVerify) {
+              workflowExitCode = workerRun.status ?? 1;
+              console.log("");
+              continue;
+            }
+            process.exit(workerRun.status ?? 1);
           }
-          process.exit(workerRun.status ?? 1);
+          console.log("");
+          continue;
         }
-        console.log("");
-        continue;
       }
 
       const task = readWorkerTask(manifest, worker.role);
@@ -875,6 +921,7 @@ async function main() {
 
       if (applyReviewRun.status !== 0) {
         console.error(`apply:review ${worker.role} blocked or failed with exit code ${applyReviewRun.status}`);
+        workflowExitCode = workflowExitCode || applyReviewRun.status || 1;
         const failureMessage =
           applyReviewRun.stderr?.trim() ||
           applyReviewRun.stdout?.trim() ||
@@ -902,6 +949,7 @@ async function main() {
 
       if (applyPrepare.status !== 0) {
         console.error(`apply:prepare ${worker.role} failed with exit code ${applyPrepare.status}`);
+        workflowExitCode = workflowExitCode || applyPrepare.status || 1;
         if (!continueOnError) {
           if (rollbackAfterVerify) {
             workflowExitCode = applyPrepare.status ?? 1;
@@ -923,6 +971,7 @@ async function main() {
 
       if (applyRun.status !== 0) {
         console.error(`apply:run ${worker.role} failed with exit code ${applyRun.status}`);
+        workflowExitCode = workflowExitCode || applyRun.status || 1;
         if (!continueOnError) {
           if (rollbackAfterVerify) {
             workflowExitCode = applyRun.status ?? 1;
@@ -1003,11 +1052,12 @@ async function main() {
           truncated: logWrite.truncated,
         });
       }
-      if (verify.status !== 0 && !continueOnError) {
-        if (rollbackAfterVerify) {
-          workflowExitCode = verify.status ?? 1;
-        } else {
-          process.exit(verify.status ?? 1);
+      if (verify.status !== 0) {
+        workflowExitCode = workflowExitCode || verify.status || 1;
+        if (!continueOnError) {
+          if (!rollbackAfterVerify) {
+            process.exit(verify.status ?? 1);
+          }
         }
       }
     }
@@ -1025,7 +1075,7 @@ async function main() {
     console.log(`Running ${verificationScript}`);
     const verify = await runCommandStreaming(
       "powershell",
-      ["-ExecutionPolicy", "Bypass", "-File", verificationScript],
+      ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", verificationScript],
       manifest.repoRoot,
       verificationTimeoutMs,
     );
@@ -1047,6 +1097,7 @@ async function main() {
       .filter((role) => readWorkerResult(manifest, role).status === "succeeded");
 
     if (verify.status !== 0) {
+      workflowExitCode = workflowExitCode || verify.status || 1;
       const failureMessage =
         verify.stderr?.trim() ||
         verify.stdout?.trim() ||

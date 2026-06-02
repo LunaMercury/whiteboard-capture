@@ -1,0 +1,22 @@
+name: "Whiteboard Capture"
+goal: "Students photograph a whiteboard on mobile and copy the image instantly on web."
+
+priorities:
+  - "Speed on the mobile -> upload -> web hot path"
+  - "Stable local testing through run.bat / stop.bat / mobile-stop.bat"
+
+modules:
+  rust: "backend-fast/** (upload hot path, websocket fan-out, FIFO cleanup)"
+  mobile: "mobile/** (Android Kotlin, CameraX, JWT login, upload flow)"
+
+contracts:
+  - "The local Docker PostgreSQL test database lives on localhost:5433."
+  - "Users may keep at most 100 images; oldest entries are evicted first."
+
+policySources:
+  - "web/frontend_context.md"
+  - "web/css_rules.md"
+  - "backend-core/backend_core_context.md"
+  - "backend-fast/backend_fast_context.md"
+  - "mobile/android_context.md"
+  - "cloud/cloud_context.md"

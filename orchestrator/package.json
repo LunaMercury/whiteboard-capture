@@ -30,6 +30,7 @@
     "@langchain/langgraph": "^0.2.74",
     "@langchain/openai": "^0.6.11",
     "dotenv": "^17.2.3",
+    "yaml": "^2.9.0",
     "zod": "^4.1.12"
   },
   "devDependencies": {

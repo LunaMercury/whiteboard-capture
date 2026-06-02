@@ -50,20 +50,16 @@ function createModel() {
 function createMockManagerDecision(userRequest: string): ManagerDecision {
   return {
     summary: `[MOCK] 매니저 계획: ${userRequest}`,
-    frontendMode: "implement",
-    rustMode: "review",
-    javaMode: "implement",
-    mobileMode: "review",
-    integrationNotes: [
-      "JWT 발급은 Spring에서 일관되게 관리합니다.",
-      "Rust 업로드/웹소켓 인증 경로가 새 JWT와 계속 호환되는지 확인합니다.",
-      "웹과 모바일 로그인 진입점이 같은 인증 정책을 따르도록 맞춥니다.",
-    ],
+    frontendMode: "skip",
+    rustMode: "skip",
+    javaMode: "skip",
+    mobileMode: "skip",
+    integrationNotes: [],
     exclusionReasons: {
-      frontend: "",
-      rust: "",
-      java: "",
-      mobile: "",
+      frontend: "mock 기본값에서는 참여하지 않습니다.",
+      rust: "mock 기본값에서는 참여하지 않습니다.",
+      java: "mock 기본값에서는 참여하지 않습니다.",
+      mobile: "mock 기본값에서는 참여하지 않습니다.",
     },
   };
 }
@@ -682,7 +678,7 @@ async function buildManagerDecision(
   repoSnapshot: RepoSnapshot
 ): Promise<ManagerDecision> {
   if (mock) {
-    return createMockManagerDecision(userRequest);
+    return applyMandatoryPolicies(userRequest, createMockManagerDecision(userRequest));
   }
 
   const model = createModel().withStructuredOutput(managerDecisionSchema);

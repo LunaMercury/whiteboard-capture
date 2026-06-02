@@ -1,0 +1,24 @@
+auth:
+  roleContracts:
+    frontend:
+      - "현재 웹 OAuth 진입점은 `${VITE_API_BASE_URL}/auth/naver/login`을 기본값으로 사용합니다."
+      - "프론트엔드는 `https://nid.naver.com/oauth2.0/authorize`로 직접 이동하거나 VITE_NAVER_CLIENT_ID/VITE_NAVER_REDIRECT_URI를 새로 요구하지 않습니다."
+      - "브라우저 OAuth 완료 후 프론트엔드는 현재 계약상 로그인 화면 URL의 `token` 쿼리 파라미터에서 JWT를 읽고 즉시 URL을 정리합니다."
+      - "네이버 client secret, access token, provider API 호출은 프론트엔드에 노출하지 않고 backend-core에서만 처리합니다."
+    rust:
+      - "backend-fast는 HS256 JWT를 검증하고 `sub` claim을 이메일로 해석해 DB 사용자 id를 조회하는 현재 계약을 유지합니다."
+    java:
+      - "네이버 OAuth 시작 엔드포인트는 `/api/auth/naver/login`이며, `NAVER_REDIRECT_URI`는 backend-core 콜백으로 등록합니다."
+      - "브라우저 OAuth 콜백 성공 후에는 현재 웹 계약과 맞게 프론트엔드 로그인 화면 URL의 `token` 쿼리 파라미터로 JWT를 전달합니다."
+      - "JWT는 HS256, `sub=email`, `provider`, 선택적 `provider_id`, `iat`, `exp` claim 구조를 유지합니다."
+      - "NAVER_CLIENT_ID, NAVER_CLIENT_SECRET, NAVER_REDIRECT_URI는 backend-core 환경변수/application.properties에서만 다룹니다."
+    mobile:
+      - "모바일이 직접 네이버 로그인을 구현하지 않는 경우에도 backend-core가 발급한 JWT를 업로드 요청의 Authorization 헤더에 싣는 기존 흐름은 유지합니다."
+
+design:
+  verifierChecks:
+    - "CSS 모듈/BEM/프리미엄 UI 규칙이 frontend_context.md, css_rules.md와 일치하는지 확인"
+
+redis:
+  verifierChecks:
+    - "Redis 연결 정보(.env/application.properties) 누락 여부 확인"

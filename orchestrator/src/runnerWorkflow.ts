@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readRunnerManifest, readWorkerResult, readWorkerTask, writeWorkerResult } from "./packetStore.js";
+import { readRunnerManifest, readWorkerResult, readWorkerResults, readWorkerTask, writeWorkerResult } from "./packetStore.js";
 import { normalizeRepoRelativePath } from "./pathSafety.js";
 import type { WorkerTaskPacket } from "./taskSchemas.js";
 import type { WorkerResultPacket } from "./resultSchemas.js";
@@ -771,6 +771,63 @@ function rollbackWorktree(manifest: ReturnType<typeof readRunnerManifest>, paths
   };
 }
 
+function countWorkerStatuses(results: WorkerResultPacket[]) {
+  return results.reduce<Record<string, number>>((acc, result) => {
+    acc[result.status] = (acc[result.status] ?? 0) + 1;
+    return acc;
+  }, {});
+}
+
+function formatStatusCounts(statusCounts: Record<string, number>) {
+  const preferredOrder = ["succeeded", "skipped", "failed", "pending", "running"];
+  return preferredOrder
+    .filter((status) => statusCounts[status])
+    .map((status) => `${status}=${statusCounts[status]}`)
+    .join(", ") || "none";
+}
+
+function printFinalTerminalSummary(
+  manifest: ReturnType<typeof readRunnerManifest>,
+  targetRoles: WorkerTaskPacket["role"][],
+  workflowExitCode: number,
+  appliedRoles: Set<WorkerTaskPacket["role"]>,
+  rollbackSummary: {
+    enabled: boolean;
+    rollback?: {
+      restoreStatus: number | null;
+      cleanStatus: number | null;
+      finalWorktreeClean: boolean;
+      finalStatus: string;
+    };
+  },
+  cleanupStatus: number | null,
+) {
+  const targetRoleSet = new Set(targetRoles);
+  const results = readWorkerResults(manifest).filter((result) => targetRoleSet.has(result.role));
+  const statusCounts = countWorkerStatuses(results);
+  const changedFiles = results.reduce((sum, result) => sum + result.changedFiles.length, 0);
+  const proposedEdits = results.reduce((sum, result) => sum + (result.proposedEdits?.length ?? 0), 0);
+  const verificationRun = Array.from(new Set(results.flatMap((result) => result.verificationRun)));
+  const rollbackStatus = !rollbackSummary.enabled
+    ? "not requested"
+    : rollbackSummary.rollback?.finalWorktreeClean
+      ? "succeeded"
+      : "failed";
+  const finalStatus = workflowExitCode === 0 ? "succeeded" : "failed";
+
+  console.log("");
+  console.log("## Final Summary");
+  console.log(`Status: ${finalStatus}`);
+  console.log(`Workers: ${formatStatusCounts(statusCounts)}`);
+  console.log(`Applied roles: ${[...appliedRoles].join(", ") || "none"}`);
+  console.log(`Changed files recorded: ${changedFiles}`);
+  console.log(`Proposed edits: ${proposedEdits}`);
+  console.log(`Verification: ${verificationRun.join(", ") || "none"}`);
+  console.log(`Rollback: ${rollbackStatus}`);
+  console.log(`Cleanup: ${cleanupStatus === null ? "not run" : cleanupStatus === 0 ? "succeeded" : `failed(${cleanupStatus})`}`);
+  console.log(`Report: ${manifest.reportPath}`);
+}
+
 async function main() {
   const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, approveOpenQuestions, applyEdits, allowDirty, skipWorkers, reuseWorkerResults, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, keepApplied, cleanupRuns, cleanupDryRun, compact } = parseArgs(
     process.argv.slice(2),
@@ -851,6 +908,7 @@ async function main() {
   const rollbackPathspecs: string[] = [];
   const appliedRoles = new Set<WorkerTaskPacket["role"]>();
   let rollbackCompleted = false;
+  let cleanupStatus: number | null = null;
 
   function performRollback() {
     if (!rollbackAfterVerify || rollbackCompleted) {
@@ -1234,10 +1292,20 @@ async function main() {
       orchestratorRoot,
     );
     printWorkflowChild(cleanup, "cleanup", compact);
+    cleanupStatus = cleanup.status;
     if (cleanup.status !== 0) {
       workflowExitCode = workflowExitCode || cleanup.status || 1;
     }
   }
+
+  printFinalTerminalSummary(
+    manifest,
+    targetWorkers.map((worker) => worker.role),
+    workflowExitCode,
+    appliedRoles,
+    rollbackSummary,
+    cleanupStatus,
+  );
 
   if (workflowExitCode !== 0) {
     process.exit(workflowExitCode);

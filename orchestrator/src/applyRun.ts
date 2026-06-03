@@ -276,6 +276,10 @@ function normalizePathList(paths: string[], label: string) {
 }
 
 function validateApplyExecution(packet: ApplyPacket, execution: ApplyExecution) {
+  if (execution.questions.length > 0) {
+    throw new Error(`Apply execution returned unresolved question(s): ${execution.questions.join("; ")}`);
+  }
+
   if (execution.status !== "succeeded") {
     if (execution.changedFiles.length > 0 || execution.fileEdits.length > 0) {
       throw new Error(`Apply execution status ${execution.status} cannot include changed files or file edits.`);
@@ -311,6 +315,7 @@ function validateApplyExecution(packet: ApplyPacket, execution: ApplyExecution) 
 }
 
 function runTestApply(packet: ApplyPacket): ApplyExecution {
+  const shouldReturnQuestion = packet.goal.includes("apply-question-guard");
   return {
     status: "succeeded",
     summary: `[TEST] Applied ${packet.role} rollback pipeline test edits.`,
@@ -319,7 +324,7 @@ function runTestApply(packet: ApplyPacket): ApplyExecution {
     risks: [
       "This is a local test apply execution used only to exercise apply, verify, and rollback plumbing.",
     ],
-    questions: [],
+    questions: shouldReturnQuestion ? ["[TEST] apply execution question guard"] : [],
     fileEdits: packet.proposedEdits.map((edit) => ({
       path: edit.path,
       action: edit.action,

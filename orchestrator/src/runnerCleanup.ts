@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +10,7 @@ type Args = {
   dryRun: boolean;
   keepLast: number;
   keepDays: number;
+  includeTracked: boolean;
   protectedRuns: Set<string>;
 };
 
@@ -17,6 +19,7 @@ type RunEntry = {
   fullPath: string;
   mtimeMs: number;
   sizeBytes: number;
+  trackedFileCount: number;
 };
 
 function parsePositiveInt(value: string | undefined, fallback: number) {
@@ -28,6 +31,7 @@ function parseArgs(argv: string[]): Args {
   let dryRun = false;
   let keepLast = parsePositiveInt(process.env.RUNNER_CLEANUP_KEEP_LAST, 10);
   let keepDays = parsePositiveInt(process.env.RUNNER_CLEANUP_KEEP_DAYS, 7);
+  let includeTracked = process.env.RUNNER_CLEANUP_INCLUDE_TRACKED === "true";
   const protectedRuns = new Set<string>();
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -55,10 +59,14 @@ function parseArgs(argv: string[]): Args {
       index += 1;
       continue;
     }
-    throw new Error("Usage: npm run runner:cleanup -- [--dry-run] [--keep-last 10] [--keep-days 7] [--protect-run <run-id>]");
+    if (item === "--include-tracked") {
+      includeTracked = true;
+      continue;
+    }
+    throw new Error("Usage: npm run runner:cleanup -- [--dry-run] [--keep-last 10] [--keep-days 7] [--protect-run <run-id>] [--include-tracked]");
   }
 
-  return { dryRun, keepLast, keepDays, protectedRuns };
+  return { dryRun, keepLast, keepDays, includeTracked, protectedRuns };
 }
 
 function getDirectorySize(dirPath: string): number {
@@ -80,6 +88,23 @@ function formatMb(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
+function getTrackedFileCount(repoRoot: string, repoRelativePath: string) {
+  const child = spawnSync("git", ["ls-files", "--", repoRelativePath], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: "pipe",
+  });
+  if (child.status !== 0) {
+    throw new Error(child.stderr?.trim() || child.stdout?.trim() || "git ls-files failed");
+  }
+
+  return child.stdout
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .length;
+}
+
 function assertSafeRunDirectory(runsRoot: string, entry: fs.Dirent) {
   if (entry.isSymbolicLink()) {
     throw new Error(`Refusing to inspect symbolic link in runs directory: ${entry.name}`);
@@ -97,6 +122,7 @@ function assertSafeRunDirectory(runsRoot: string, entry: fs.Dirent) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
+  const repoRoot = path.resolve(orchestratorRoot, "..");
   const runsRoot = path.join(orchestratorRoot, "runs");
 
   console.log("# Runner Cleanup");
@@ -104,6 +130,7 @@ function main() {
   console.log(`Dry run: ${args.dryRun ? "yes" : "no"}`);
   console.log(`Keep last: ${args.keepLast}`);
   console.log(`Keep days: ${args.keepDays}`);
+  console.log(`Include tracked: ${args.includeTracked ? "yes" : "no"}`);
   console.log(`Protected runs: ${[...args.protectedRuns].join(", ") || "none"}`);
   console.log("");
 
@@ -124,6 +151,7 @@ function main() {
         fullPath,
         mtimeMs: stat.mtimeMs,
         sizeBytes: getDirectorySize(fullPath),
+        trackedFileCount: getTrackedFileCount(repoRoot, `orchestrator/runs/${entry.name}`),
       };
     })
     .sort((left, right) => right.mtimeMs - left.mtimeMs);
@@ -138,9 +166,16 @@ function main() {
     const withinKeepLast = index < args.keepLast;
     const withinKeepDays = now - entry.mtimeMs <= keepMs;
     const protectedRun = args.protectedRuns.has(entry.name);
-    const shouldDelete = !protectedRun && !withinKeepLast && !withinKeepDays;
+    const trackedRun = entry.trackedFileCount > 0 && !args.includeTracked;
+    const shouldDelete = !protectedRun && !trackedRun && !withinKeepLast && !withinKeepDays;
 
-    const action = protectedRun ? "protect" : shouldDelete ? (args.dryRun ? "would delete" : "delete") : "keep";
+    const action = protectedRun
+      ? "protect"
+      : trackedRun
+        ? "keep tracked"
+        : shouldDelete
+          ? (args.dryRun ? "would delete" : "delete")
+          : "keep";
     console.log(`${action}: ${entry.name} (${formatMb(entry.sizeBytes)})`);
 
     if (shouldDelete) {

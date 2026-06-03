@@ -113,6 +113,12 @@ const contractViolationRules: Array<{
     reason:
       "Worker proposed an ambiguous JWT delivery method. Current auth contract requires the agreed token handoff or an explicit contractsChanged report.",
   },
+  {
+    roles: ["frontend"],
+    pattern: /your-privacy-policy|example\.com|placeholder|TODO_PRIVACY|notion\.so\/your-privacy-policy/i,
+    reason:
+      "Frontend proposed a placeholder external URL. User-facing legal/privacy links need a real approved route or an unresolved question before apply.",
+  },
 ];
 
 function editText(edit: { summary: string; instructions: string[] }) {

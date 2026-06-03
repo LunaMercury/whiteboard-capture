@@ -16,6 +16,7 @@
 RUNNER_CLEANUP_KEEP_LAST=10
 RUNNER_CLEANUP_KEEP_DAYS=7
 RUNNER_AUTO_CLEANUP=true
+RUNNER_CLEANUP_INCLUDE_TRACKED=false
 ```
 
 ## 수동 점검
@@ -36,6 +37,14 @@ npm run runner:cleanup -- --dry-run
 
 ```text
 --skip-cleanup
+```
+
+Tracked run artifacts are protected by default. If old `orchestrator/runs/` files are already tracked by Git,
+cleanup will print `keep tracked` and leave them alone. To intentionally remove tracked run artifacts, plan that
+as a separate cleanup commit and pass:
+
+```text
+--include-tracked
 ```
 
 ## 안전 규칙

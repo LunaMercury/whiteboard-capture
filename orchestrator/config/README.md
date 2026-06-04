@@ -22,6 +22,12 @@
 - 배열은 공통 항목 뒤에 프로젝트 항목을 추가합니다.
 - 문자열과 숫자 등 단일 값은 프로젝트 설정이 공통 설정을 덮어씁니다.
 
-현재 TypeScript 역할 라우팅은 `src/graph.ts`에 있습니다. 다음 단계에서는 새 프로젝트 초기화 명령이 이 설정 파일을 복사하고 프로젝트 전용 YAML 생성을 안내하도록 확장합니다.
+현재 TypeScript 역할 라우팅은 `src/graph.ts`에 있습니다.
 
 새 프로젝트용 시작 파일은 `orchestrator/templates/project-config/`에 있습니다.
+
+복사된 오케스트레이터에서 아래 명령을 실행하면 프로젝트 전용 YAML을 초기화할 수 있습니다.
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run project:init -- --name "프로젝트 이름" --goal "프로젝트 목표"
+```

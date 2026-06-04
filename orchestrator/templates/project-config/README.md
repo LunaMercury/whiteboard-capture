@@ -5,12 +5,18 @@
 ## 적용 방법
 
 1. 새 프로젝트 루트에 오케스트레이터와 공통 정책 파일을 복사합니다.
-2. 이 디렉터리의 `project.yaml`을 `orchestrator/config/project.yaml`로 복사합니다.
-3. 이 디렉터리의 `project-templates.yaml`을 `orchestrator/config/project-templates.yaml`로 복사합니다.
-4. 프로젝트 이름, 목표, 모듈 경로, 환경변수, API/JWT/WebSocket 계약을 실제 값으로 수정합니다.
-5. 새 프로젝트의 `AGENTS.md`, 보안 지침, 아키텍처 문서를 `policySources`에 연결합니다.
-6. `.skills/verify-*.ps1` 스크립트를 새 프로젝트 구조에 맞게 작성합니다.
-7. `runner:full:mock`으로 역할 라우팅과 applied templates를 확인합니다.
+2. 복사한 `orchestrator` 디렉터리에서 초기화 명령을 실행합니다.
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run project:init -- --name "프로젝트 이름" --goal "프로젝트 목표"
+```
+
+3. 프로젝트 이름, 목표, 모듈 경로, 환경변수, API/JWT/WebSocket 계약을 실제 값으로 수정합니다.
+4. 새 프로젝트의 `AGENTS.md`, 보안 지침, 아키텍처 문서를 `policySources`에 연결합니다.
+5. `.skills/verify-*.ps1` 스크립트를 새 프로젝트 구조에 맞게 작성합니다.
+6. `runner:full:mock`으로 역할 라우팅과 applied templates를 확인합니다.
+
+기존 프로젝트 설정은 기본적으로 덮어쓰지 않습니다. 교체가 의도된 경우에만 현재 설정을 백업하고 `--force`를 사용합니다.
 
 ## 유지하는 파일
 

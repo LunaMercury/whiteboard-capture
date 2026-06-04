@@ -188,3 +188,13 @@
   border-color: var(--color-primary-500);
   box-shadow: 0 0 0 3px var(--color-primary-100);
 }
+
+.betaNotice {
+  font-size: 0.78rem;
+  color: #999;
+  text-align: center;
+  margin-top: 2.2rem;
+  letter-spacing: -0.2px;
+  line-height: 1.4;
+  user-select: none;
+}

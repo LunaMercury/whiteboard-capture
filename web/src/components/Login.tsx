@@ -144,6 +144,7 @@ export default function Login({ onLogin }: LoginProps) {
             <div style={{ color: '#e53e3e', marginTop: '0.5rem', fontSize: '0.95em', textAlign: 'center' }}>{error}</div>
           )}
         </div>
+        <p className={styles.betaNotice}>이 서비스는 현재 <b>Beta</b> 버전입니다. 안정성 및 데이터 보관에 유의해 주세요.</p>
       </div>
     </div>
   );

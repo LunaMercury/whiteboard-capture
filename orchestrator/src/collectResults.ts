@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResults } from "./packetStore.js";
+import { countDisplayStatuses, getDisplayStatus } from "./resultClassification.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,10 +22,7 @@ async function main() {
   const manifest = readRunnerManifest(orchestratorRoot, runId);
   const results = readWorkerResults(manifest);
 
-  const statusCounts = results.reduce<Record<string, number>>((acc, item) => {
-    acc[item.status] = (acc[item.status] ?? 0) + 1;
-    return acc;
-  }, {});
+  const statusCounts = countDisplayStatuses(results);
 
   console.log(`# Worker Result Collection`);
   console.log("");
@@ -40,7 +38,7 @@ async function main() {
   console.log("workers:");
   for (const result of results) {
     console.log(`  - role: ${result.role}`);
-    console.log(`    status: ${result.status}`);
+    console.log(`    status: ${getDisplayStatus(result)}`);
     if (!compact) {
       console.log(`    summary: ${result.summary}`);
     }

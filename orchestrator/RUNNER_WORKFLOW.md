@@ -192,3 +192,13 @@ orchestrator/runs/<run-id>/
 - `applies/*.review.md`: apply review 결과
 - `applies/*.apply.md`: apply 프롬프트
 - `meta/manifest.json`: run 메타데이터
+
+## 10. 최종 상태 해석
+
+최종 요약은 실패 원인을 다음처럼 구분합니다.
+
+- `succeeded`: 요청한 worker/apply/verification 흐름이 성공함
+- `blocked`: apply review가 계약 변경, 미해결 질문 등 안전 사유로 적용 전에 차단함
+- `failed`: worker 실행, apply 실행, 검증, 롤백 또는 cleanup이 실제로 실패함
+
+`blocked`는 의도된 안전 동작이지만 자동화가 적용 성공으로 오해하지 않도록 프로세스 종료 코드는 `1`을 유지합니다.

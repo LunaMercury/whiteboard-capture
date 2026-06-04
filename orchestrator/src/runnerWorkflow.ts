@@ -4,6 +4,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResult, readWorkerResults, readWorkerTask, writeWorkerResult } from "./packetStore.js";
 import { normalizeRepoRelativePath } from "./pathSafety.js";
+import {
+  countDisplayStatuses,
+  getBlockedReasons,
+  getBlockedRoles,
+  getFailedRoles,
+} from "./resultClassification.js";
 import type { WorkerTaskPacket } from "./taskSchemas.js";
 import type { WorkerResultPacket } from "./resultSchemas.js";
 
@@ -771,15 +777,8 @@ function rollbackWorktree(manifest: ReturnType<typeof readRunnerManifest>, paths
   };
 }
 
-function countWorkerStatuses(results: WorkerResultPacket[]) {
-  return results.reduce<Record<string, number>>((acc, result) => {
-    acc[result.status] = (acc[result.status] ?? 0) + 1;
-    return acc;
-  }, {});
-}
-
 function formatStatusCounts(statusCounts: Record<string, number>) {
-  const preferredOrder = ["succeeded", "skipped", "failed", "pending", "running"];
+  const preferredOrder = ["succeeded", "skipped", "blocked", "failed", "pending", "running"];
   return preferredOrder
     .filter((status) => statusCounts[status])
     .map((status) => `${status}=${statusCounts[status]}`)
@@ -793,6 +792,11 @@ function printFinalTerminalSummary(
   appliedRoles: Set<WorkerTaskPacket["role"]>,
   rollbackSummary: {
     enabled: boolean;
+    verificationLogs?: Array<{
+      role: WorkerTaskPacket["role"] | "all";
+      script: string;
+      status: number | null;
+    }>;
     rollback?: {
       restoreStatus: number | null;
       cleanStatus: number | null;
@@ -804,27 +808,51 @@ function printFinalTerminalSummary(
 ) {
   const targetRoleSet = new Set(targetRoles);
   const results = readWorkerResults(manifest).filter((result) => targetRoleSet.has(result.role));
-  const statusCounts = countWorkerStatuses(results);
+  const statusCounts = countDisplayStatuses(results);
+  const blockedRoles = getBlockedRoles(results);
+  const failedRoles = getFailedRoles(results);
+  const blockedReasons = getBlockedReasons(results);
   const changedFiles = results.reduce((sum, result) => sum + result.changedFiles.length, 0);
   const proposedEdits = results.reduce((sum, result) => sum + (result.proposedEdits?.length ?? 0), 0);
   const verificationRun = Array.from(new Set(results.flatMap((result) => result.verificationRun)));
+  const verificationLogs = rollbackSummary.verificationLogs ?? [];
+  const verificationFailed = verificationLogs.some((log) => log.status !== 0);
+  const verificationStatus = verificationLogs.length > 0
+    ? verificationFailed
+      ? "failed"
+      : "passed"
+    : verificationRun.length > 0
+      ? "recorded"
+      : "none";
   const rollbackStatus = !rollbackSummary.enabled
     ? "not requested"
     : rollbackSummary.rollback?.finalWorktreeClean
       ? "succeeded"
       : "failed";
-  const finalStatus = workflowExitCode === 0 ? "succeeded" : "failed";
+  const cleanupFailed = cleanupStatus !== null && cleanupStatus !== 0;
+  const rollbackFailed = rollbackSummary.enabled && rollbackStatus !== "succeeded";
+  const finalStatus = workflowExitCode === 0
+    ? "succeeded"
+    : blockedRoles.length > 0 && failedRoles.length === 0 && !verificationFailed && !rollbackFailed && !cleanupFailed
+      ? "blocked"
+      : "failed";
 
   console.log("");
   console.log("## Final Summary");
   console.log(`Status: ${finalStatus}`);
   console.log(`Workers: ${formatStatusCounts(statusCounts)}`);
+  if (blockedRoles.length > 0) {
+    console.log(`Blocked roles: ${blockedRoles.join(", ")}`);
+  }
   console.log(`Applied roles: ${[...appliedRoles].join(", ") || "none"}`);
   console.log(`Changed files recorded: ${changedFiles}`);
   console.log(`Proposed edits: ${proposedEdits}`);
-  console.log(`Verification: ${verificationRun.join(", ") || "none"}`);
+  console.log(`Verification: ${verificationStatus}${verificationRun.length > 0 ? ` (${verificationRun.join(", ")})` : ""}`);
   console.log(`Rollback: ${rollbackStatus}`);
   console.log(`Cleanup: ${cleanupStatus === null ? "not run" : cleanupStatus === 0 ? "succeeded" : `failed(${cleanupStatus})`}`);
+  if (blockedReasons.length > 0) {
+    console.log(`Reason: ${blockedReasons.join(" | ")}`);
+  }
   console.log(`Report: ${manifest.reportPath}`);
 }
 

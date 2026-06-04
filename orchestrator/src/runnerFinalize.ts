@@ -8,6 +8,14 @@ import {
   writeRunnerReport,
   writeRunnerSummary,
 } from "./packetStore.js";
+import {
+  countDisplayStatuses,
+  getBlockedReasons,
+  getBlockedRoles,
+  getDisplayStatus,
+  getFailedRoles,
+  isApplyReviewBlocked,
+} from "./resultClassification.js";
 import type { WorkerResultPacket } from "./resultSchemas.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,17 +30,13 @@ function parseArgs(argv: string[]) {
   return { runId, compact };
 }
 
-function countStatuses(results: WorkerResultPacket[]) {
-  return results.reduce<Record<string, number>>((acc, result) => {
-    acc[result.status] = (acc[result.status] ?? 0) + 1;
-    return acc;
-  }, {});
-}
-
 function buildReleaseBlockers(results: WorkerResultPacket[]) {
   const blockers: string[] = [];
 
-  for (const result of results.filter((item) => item.status === "failed")) {
+  for (const result of results.filter(isApplyReviewBlocked)) {
+    blockers.push(`${result.role} apply blocked: ${result.summary}`);
+  }
+  for (const result of results.filter((item) => item.status === "failed" && !isApplyReviewBlocked(item))) {
     blockers.push(`${result.role} worker failed: ${result.summary}`);
   }
   for (const result of results.filter((item) => item.status === "pending")) {
@@ -50,7 +54,7 @@ function buildFindings(results: WorkerResultPacket[]) {
     const changed = result.changedFiles.length;
     const proposed = result.proposedEdits?.length ?? 0;
     const verification = result.verificationRun.length;
-    return `${result.role}: status=${result.status}, changed_files=${changed}, proposed_edits=${proposed}, verification=${verification}`;
+    return `${result.role}: status=${getDisplayStatus(result)}, changed_files=${changed}, proposed_edits=${proposed}, verification=${verification}`;
   });
 }
 
@@ -62,7 +66,8 @@ function buildFinalSummary(results: WorkerResultPacket[]) {
   const succeeded = results.filter((result) => result.status === "succeeded").map((result) => result.role);
   const running = results.filter((result) => result.status === "running").map((result) => result.role);
   const pending = results.filter((result) => result.status === "pending").map((result) => result.role);
-  const failed = results.filter((result) => result.status === "failed").map((result) => result.role);
+  const blocked = getBlockedRoles(results);
+  const actualFailed = getFailedRoles(results);
 
   const parts: string[] = [];
   if (succeeded.length > 0) {
@@ -74,8 +79,11 @@ function buildFinalSummary(results: WorkerResultPacket[]) {
   if (pending.length > 0) {
     parts.push(`Pending: ${pending.join(", ")}`);
   }
-  if (failed.length > 0) {
-    parts.push(`Failed: ${failed.join(", ")}`);
+  if (blocked.length > 0) {
+    parts.push(`Blocked: ${blocked.join(", ")}`);
+  }
+  if (actualFailed.length > 0) {
+    parts.push(`Failed: ${actualFailed.join(", ")}`);
   }
 
   return parts.length > 0 ? parts.join(" / ") : "No worker results were collected.";
@@ -89,6 +97,7 @@ function renderFinalReport(
   results: WorkerResultPacket[],
   releaseBlockers: string[],
   recommendedVerification: string[],
+  blockedReasons: string[],
 ) {
   const lines = [
     "# Finalized Runner Report",
@@ -108,7 +117,7 @@ function renderFinalReport(
   lines.push("## Worker Results");
   for (const result of results) {
     lines.push(`### ${result.role}`);
-    lines.push(`- status: ${result.status}`);
+    lines.push(`- status: ${getDisplayStatus(result)}`);
     lines.push(`- summary: ${result.summary}`);
     lines.push(`- changed_files: ${result.changedFiles.length}`);
     lines.push(`- proposed_edits: ${result.proposedEdits?.length ?? 0}`);
@@ -118,6 +127,16 @@ function renderFinalReport(
       for (const risk of result.risks) {
         lines.push(`  - ${risk}`);
       }
+    }
+  }
+
+  lines.push("");
+  lines.push("## Blocked Reasons");
+  if (blockedReasons.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const reason of blockedReasons) {
+      lines.push(`- ${reason}`);
     }
   }
 
@@ -159,8 +178,9 @@ async function main() {
     };
   });
 
-  const statusCounts = countStatuses(results);
+  const statusCounts = countDisplayStatuses(results);
   const releaseBlockers = buildReleaseBlockers(results);
+  const blockedReasons = getBlockedReasons(results);
   const findings = buildFindings(results);
   const recommendedVerification = buildRecommendedVerification(results);
   const finalSummary = buildFinalSummary(results);
@@ -182,6 +202,7 @@ async function main() {
     results,
     releaseBlockers,
     recommendedVerification,
+    blockedReasons,
   );
 
   writeRunnerManifest(orchestratorRoot, manifest);

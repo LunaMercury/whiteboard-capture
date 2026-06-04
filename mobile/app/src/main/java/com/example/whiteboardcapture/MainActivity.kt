@@ -76,7 +76,7 @@ import java.io.IOException
 
 private const val AUTH_PREFS = "auth_prefs"
 private const val TOKEN_KEY = "jwt_token"
-private const val LOGIN_URL = "http://10.0.2.2:8080/api/auth/login"
+private const val LOGIN_URL = "http://10.0.2.2:18080/api/auth/login"
 private const val UPLOAD_URL = "http://10.0.2.2:3000/upload"
 
 class MainActivity : ComponentActivity() {

@@ -6,11 +6,11 @@ import com.whiteboard.core.auth.dto.AuthRequest;
 import com.whiteboard.core.auth.dto.AuthResponse;
 import com.whiteboard.core.user.User;
 import com.whiteboard.core.user.UserRepository;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -26,6 +26,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -40,13 +41,13 @@ public class AuthController {
     private final ObjectMapper objectMapper;
     private final RestTemplate restTemplate;
 
-    @Value("${spring.security.oauth2.client.registration.naver.client-id}")
+    @Value("${whiteboard.oauth.naver.client-id}")
     private String naverClientId;
 
-    @Value("${spring.security.oauth2.client.registration.naver.client-secret}")
+    @Value("${whiteboard.oauth.naver.client-secret}")
     private String naverClientSecret;
 
-    @Value("${spring.security.oauth2.client.registration.naver.redirect-uri}")
+    @Value("${whiteboard.oauth.naver.redirect-uri}")
     private String naverRedirectUri;
 
     public AuthController(
@@ -99,7 +100,11 @@ public class AuthController {
 
     // Spring Security oauth2Login용 진입점. 실제로는 /oauth2/authorization/naver 경로를 사용할 수 있으나, 프락시로 직접 네이버 로그인 리다이렉트 구현.
     @GetMapping("/naver/login")
-    public void naverLogin(HttpServletResponse response) throws IOException {
+    public ResponseEntity<Void> naverLogin() {
+        if (!isNaverOAuthConfigured()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+
         String state = UUID.randomUUID().toString();
         String authorizationUri = UriComponentsBuilder.fromUriString("https://nid.naver.com/oauth2.0/authorize")
                 .queryParam("response_type", "code")
@@ -108,7 +113,7 @@ public class AuthController {
                 .queryParam("state", state)
                 .build()
                 .toUriString();
-        response.sendRedirect(authorizationUri);
+        return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(authorizationUri)).build();
     }
 
     // OAuth2 서버에서의 콜백 처리. JWT발급, 신규 사용자 등록, provider/providerId 사용
@@ -117,6 +122,10 @@ public class AuthController {
             @RequestParam("code") String code,
             @RequestParam("state") String state
     ) throws IOException {
+        if (!isNaverOAuthConfigured()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Naver OAuth is not configured");
+        }
+
         String tokenUri = UriComponentsBuilder.fromUriString("https://nid.naver.com/oauth2.0/token")
                 .queryParam("grant_type", "authorization_code")
                 .queryParam("client_id", naverClientId)
@@ -193,5 +202,11 @@ public class AuthController {
 
         String token = jwtUtil.generateToken(user.getEmail(), "naver", naverId);
         return ResponseEntity.ok(new AuthResponse(token, user.getEmail(), user.getName(), "naver", naverId));
+    }
+
+    private boolean isNaverOAuthConfigured() {
+        return naverClientId != null && !naverClientId.isBlank()
+                && naverClientSecret != null && !naverClientSecret.isBlank()
+                && naverRedirectUri != null && !naverRedirectUri.isBlank();
     }
 }

@@ -1,4 +1,4 @@
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:18080';
 const realtimeWsUrl = import.meta.env.VITE_REALTIME_WS_URL || 'ws://localhost:3000/ws';
 const fastApiBaseUrl = import.meta.env.VITE_FAST_API_BASE_URL || 'http://localhost:3000';
 

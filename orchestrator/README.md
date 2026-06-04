@@ -1,5 +1,7 @@
 # Whiteboard Capture Orchestrator
 
+현재 파이프라인 완료 상태와 실사용 명령은 [PIPELINE_STATUS.md](./PIPELINE_STATUS.md)를 참고합니다.
+
 이 디렉토리는 Whiteboard Capture 프로젝트용 오케스트레이션 실험 공간입니다.
 
 현재 목표는 다음 흐름을 만드는 것입니다.

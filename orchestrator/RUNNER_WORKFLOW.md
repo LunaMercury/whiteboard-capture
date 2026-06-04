@@ -202,3 +202,11 @@ orchestrator/runs/<run-id>/
 - `failed`: worker 실행, apply 실행, 검증, 롤백 또는 cleanup이 실제로 실패함
 
 `blocked`는 의도된 안전 동작이지만 자동화가 적용 성공으로 오해하지 않도록 프로세스 종료 코드는 `1`을 유지합니다.
+
+차단된 역할과 미해결 질문은 상태 조회 명령으로 확인할 수 있습니다.
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run runner:status -- <run-id>
+```
+
+상태 조회가 제안하는 승인 재실행 명령은 질문과 계약을 실제로 검토한 뒤에만 사용합니다.

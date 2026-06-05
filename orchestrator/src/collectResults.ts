@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResults } from "./packetStore.js";
 import { countDisplayStatuses, getDisplayStatus } from "./resultClassification.js";
+import { summarizeApiUsage } from "./apiUsage.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,6 +22,7 @@ async function main() {
   const orchestratorRoot = path.resolve(__dirname, "..");
   const manifest = readRunnerManifest(orchestratorRoot, runId);
   const results = readWorkerResults(manifest);
+  const apiUsage = summarizeApiUsage(manifest);
 
   const statusCounts = countDisplayStatuses(results);
 
@@ -34,6 +36,12 @@ async function main() {
   for (const [status, count] of Object.entries(statusCounts)) {
     console.log(`  ${status}: ${count}`);
   }
+  console.log("");
+  console.log("api_usage:");
+  console.log(`  calls: ${apiUsage.calls}`);
+  console.log(`  input_tokens: ${apiUsage.inputTokens}`);
+  console.log(`  output_tokens: ${apiUsage.outputTokens}`);
+  console.log(`  total_tokens: ${apiUsage.totalTokens}`);
   console.log("");
   console.log("workers:");
   for (const result of results) {

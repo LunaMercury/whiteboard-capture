@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResult, readWorkerResults, readWorkerTask, writeWorkerResult } from "./packetStore.js";
 import { normalizeRepoRelativePath } from "./pathSafety.js";
+import { summarizeApiUsage } from "./apiUsage.js";
 import {
   countDisplayStatuses,
   getBlockedReasons,
@@ -814,6 +815,7 @@ function printFinalTerminalSummary(
   const blockedReasons = getBlockedReasons(results);
   const changedFiles = results.reduce((sum, result) => sum + result.changedFiles.length, 0);
   const proposedEdits = results.reduce((sum, result) => sum + (result.proposedEdits?.length ?? 0), 0);
+  const apiUsage = summarizeApiUsage(manifest);
   const verificationRun = Array.from(new Set(results.flatMap((result) => result.verificationRun)));
   const verificationLogs = rollbackSummary.verificationLogs ?? [];
   const verificationFailed = verificationLogs.some((log) => log.status !== 0);
@@ -847,6 +849,7 @@ function printFinalTerminalSummary(
   console.log(`Applied roles: ${[...appliedRoles].join(", ") || "none"}`);
   console.log(`Changed files recorded: ${changedFiles}`);
   console.log(`Proposed edits: ${proposedEdits}`);
+  console.log(`API usage: calls=${apiUsage.calls}, total_tokens=${apiUsage.totalTokens}, input_tokens=${apiUsage.inputTokens}, output_tokens=${apiUsage.outputTokens}`);
   console.log(`Verification: ${verificationStatus}${verificationRun.length > 0 ? ` (${verificationRun.join(", ")})` : ""}`);
   console.log(`Rollback: ${rollbackStatus}`);
   console.log(`Cleanup: ${cleanupStatus === null ? "not run" : cleanupStatus === 0 ? "succeeded" : `failed(${cleanupStatus})`}`);

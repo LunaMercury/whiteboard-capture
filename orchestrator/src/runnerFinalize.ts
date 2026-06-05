@@ -17,6 +17,7 @@ import {
   isApplyReviewBlocked,
 } from "./resultClassification.js";
 import type { WorkerResultPacket } from "./resultSchemas.js";
+import { summarizeApiUsage, type ApiUsageSummary } from "./apiUsage.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -98,6 +99,7 @@ function renderFinalReport(
   releaseBlockers: string[],
   recommendedVerification: string[],
   blockedReasons: string[],
+  apiUsage: ApiUsageSummary,
 ) {
   const lines = [
     "# Finalized Runner Report",
@@ -112,6 +114,13 @@ function renderFinalReport(
   for (const [status, count] of Object.entries(statusCounts)) {
     lines.push(`- ${status}: ${count}`);
   }
+
+  lines.push("");
+  lines.push("## API Usage");
+  lines.push(`- calls: ${apiUsage.calls}`);
+  lines.push(`- input_tokens: ${apiUsage.inputTokens}`);
+  lines.push(`- output_tokens: ${apiUsage.outputTokens}`);
+  lines.push(`- total_tokens: ${apiUsage.totalTokens}`);
 
   lines.push("");
   lines.push("## Worker Results");
@@ -184,6 +193,7 @@ async function main() {
   const findings = buildFindings(results);
   const recommendedVerification = buildRecommendedVerification(results);
   const finalSummary = buildFinalSummary(results);
+  const apiUsage = summarizeApiUsage(manifest);
 
   summary.verifierReport = {
     summary: `Finalized worker collection. ${finalSummary}`,
@@ -203,6 +213,7 @@ async function main() {
     releaseBlockers,
     recommendedVerification,
     blockedReasons,
+    apiUsage,
   );
 
   writeRunnerManifest(orchestratorRoot, manifest);

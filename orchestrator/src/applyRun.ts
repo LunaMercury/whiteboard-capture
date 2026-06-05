@@ -6,6 +6,7 @@ import { readRunnerManifest, readWorkerResult, writeWorkerResult } from "./packe
 import { applyPacketSchema, type ApplyPacket } from "./applySchemas.js";
 import { assertPacketMatchesApprovedReview, loadApprovedApplyReview } from "./applyApproval.js";
 import { withOpenAIRetry } from "./openaiRetry.js";
+import { appendApiUsageRecord, extractOpenAIUsage, type ApiUsage } from "./apiUsage.js";
 import { assertSamePathSet, matchesRepoPathRule, normalizeRepoRelativePath, resolveRepoPath } from "./pathSafety.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -143,6 +144,7 @@ async function runOpenAIApply(prompt: string) {
   if (!apiKey) {
     throw new Error("OPENAI_API_KEY is not set.");
   }
+  const model = process.env.OPENAI_APPLY_MODEL || process.env.OPENAI_WORKER_MODEL || "gpt-4.1";
 
   const schema = {
     type: "object",
@@ -180,7 +182,7 @@ async function runOpenAIApply(prompt: string) {
         authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_APPLY_MODEL || process.env.OPENAI_WORKER_MODEL || "gpt-4.1",
+        model,
         input: [
           {
             role: "system",
@@ -230,7 +232,11 @@ async function runOpenAIApply(prompt: string) {
       throw new Error("OpenAI apply response did not contain output_text.");
     }
 
-    return applyExecutionSchema.parse(JSON.parse(outputText));
+    return {
+      model,
+      execution: applyExecutionSchema.parse(JSON.parse(outputText)),
+      usage: extractOpenAIUsage(payload),
+    };
   });
 }
 
@@ -384,15 +390,30 @@ async function main() {
     return;
   }
 
+  let apiUsage: ApiUsage | undefined;
+  let apiModel: string | undefined;
   const execution = provider === "test"
     ? runTestApply(packet)
-    : await runOpenAIApply(prompt);
+    : await runOpenAIApply(prompt).then((result) => {
+        apiUsage = result.usage;
+        apiModel = result.model;
+        return result.execution;
+      });
   writeExecutionArtifacts(manifest.runDir, role, prompt, execution);
   validateApplyExecution(packet, execution);
   if (execution.status === "succeeded") {
     applyFileEdits(manifest.repoRoot, packet, execution);
   }
   syncWorkerResultAfterApply(manifest, role, execution);
+  if (provider === "openai" && apiUsage && apiModel) {
+    appendApiUsageRecord(manifest, {
+      stage: "apply",
+      role,
+      provider: "openai",
+      model: apiModel,
+      usage: apiUsage,
+    });
+  }
 
   console.log(`# Apply Run Complete`);
   console.log(`Run ID: ${runId}`);

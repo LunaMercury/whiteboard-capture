@@ -6,6 +6,7 @@ import { readRunnerManifest, readWorkerResult, readWorkerTask, writeWorkerResult
 import { workerResultPacketSchema, type WorkerResultPacket } from "./resultSchemas.js";
 import type { WorkerTaskPacket } from "./taskSchemas.js";
 import { withOpenAIRetry } from "./openaiRetry.js";
+import { appendApiUsageRecord, extractOpenAIUsage, type ApiUsage } from "./apiUsage.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -484,7 +485,11 @@ async function runOpenAIWorker(prompt: string, schema: ReturnType<typeof createR
       throw new Error("OpenAI response did not contain output_text.");
     }
 
-    return JSON.parse(outputText);
+    return {
+      model,
+      result: JSON.parse(outputText) as unknown,
+      usage: extractOpenAIUsage(payload),
+    };
   });
 }
 
@@ -542,10 +547,15 @@ async function main() {
   const schema = JSON.stringify(resultJsonSchema);
   const prompt = renderExecutionPrompt(runId, task, resultPath, manifest.repoRoot);
   let rawResult: unknown;
+  let apiUsage: ApiUsage | undefined;
+  let apiModel: string | undefined;
 
   if (provider === "openai") {
     try {
-      rawResult = await runOpenAIWorker(prompt, resultJsonSchema);
+      const openAIResult = await runOpenAIWorker(prompt, resultJsonSchema);
+      rawResult = openAIResult.result;
+      apiUsage = openAIResult.usage;
+      apiModel = openAIResult.model;
     } catch (error) {
       writeFailureResult(
         role,
@@ -619,6 +629,15 @@ async function main() {
     role,
   }, provider);
   writeWorkerResult(manifest, normalized);
+  if (provider === "openai" && apiUsage && apiModel) {
+    appendApiUsageRecord(manifest, {
+      stage: "worker",
+      role,
+      provider: "openai",
+      model: apiModel,
+      usage: apiUsage,
+    });
+  }
 
   console.log(`# Worker Run Complete`);
   console.log(`Run ID: ${runId}`);

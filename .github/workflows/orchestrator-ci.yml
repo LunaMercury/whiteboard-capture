@@ -1,0 +1,39 @@
+name: Orchestrator CI
+
+on:
+  pull_request:
+    paths:
+      - "orchestrator/**"
+      - ".github/workflows/orchestrator-ci.yml"
+  push:
+    branches:
+      - dev
+    paths:
+      - "orchestrator/**"
+      - ".github/workflows/orchestrator-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  dry-run:
+    name: Mock orchestration dry-run
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: orchestrator/package-lock.json
+
+      - name: Install orchestrator dependencies
+        working-directory: orchestrator
+        run: npm ci
+
+      - name: Run orchestrator dry-run
+        working-directory: orchestrator
+        run: npm run ci:dry-run

@@ -857,6 +857,7 @@ function printFinalTerminalSummary(
     console.log(`Reason: ${blockedReasons.join(" | ")}`);
   }
   console.log(`Report: ${manifest.reportPath}`);
+  console.log(`HTML report: ${path.join(manifest.runDir, "report.html")}`);
 }
 
 async function main() {

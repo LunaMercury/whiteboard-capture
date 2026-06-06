@@ -1,98 +1,137 @@
 # Orchestrator Pipeline Status
 
-마지막 확인일: 2026-06-04
+마지막 확인일: 2026-06-06
 
 ## 현재 상태
 
-Whiteboard Capture 오케스트레이션 파이프라인의 핵심 실행 경로는 완료되었습니다.
-
-지원 흐름:
+Whiteboard Capture 오케스트레이터는 실사용 가능한 안전 실행 파이프라인을 갖춘 상태입니다.
 
 ```text
 사용자 요청
-  -> manager 전체 계획
-  -> 역할별 worker 계획 및 proposedEdits
-  -> apply review 안전 검토
+  -> manager 계획 수립
+  -> 역할별 worker task packet 생성
+  -> worker proposed edits 생성
+  -> apply review 안전 게이트
   -> 선택적 실제 적용
-  -> 역할별 검증 및 verify-all
-  -> 선택적 자동 롤백 또는 변경 유지
-  -> 결과 수집, 최종 보고, 오래된 run 정리
+  -> 역할별 검증 및 선택적 verify-all
+  -> rollback 또는 keep-applied
+  -> 결과 수집
+  -> Markdown/HTML 리포트 생성
+  -> 오래된 run 정리
 ```
 
-## 완료된 안전 기능
+아직 독립 보일러 프로젝트로 분리한 것은 아니지만, 다른 프로젝트로 옮기기 위한 템플릿과 패키징 명령은 준비되어 있습니다.
 
-- 기본 dry-run, 명시적 `--apply`
-- 시험 적용 `--rollback-after-verify`
-- 영구 적용 `--keep-applied`
-- dirty worktree 차단
-- 역할별 allowed/blocked path 검증
-- dependency/build manifest 자동 적용 차단
-- 계약 변경 및 미해결 질문 apply review 차단
-- OpenAI rate limit 재시도와 worker 동시 실행 제한
-- 검증 타임아웃과 중단 시 롤백
-- 검증 로그, diff snapshot, rollback summary 저장
-- 오래된 run 자동 정리와 Git 추적 run 보호
-- `succeeded`, `blocked`, `failed` 최종 상태 구분
+## 완료된 기능
 
-## 검증된 시나리오
+- manager 계획 및 카테고리/템플릿 정책 적용
+- worker task/result packet 생성
+- OpenAI provider와 test provider 지원
+- apply review 안전 게이트
+  - allowed/blocked path 검증
+  - 계약 변경 차단
+  - 미해결 질문 차단
+  - dependency/build manifest 변경 차단
+- 안전 적용 모드
+  - 기본 dry-run
+  - `--rollback-after-verify` 시험 적용 후 자동 롤백
+  - `--keep-applied` 의도적 영구 적용
+- dirty worktree 보호
+- 역할별 검증 스크립트 실행
+- 선택적 `--verify-all`
+- 검증 타임아웃 및 프로세스 종료 처리
+- rollback snapshot, verification log, rollback summary 저장
+- 최종 상태 구분: `succeeded`, `blocked`, `failed`
+- compact terminal output
+- OpenAI worker/apply API 사용량 메타데이터 기록
+- Markdown report: `runs/<run-id>/report.md`
+- HTML report: `runs/<run-id>/report.html`
+- 오래된 run 자동 정리 및 현재 run 보호
+- 재사용 가능한 project config 템플릿
+- 재사용 가능한 orchestrator packaging 명령
+- 선택형 GitHub Actions dry-run workflow
 
-### 영구 적용 운영 리허설
+## 주요 명령
 
-- Frontend 실제 변경 적용
-- 역할별 검증 성공
-- 변경 유지 후 수동 확인 및 커밋 성공
-
-### 전체 역할 안전 리허설
-
-- `frontend,java,rust,mobile` worker 실행
-- Java의 미해결 API 계약 질문을 apply review가 차단
-- Frontend 임시 적용 후 `.skills/verify-all.ps1` 성공
-- 자동 롤백 성공
-- 최종 작업 트리 정리 성공
-- 최종 상태가 `blocked`로 명확히 표시됨
-
-## 권장 운영 명령
-
-### 1. 안전한 계획 확인
+### 안전 계획 / Dry Run
 
 ```powershell
 cd "D:\개발\whiteboard capture\orchestrator"
 & "C:\Program Files\nodejs\npm.cmd" run runner:full -- --compact --roles frontend,java,rust,mobile --worker-provider openai --concurrency 2 "요청 내용"
 ```
 
-### 2. 시험 적용 후 자동 롤백
+### 시험 적용 후 자동 롤백
 
 ```powershell
-& "C:\Program Files\nodejs\npm.cmd" run runner:full -- --compact --roles frontend,java,rust,mobile --worker-provider openai --apply-provider openai --apply --rollback-after-verify --verify-all --concurrency 2 --continue-on-error "요청 내용"
+& "C:\Program Files\nodejs\npm.cmd" run runner:full -- --compact --roles frontend --worker-provider openai --apply-provider openai --apply --rollback-after-verify --concurrency 1 --continue-on-error "요청 내용"
 ```
 
-### 3. 검증 후 변경 유지
+### 검증 후 변경 유지
 
 ```powershell
-& "C:\Program Files\nodejs\npm.cmd" run runner:full -- --compact --roles frontend,java,rust,mobile --worker-provider openai --apply-provider openai --apply --keep-applied --verify-all --concurrency 2 --continue-on-error "요청 내용"
+& "C:\Program Files\nodejs\npm.cmd" run runner:full -- --compact --roles frontend --worker-provider openai --apply-provider openai --apply --keep-applied --concurrency 1 --continue-on-error "요청 내용"
 ```
 
-### 4. 차단 상태 확인
+### CI Dry Run
 
 ```powershell
-& "C:\Program Files\nodejs\npm.cmd" run runner:status -- <run-id>
+& "C:\Program Files\nodejs\npm.cmd" run ci:dry-run
 ```
 
-차단 질문과 계약을 실제로 검토하기 전에는 승인 옵션을 사용하지 않습니다.
+### 다른 프로젝트로 오케스트레이터 패키징
 
-## 최종 상태 해석
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run project:package -- --target "D:\개발\new-project" --name "New Project" --goal "Describe the product outcome" --dry-run
+```
 
-- `succeeded`: 요청한 적용과 검증이 성공함
-- `blocked`: 안전 검토가 계약 변경 또는 미해결 질문으로 적용을 중단함
-- `failed`: worker, apply, 검증, 롤백 또는 cleanup이 실제로 실패함
+## 결과 읽는 법
 
-`blocked`는 의도된 안전 동작이지만 자동화가 적용 성공으로 오해하지 않도록 종료 코드는 `1`입니다.
+일반 터미널에서는 마지막 `Final Summary` 블록만 먼저 보면 됩니다.
 
-## 남은 작업
+```text
+## Final Summary
+Status: succeeded|blocked|failed
+Workers: ...
+Applied roles: ...
+API usage: calls=..., total_tokens=...
+Verification: ...
+Rollback: ...
+Report: ...\report.md
+HTML report: ...\report.html
+```
 
-핵심 파이프라인 완성과 별개인 선택적 개선 항목입니다.
+복잡한 실행은 `report.html`을 여는 것이 좋습니다. 상태 수, API 사용량, worker 요약, risks, blockers, recommended verification을 한 화면에서 볼 수 있습니다.
 
-- 다른 프로젝트에 복사하기 위한 전체 오케스트레이터 패키징 자동화
-- CI 환경에서 dry-run 및 검증 실행 연결
-- run 결과를 HTML 또는 간단한 대시보드로 표시
-- API 사용량과 비용 메타데이터 기록
+## 최종 상태 의미
+
+- `succeeded`: 선택된 worker/apply/verification 흐름이 성공했습니다.
+- `blocked`: 계약 변경이나 미해결 질문 때문에 apply review가 파일 변경 전 안전하게 중단했습니다.
+- `failed`: worker 실행, apply 실행, 검증, 롤백, cleanup 또는 런타임 단계가 실패했습니다.
+
+`blocked`는 성공이 아닙니다. 안전 게이트가 작동했다는 뜻이고, 사람의 검토가 필요합니다.
+
+## 재사용 준비 상태
+
+재사용 기반은 준비되어 있지만, 아직 독립 보일러 repository로 분리하지는 않았습니다.
+
+사용 가능한 재사용 도구:
+
+- `orchestrator/templates/project-config/`
+- `orchestrator/templates/policy-docs/`
+- `orchestrator/templates/skills/`
+- `npm run project:init`
+- `npm run project:package`
+
+나중에 권장되는 분리 순서:
+
+1. 이 프로젝트에서 파이프라인을 조금 더 검증합니다.
+2. 깨끗한 boilerplate 프로젝트로 패키징합니다.
+3. Kubernetes, Helm/Kustomize, ArgoCD 템플릿은 배포 구조가 확정된 뒤 추가합니다.
+4. GitHub Actions는 필수 배포 장치가 아니라 선택형 CI 템플릿으로 유지합니다.
+
+## 남은 선택 작업
+
+- 최근 `runs/` 리포트를 모아보는 index page 추가
+- 모델 가격 메타데이터가 정리되면 API 비용 추정 추가
+- Kubernetes/ArgoCD 배포 템플릿 추가
+- 실제 기능 리허설을 1~2회 더 진행한 뒤 독립 보일러 repository로 분리

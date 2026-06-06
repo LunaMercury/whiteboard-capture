@@ -4,13 +4,13 @@ on:
   pull_request:
     paths:
       - "orchestrator/**"
-      - ".github/workflows/orchestrator-ci.yml"
+      - ".github/workflows/orchestrator-ci.yaml"
   push:
     branches:
       - dev
     paths:
       - "orchestrator/**"
-      - ".github/workflows/orchestrator-ci.yml"
+      - ".github/workflows/orchestrator-ci.yaml"
   workflow_dispatch:
 
 jobs:

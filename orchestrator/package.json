@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "ci:dry-run": "tsc -p tsconfig.json --noEmit && npm run runner:full:mock -- --compact --roles frontend,java,rust,mobile --worker-provider test --concurrency 2 \"네이버 로그인 기능을 만들어줘\"",
+    "ci:dry-run": "tsc -p tsconfig.json --noEmit && npm run runner:full:mock -- --compact --roles frontend,java,rust,mobile --worker-provider test --concurrency 2 \"auth flow check\"",
     "demo": "tsx src/index.ts",
     "demo:mock": "tsx src/index.ts --mock",
     "runner:prepare": "tsx src/prepareRunner.ts",
@@ -19,6 +19,7 @@
     "runner:cleanup": "tsx src/runnerCleanup.ts",
     "runner:recover": "tsx src/runnerRecover.ts",
     "runner:finalize": "tsx src/runnerFinalize.ts",
+    "runner:reports": "tsx src/runnerReports.ts",
     "runner:review": "tsx src/applyReview.ts",
     "project:init": "tsx src/projectInit.ts",
     "project:package": "tsx src/projectPackage.ts",

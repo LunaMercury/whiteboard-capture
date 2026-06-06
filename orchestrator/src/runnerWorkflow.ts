@@ -1330,6 +1330,14 @@ async function main() {
     }
   }
 
+  console.log("");
+  console.log("## Updating run report index");
+  const reports = runNodeScript(path.join("src", "runnerReports.ts"), compact ? ["--compact"] : [], orchestratorRoot);
+  printWorkflowChild(reports, "reports", compact);
+  if (reports.status !== 0) {
+    workflowExitCode = workflowExitCode || reports.status || 1;
+  }
+
   printFinalTerminalSummary(
     manifest,
     targetWorkers.map((worker) => worker.role),

@@ -46,6 +46,7 @@ Whiteboard Capture 오케스트레이터는 실사용 가능한 안전 실행 �
 - OpenAI worker/apply API 사용량 메타데이터 기록
 - Markdown report: `runs/<run-id>/report.md`
 - HTML report: `runs/<run-id>/report.html`
+- Run index page: `runs/index.html`
 - 오래된 run 자동 정리 및 현재 run 보호
 - 재사용 가능한 project config 템플릿
 - 재사용 가능한 orchestrator packaging 명령
@@ -131,7 +132,6 @@ HTML report: ...\report.html
 
 ## 남은 선택 작업
 
-- 최근 `runs/` 리포트를 모아보는 index page 추가
 - 모델 가격 메타데이터가 정리되면 API 비용 추정 추가
 - Kubernetes/ArgoCD 배포 템플릿 추가
 - 실제 기능 리허설을 1~2회 더 진행한 뒤 독립 보일러 repository로 분리

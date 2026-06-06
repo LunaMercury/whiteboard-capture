@@ -140,6 +140,10 @@ export default function Login({ onLogin }: LoginProps) {
           <button className={styles.primaryButton} onClick={handleLogin} disabled={isSubmitting}>
             {isSubmitting ? '로그인 중...' : '이메일로 로그인'}
           </button>
+          {/* 안내 문구(문제가 계속되면...) */}
+          <p className={styles.login__helpMessage} aria-label="문제가 계속되면 관리자에게 문의해 주세요.">
+            문제가 계속되면 관리자에게 문의해 주세요.
+          </p>
           {error && (
             <div style={{ color: '#e53e3e', marginTop: '0.5rem', fontSize: '0.95em', textAlign: 'center' }}>{error}</div>
           )}

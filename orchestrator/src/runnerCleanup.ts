@@ -89,6 +89,10 @@ function formatMb(bytes: number) {
 }
 
 function getTrackedFileCount(repoRoot: string, repoRelativePath: string) {
+  if (!fs.existsSync(path.join(repoRoot, ".git"))) {
+    return 0;
+  }
+
   const child = spawnSync("git", ["ls-files", "--", repoRelativePath], {
     cwd: repoRoot,
     encoding: "utf8",

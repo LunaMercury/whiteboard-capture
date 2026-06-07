@@ -1,10 +1,10 @@
 import { config as loadEnv } from "dotenv";
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createOrchestratorGraph } from "./graph.js";
 import { buildRepoSnapshot } from "./repoSnapshot.js";
 import { writeRunnerBundle } from "./packetStore.js";
+import { resolveRepoRoot } from "./repoRoot.js";
 import type { WorkerTaskPacket } from "./taskSchemas.js";
 import type { WorkerResultPacket } from "./resultSchemas.js";
 import type { ManagerDecision, VerifierReport } from "./schemas.js";
@@ -36,11 +36,8 @@ async function main() {
     throw new Error("OPENAI_API_KEY is required unless you run with --mock.");
   }
 
-  const repoRoot = path.resolve(__dirname, "../..");
+  const repoRoot = resolveRepoRoot(__dirname);
   const orchestratorRoot = path.resolve(__dirname, "..");
-  if (!fs.existsSync(path.join(repoRoot, "run.bat"))) {
-    throw new Error(`Could not find the repository root from ${repoRoot}`);
-  }
 
   const graph = createOrchestratorGraph();
   const result = await graph.invoke({

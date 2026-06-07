@@ -56,6 +56,12 @@ Whiteboard Capture 오케스트레이터는 실사용 가능한 안전 실행 �
 - 2026-06-07: 재사용 패키징 dry-run 성공.
   - 실행: `project:package --target ".tmp/orchestrator-package-dry-run" --name "Boilerplate Dry Run" --goal "Validate reusable orchestrator packaging" --dry-run`
   - 결과: 73개 파일 생성 계획, 기존 충돌 0개, dry-run이므로 실제 파일 작성 없음
+- 2026-06-07: 재사용 패키징 실제 복사 리허설 성공.
+  - 대상: `C:\Users\Public\Documents\ESTsoft\CreatorTemp\orchestrator-package-rehearsal-20260607-215410`
+  - 실행: `project:package --target <temp-target> --name "Boilerplate Rehearsal" --goal "Validate actual reusable orchestrator package copy"`
+  - 결과: 75개 파일 복사, `npm install` 성공, 복사본의 `npm run ci:dry-run` 성공
+  - 보강: `run.bat`가 없는 새 프로젝트와 `.git`이 없는 초기 패키징 폴더에서도 `runner:prepare`, `runner:cleanup`이 동작하도록 수정
+  - 참고: `npm install`에서 dependency audit 경고가 표시되므로 추후 보일러 분리 전에 의존성 업데이트 검토 필요
 
 ## 완료된 기능
 

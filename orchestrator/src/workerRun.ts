@@ -417,6 +417,39 @@ function normalizeWorkerResult(
   };
 }
 
+function previewText(value: string, maxLength = 240) {
+  const compact = value.replace(/\s+/g, " ").trim();
+  return compact.length > maxLength ? `${compact.slice(0, maxLength)}...` : compact;
+}
+
+function createOpenAITransientError(message: string, status = 503) {
+  const error = new Error(message) as Error & { status?: number };
+  error.status = status;
+  return error;
+}
+
+function parseOpenAIJson(text: string, status: number) {
+  try {
+    return text ? JSON.parse(text) as unknown : {};
+  } catch (error) {
+    throw createOpenAITransientError(
+      `OpenAI API returned non-JSON response with status ${status}: ${previewText(text) || String(error)}`,
+      status >= 500 ? status : 503,
+    );
+  }
+}
+
+function parseOpenAIWorkerOutput(outputText: string) {
+  try {
+    return JSON.parse(outputText) as unknown;
+  } catch (error) {
+    throw createOpenAITransientError(
+      `OpenAI worker returned non-JSON output: ${previewText(outputText) || String(error)}`,
+      503,
+    );
+  }
+}
+
 async function runOpenAIWorker(prompt: string, schema: ReturnType<typeof createResultJsonSchema>) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -455,7 +488,13 @@ async function runOpenAIWorker(prompt: string, schema: ReturnType<typeof createR
       }),
     });
 
-    const payload = await response.json();
+    const responseText = await response.text();
+    const payload = parseOpenAIJson(responseText, response.status) as {
+      error?: { message?: string };
+      message?: string;
+      output_text?: string;
+      output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
+    };
     if (!response.ok) {
       const retryAfter = response.headers.get("retry-after");
       const message =
@@ -487,7 +526,7 @@ async function runOpenAIWorker(prompt: string, schema: ReturnType<typeof createR
 
     return {
       model,
-      result: JSON.parse(outputText) as unknown,
+      result: parseOpenAIWorkerOutput(outputText),
       usage: extractOpenAIUsage(payload),
     };
   });

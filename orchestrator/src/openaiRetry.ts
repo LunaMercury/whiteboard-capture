@@ -36,7 +36,15 @@ function isRetryableOpenAIError(error: unknown) {
 
   return (
     maybeError.status === 429 ||
+    (typeof maybeError.status === "number" && maybeError.status >= 500 && maybeError.status <= 599) ||
     /\b429\b/.test(message) ||
+    /\b5\d\d\b/.test(message) ||
+    /upstream/i.test(message) ||
+    /connection error/i.test(message) ||
+    /fetch failed/i.test(message) ||
+    /network/i.test(message) ||
+    /timeout/i.test(message) ||
+    /ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN/i.test(message) ||
     /rate limit/i.test(message) ||
     /try again/i.test(message)
   );

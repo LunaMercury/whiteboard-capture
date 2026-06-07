@@ -34,6 +34,11 @@ Whiteboard Capture 오케스트레이터는 실사용 가능한 안전 실행 �
   - 실행: `runner:full --compact --roles java --worker-provider openai --apply-provider openai --apply --rollback-after-verify --concurrency 1`
   - 결과: worker/apply 성공, `.skills/verify-core.ps1` 및 backend-core 부팅/네이버 미설정 503 확인 기록, rollback 성공, `runner:workflow exit=0`
   - 적용 방식: 시험 적용 후 자동 롤백이므로 작업트리에 변경 없음
+- 2026-06-07: rust review-only 리허설 성공.
+  - 요청: 네이버 로그인 JWT가 backend-fast 업로드와 웹소켓 인증 경로에 영향이 없는지 리뷰
+  - 실행: `runner:full --compact --roles rust --worker-provider openai --concurrency 1`
+  - 결과: 코드 변경 불필요로 `skipped` 반환, JWT `sub` claim/JWT_SECRET_KEY/provider claim 무시 정책 확인, `runner:workflow exit=0`
+  - 적용 방식: 리뷰 전용 worker이므로 apply/verification 없음
 
 ## 완료된 기능
 

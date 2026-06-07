@@ -66,6 +66,7 @@ function buildRecommendedVerification(results: WorkerResultPacket[]) {
 
 function buildFinalSummary(results: WorkerResultPacket[]) {
   const succeeded = results.filter((result) => result.status === "succeeded").map((result) => result.role);
+  const skipped = results.filter((result) => result.status === "skipped").map((result) => result.role);
   const running = results.filter((result) => result.status === "running").map((result) => result.role);
   const pending = results.filter((result) => result.status === "pending").map((result) => result.role);
   const blocked = getBlockedRoles(results);
@@ -74,6 +75,9 @@ function buildFinalSummary(results: WorkerResultPacket[]) {
   const parts: string[] = [];
   if (succeeded.length > 0) {
     parts.push(`Succeeded: ${succeeded.join(", ")}`);
+  }
+  if (skipped.length > 0) {
+    parts.push(`Skipped: ${skipped.join(", ")}`);
   }
   if (running.length > 0) {
     parts.push(`Running: ${running.join(", ")}`);

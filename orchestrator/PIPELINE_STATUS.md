@@ -44,6 +44,11 @@ Whiteboard Capture 오케스트레이터는 실사용 가능한 안전 실행 �
   - 실행: `runner:full --compact --roles mobile --worker-provider openai --concurrency 1`
   - 결과: 코드 변경 불필요로 `skipped` 반환, 모바일 JWT 저장/업로드 인증 흐름은 기존 계약 유지 시 변경 불필요, `runner:workflow exit=0`
   - 잔여 확인: 실제 네이버 JWT claim 샘플, backend-core/backend-fast `JWT_SECRET_KEY` 일치, 운영 HTTPS 전환은 E2E 검증 필요
+- 2026-06-07: 전체 역할 통합 리허설 성공.
+  - 요청: 네이버 로그인 기능 전체 변경 계획 점검
+  - 실행: `runner:full --compact --roles frontend,java,rust,mobile --worker-provider openai --concurrency 2`
+  - 결과: 네 역할 모두 추가 변경 불필요로 `skipped` 반환, `runner:workflow exit=0`
+  - 잔여 확인: 실제 배포 전 `.skills/verify-all.ps1` 및 네이버 OAuth E2E 검증 필요
 
 ## 완료된 기능
 

@@ -1,6 +1,6 @@
 # Orchestrator Pipeline Status
 
-마지막 확인일: 2026-06-06
+마지막 확인일: 2026-06-07
 
 ## 현재 상태
 
@@ -21,6 +21,14 @@ Whiteboard Capture 오케스트레이터는 실사용 가능한 안전 실행 �
 ```
 
 아직 독립 보일러 프로젝트로 분리한 것은 아니지만, 다른 프로젝트로 옮기기 위한 템플릿과 패키징 명령은 준비되어 있습니다.
+
+## 최근 리허설 기록
+
+- 2026-06-06: frontend keep-applied 실사용 리허설 성공.
+  - 요청: 로그인 화면 하단에 "문제가 계속되면 관리자에게 문의해 주세요." 문구 추가
+  - 실행: `runner:full --compact --roles frontend --worker-provider openai --apply-provider openai --apply --keep-applied --concurrency 1`
+  - 결과: worker/apply 성공, `.skills/verify-web.ps1` 통과, `runner:workflow exit=0`
+  - 커밋: `db05c58 로그인 화면 도움말 문구 추가`
 
 ## 완료된 기능
 

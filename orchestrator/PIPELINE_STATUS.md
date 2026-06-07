@@ -49,6 +49,13 @@ Whiteboard Capture 오케스트레이터는 실사용 가능한 안전 실행 �
   - 실행: `runner:full --compact --roles frontend,java,rust,mobile --worker-provider openai --concurrency 2`
   - 결과: 네 역할 모두 추가 변경 불필요로 `skipped` 반환, `runner:workflow exit=0`
   - 잔여 확인: 실제 배포 전 `.skills/verify-all.ps1` 및 네이버 OAuth E2E 검증 필요
+- 2026-06-07: 전체 프로젝트 검증 성공.
+  - 실행: `.skills/verify-all.ps1`
+  - 결과: Web, backend-fast, backend-core, mobile, orchestrator 검증 모두 통과
+  - 참고: Codex 샌드박스에서는 Android SDK 로컬 경로 접근이 제한될 수 있으므로, 모바일 포함 전체 검증은 실제 개발 환경 권한에서 실행해야 함
+- 2026-06-07: 재사용 패키징 dry-run 성공.
+  - 실행: `project:package --target ".tmp/orchestrator-package-dry-run" --name "Boilerplate Dry Run" --goal "Validate reusable orchestrator packaging" --dry-run`
+  - 결과: 73개 파일 생성 계획, 기존 충돌 0개, dry-run이므로 실제 파일 작성 없음
 
 ## 완료된 기능
 

@@ -29,6 +29,11 @@ Whiteboard Capture 오케스트레이터는 실사용 가능한 안전 실행 �
   - 실행: `runner:full --compact --roles frontend --worker-provider openai --apply-provider openai --apply --keep-applied --concurrency 1`
   - 결과: worker/apply 성공, `.skills/verify-web.ps1` 통과, `runner:workflow exit=0`
   - 커밋: `db05c58 로그인 화면 도움말 문구 추가`
+- 2026-06-07: java rollback-after-verify 리허설 성공.
+  - 요청: `backend-core application.properties`의 네이버 OAuth 환경변수 설명 주석 보강
+  - 실행: `runner:full --compact --roles java --worker-provider openai --apply-provider openai --apply --rollback-after-verify --concurrency 1`
+  - 결과: worker/apply 성공, `.skills/verify-core.ps1` 및 backend-core 부팅/네이버 미설정 503 확인 기록, rollback 성공, `runner:workflow exit=0`
+  - 적용 방식: 시험 적용 후 자동 롤백이므로 작업트리에 변경 없음
 
 ## 완료된 기능
 

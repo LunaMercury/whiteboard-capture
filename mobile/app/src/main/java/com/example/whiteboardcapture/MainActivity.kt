@@ -437,7 +437,7 @@ private fun login(
                     return
                 }
 
-                val body = it.body?.string().orEmpty()
+                val body = it.body.string()
                 val token = JSONObject(body).optString("token")
                 if (token.isBlank()) {
                     onFailure("서버 응답에 토큰이 없습니다.")

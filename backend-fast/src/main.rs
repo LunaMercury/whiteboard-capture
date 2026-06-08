@@ -76,7 +76,7 @@ async fn main() {
     let app = Router::new()
         .route("/upload", post(handlers::upload_image))
         .route("/images", get(handlers::get_images))
-        .route("/images/:id", axum::routing::delete(handlers::delete_image))
+        .route("/images/{id}", axum::routing::delete(handlers::delete_image))
         .route("/ws", get(handlers::ws_handler))
         .nest_service("/uploads", ServeDir::new("uploads"))
         .with_state(state)

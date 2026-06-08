@@ -175,7 +175,7 @@ HTML report: ...\report.html
 
 - 모델 가격 메타데이터가 정리되면 API 비용 추정 추가
 - Kubernetes/ArgoCD 배포 템플릿 추가
-- 실제 기능 리허설을 1~2회 더 진행한 뒤 독립 보일러 repository로 분리
+- 독립 보일러 repository 분리 여부 결정
 
 ## 2026-06-08 의존성 업데이트 후 보일러 패키징 리허설
 
@@ -184,3 +184,25 @@ HTML report: ...\report.html
 - 대상 설치: `npm install` 성공, `found 0 vulnerabilities`
 - 대상 검증: `npm run ci:dry-run` 성공
 - 검증 의미: LangChain 1.x 의존성 업데이트 후에도 새 프로젝트 복사본에서 TypeScript 빌드와 mock full workflow가 정상 동작함
+
+## 2026-06-08 역할별 운영 리허설 완료
+
+현재 파이프라인 완성도는 실사용 기준 약 92~95%입니다.
+
+- Frontend 구현 역할: `--keep-applied` 성공, `.skills/verify-web.ps1` 성공, 실제 커밋 완료
+- Java 구현 역할: `--keep-applied` 성공, `.skills/verify-core.ps1` 성공, 실제 커밋 완료
+- Rust review-only 역할: 코드 변경 없이 `skipped` 결과와 리스크 보고 수집 성공
+- Mobile review-only 역할: 코드 변경 없이 `skipped` 결과와 리스크 보고 수집 성공
+- 전체 의존성 정리 후 `.skills/verify-all.ps1` 성공 이력 있음
+
+운영 리허설에서 확인된 정상 패턴:
+
+- 구현 역할은 `proposed_edits` 생성 후 apply, verify, keep-applied, commit 흐름으로 진행할 수 있습니다.
+- review-only 역할은 변경이 필요 없으면 `skipped`, `proposed_edits: 0`, `changed_files: 0`으로 끝나는 것이 정상입니다.
+- `report.md`와 `report.html`은 API 사용량, worker 요약, risks/questions를 확인하는 기준 산출물입니다.
+
+현재 남은 주요 판단:
+
+- Mobile 보안 리스크(`SharedPreferences` JWT 저장, HTTP 개발 URL, cleartext traffic)는 실제 배포 전 별도 보안 작업으로 다룹니다.
+- Rust 컨텍스트의 OCI/Object Storage 업로드 언급과 실제 구현 범위 차이는 클라우드 스토리지 작업 때 정합성을 맞춥니다.
+- 보일러 분리는 가능하지만, Kubernetes/ArgoCD 템플릿은 배포 구조 확정 후 추가합니다.

@@ -1,6 +1,7 @@
 # 코어 백엔드 컨텍스트 (Backend Core Context)
 
-*   **스택**: Java 17+, Spring Boot 4.0.6, Spring Security, Spring Data JPA.
+*   **스택**: Java 26, Spring Boot 4.0.6, Spring Security, Spring Data JPA.
+    - 이 프로젝트는 JDK 26을 사용합니다. 이는 Spring Boot 4.x의 JDK 21+ 요구사항을 만족하며, 실제 `build.gradle`, 검증 스크립트, 배포 환경도 JDK 26 기준으로 맞춥니다.
 *   **역할**: 속도가 상대적으로 덜 중요한 'Cold Path' (인증, 사용자 관리 등) 담당.
 
 ## 엔터프라이즈급 모듈화 및 MVC 아키텍처

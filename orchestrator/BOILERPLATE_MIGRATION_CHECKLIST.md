@@ -2,6 +2,8 @@
 
 이 문서는 현재 오케스트레이터를 다른 프로젝트로 옮긴 뒤 반드시 점검해야 하는 항목을 정리합니다.
 
+독립 보일러 repository로 분리하기 전에는 [BOILERPLATE_SPLIT_GUIDE.md](./BOILERPLATE_SPLIT_GUIDE.md)도 함께 확인합니다.
+
 ## 1. 프로젝트 기본 정보
 
 - [ ] `AGENTS.md`의 프로젝트 목적과 최우선 가치가 새 프로젝트와 일치하는지 확인합니다.
@@ -16,6 +18,7 @@
 - [ ] `orchestrator/config/project.yaml`의 `contracts`에 API, JWT, DB, WebSocket, 클라우드 환경변수 계약을 명시합니다.
 - [ ] `orchestrator/config/project-templates.yaml`에서 `auth`, `design`, `redis`, `realtime` 정책을 새 프로젝트에 맞게 조정합니다.
 - [ ] 새 프로젝트에 없는 모듈은 `project.yaml`과 검증 스크립트에서 제거하거나 `review/skip` 정책을 명확히 둡니다.
+- [ ] Whiteboard 전용 계약과 공통 보일러 계약을 분리했는지 확인합니다.
 
 ## 3. 검증 스크립트
 
@@ -51,3 +54,4 @@
 - [ ] 최소 1개 review-only 역할에서 worker 결과가 합리적인 `skipped` 또는 `succeeded` 상태로 수집됩니다.
 - [ ] `report.md`, `report.html`, `runs/index.html`이 생성되고 사람이 읽을 수 있습니다.
 - [ ] 새 프로젝트에서 반드시 바꿔야 할 Whiteboard 전용 문구가 남아 있지 않습니다.
+- [ ] 독립 보일러 repository로 분리하는 경우, `PIPELINE_STATUS.md`와 실행 산출물(`runs/`)을 포함하지 않습니다.

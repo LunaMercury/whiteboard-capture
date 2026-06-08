@@ -11,6 +11,7 @@
 - `AGENTS.md`, `agent_role.md`, `security_guidelines.md`, `system_architecture.md`: 기본 정책 문서 템플릿
 - `orchestrator/config/project.yaml`, `orchestrator/config/project-templates.yaml`: 프로젝트별 설정 시작 템플릿
 - `orchestrator/BOILERPLATE_MIGRATION_CHECKLIST.md`: 새 프로젝트 이식 후 점검 체크리스트
+- `orchestrator/BOILERPLATE_SPLIT_GUIDE.md`: 독립 보일러 repository로 분리할 때의 기준
 
 ## 기본 사용법
 
@@ -44,6 +45,8 @@ cd "D:\개발\new-project\orchestrator"
 ```
 
 그 다음 [BOILERPLATE_MIGRATION_CHECKLIST.md](./BOILERPLATE_MIGRATION_CHECKLIST.md)를 먼저 따라가고, 아래 파일을 프로젝트 실제 구조에 맞게 검토합니다.
+
+독립 보일러 repository로 분리하려면 [BOILERPLATE_SPLIT_GUIDE.md](./BOILERPLATE_SPLIT_GUIDE.md)를 함께 확인합니다.
 
 - `AGENTS.md`
 - `agent_role.md`

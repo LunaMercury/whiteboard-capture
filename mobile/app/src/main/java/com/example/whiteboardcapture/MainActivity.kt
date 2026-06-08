@@ -74,8 +74,6 @@ import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 
-private const val AUTH_PREFS = "auth_prefs"
-private const val TOKEN_KEY = "jwt_token"
 private const val LOGIN_URL = "http://10.0.2.2:18080/api/auth/login"
 private const val UPLOAD_URL = "http://10.0.2.2:3000/upload"
 
@@ -96,13 +94,11 @@ class MainActivity : ComponentActivity() {
             requestPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
 
-        val prefs = getSharedPreferences(AUTH_PREFS, MODE_PRIVATE)
-
         setContent {
             WhiteboardCaptureTheme {
-                // The app restores the last JWT so students can reopen the camera without logging in again.
+                // 보안 저장소에서 마지막 JWT 복원하여 앱 재실행 시 로그인 상태 유지
                 var token by remember {
-                    mutableStateOf(prefs.getString(TOKEN_KEY, null))
+                    mutableStateOf(JwtSecureStorage.getToken(this))
                 }
 
                 Surface(
@@ -112,15 +108,15 @@ class MainActivity : ComponentActivity() {
                     if (token.isNullOrBlank()) {
                         LoginScreen(
                             onLoginSuccess = { nextToken ->
-                                prefs.edit().putString(TOKEN_KEY, nextToken).apply()
+                                JwtSecureStorage.saveToken(this, nextToken)
                                 token = nextToken
                             }
                         )
                     } else {
                         CameraScreen(
-                            token = token!!,
+                            tokenProvider = { JwtSecureStorage.getToken(this) },
                             onLogout = {
-                                prefs.edit().remove(TOKEN_KEY).apply()
+                                JwtSecureStorage.clearToken(this)
                                 token = null
                             }
                         )
@@ -248,7 +244,7 @@ fun LoginScreen(onLoginSuccess: (String) -> Unit) {
 }
 
 @Composable
-fun CameraScreen(token: String, onLogout: () -> Unit) {
+fun CameraScreen(tokenProvider: () -> String?, onLogout: () -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
@@ -363,10 +359,11 @@ fun CameraScreen(token: String, onLogout: () -> Unit) {
                         ContextCompat.getMainExecutor(context),
                         object : ImageCapture.OnImageSavedCallback {
                             override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                                // Upload immediately after capture so the web dashboard can react in near real time.
+                                // 업로드 시점마다 최신 토큰을 보안 저장소에서 복원해 사용
+                                val currentToken = tokenProvider()
                                 uploadImage(
                                     file = photoFile,
-                                    token = token,
+                                    token = currentToken,
                                     onResult = { success, message ->
                                         runOnUiThread(context) {
                                             isUploading = false
@@ -450,7 +447,11 @@ private fun login(
     })
 }
 
-private fun uploadImage(file: File, token: String, onResult: (Boolean, String) -> Unit) {
+private fun uploadImage(file: File, token: String?, onResult: (Boolean, String) -> Unit) {
+    if (token.isNullOrBlank()) {
+        onResult(false, "로그인 토큰이 만료되었습니다. 다시 로그인해주세요.")
+        return
+    }
     val client = OkHttpClient()
     val requestBody = MultipartBody.Builder()
         .setType(MultipartBody.FORM)

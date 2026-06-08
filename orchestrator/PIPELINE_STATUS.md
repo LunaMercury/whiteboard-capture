@@ -176,3 +176,11 @@ HTML report: ...\report.html
 - 모델 가격 메타데이터가 정리되면 API 비용 추정 추가
 - Kubernetes/ArgoCD 배포 템플릿 추가
 - 실제 기능 리허설을 1~2회 더 진행한 뒤 독립 보일러 repository로 분리
+
+## 2026-06-08 의존성 업데이트 후 보일러 패키징 리허설
+
+- 대상: `C:\Users\Public\Documents\ESTsoft\CreatorTemp\orchestrator-package-rehearsal-20260608-204049`
+- 패키징: `npm run project:package` 실제 write 성공, 75개 파일 생성, 충돌 0개
+- 대상 설치: `npm install` 성공, `found 0 vulnerabilities`
+- 대상 검증: `npm run ci:dry-run` 성공
+- 검증 의미: LangChain 1.x 의존성 업데이트 후에도 새 프로젝트 복사본에서 TypeScript 빌드와 mock full workflow가 정상 동작함

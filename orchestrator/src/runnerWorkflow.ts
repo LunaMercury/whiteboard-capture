@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResult, readWorkerResults, readWorkerTask, writeWorkerResult } from "./packetStore.js";
 import { normalizeRepoRelativePath } from "./pathSafety.js";
 import { summarizeApiUsage } from "./apiUsage.js";
+import { parseOpenAIReasoningEffort } from "./openaiOptions.js";
 import {
   countDisplayStatuses,
   getBlockedReasons,
@@ -41,6 +42,10 @@ type Args = {
   cleanupRuns: boolean;
   cleanupDryRun: boolean;
   compact: boolean;
+  workerModel?: string;
+  applyModel?: string;
+  workerReasoning?: string;
+  applyReasoning?: string;
 };
 
 const primaryVerificationByRole: Record<WorkerTaskPacket["role"], string> = {
@@ -74,6 +79,10 @@ function parseArgs(argv: string[]): Args {
   let cleanupRuns = process.env.RUNNER_AUTO_CLEANUP !== "false";
   let cleanupDryRun = false;
   let compact = false;
+  let workerModel: string | undefined;
+  let applyModel: string | undefined;
+  let workerReasoning: string | undefined;
+  let applyReasoning: string | undefined;
   let concurrency = Number.parseInt(process.env.RUNNER_CONCURRENCY || "1", 10);
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -93,6 +102,26 @@ function parseArgs(argv: string[]): Args {
         .split(",")
         .map((role) => role.trim())
         .filter((role): role is WorkerTaskPacket["role"] => ["frontend", "rust", "java", "mobile"].includes(role));
+      index += 1;
+      continue;
+    }
+    if (item === "--worker-model") {
+      workerModel = argv[index + 1];
+      index += 1;
+      continue;
+    }
+    if (item === "--apply-model") {
+      applyModel = argv[index + 1];
+      index += 1;
+      continue;
+    }
+    if (item === "--worker-reasoning") {
+      workerReasoning = argv[index + 1];
+      index += 1;
+      continue;
+    }
+    if (item === "--apply-reasoning") {
+      applyReasoning = argv[index + 1];
       index += 1;
       continue;
     }
@@ -168,7 +197,7 @@ function parseArgs(argv: string[]): Args {
 
   if (!runId) {
     throw new Error(
-      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify|--keep-applied] [--compact] [--allow-dirty] [--apply-review] [--approve-contract-changes] [--approve-open-questions] [--continue-on-error] [--skip-workers] [--reuse-worker-results] [--verify-all] [--skip-finalize] [--skip-cleanup|--cleanup-dry-run]",
+      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--worker-model model] [--apply-model model] [--worker-reasoning minimal|low|medium|high|none] [--apply-reasoning minimal|low|medium|high|none] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify|--keep-applied] [--compact] [--allow-dirty] [--apply-review] [--approve-contract-changes] [--approve-open-questions] [--continue-on-error] [--skip-workers] [--reuse-worker-results] [--verify-all] [--skip-finalize] [--skip-cleanup|--cleanup-dry-run]",
     );
   }
 
@@ -183,6 +212,12 @@ function parseArgs(argv: string[]): Args {
   }
   if (applyEdits && !rollbackAfterVerify && !keepApplied) {
     throw new Error("--apply requires --rollback-after-verify for a safe trial or --keep-applied for intentional permanent changes.");
+  }
+  if (workerReasoning) {
+    parseOpenAIReasoningEffort(workerReasoning, "--worker-reasoning");
+  }
+  if (applyReasoning) {
+    parseOpenAIReasoningEffort(applyReasoning, "--apply-reasoning");
   }
 
   return {
@@ -206,6 +241,10 @@ function parseArgs(argv: string[]): Args {
     cleanupRuns,
     cleanupDryRun,
     compact,
+    workerModel,
+    applyModel,
+    workerReasoning,
+    applyReasoning,
   };
 }
 
@@ -861,11 +900,24 @@ function printFinalTerminalSummary(
 }
 
 async function main() {
-  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, approveOpenQuestions, applyEdits, allowDirty, skipWorkers, reuseWorkerResults, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, keepApplied, cleanupRuns, cleanupDryRun, compact } = parseArgs(
+  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, approveOpenQuestions, applyEdits, allowDirty, skipWorkers, reuseWorkerResults, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, keepApplied, cleanupRuns, cleanupDryRun, compact, workerModel, applyModel, workerReasoning, applyReasoning } = parseArgs(
     process.argv.slice(2),
   );
   const orchestratorRoot = path.resolve(__dirname, "..");
   const manifest = readRunnerManifest(orchestratorRoot, runId);
+
+  if (workerModel) {
+    process.env.OPENAI_WORKER_MODEL = workerModel;
+  }
+  if (applyModel) {
+    process.env.OPENAI_APPLY_MODEL = applyModel;
+  }
+  if (workerReasoning) {
+    process.env.OPENAI_WORKER_REASONING = workerReasoning;
+  }
+  if (applyReasoning) {
+    process.env.OPENAI_APPLY_REASONING = applyReasoning;
+  }
 
   const targetWorkers = manifest.workers.filter((worker) => !roles || roles.includes(worker.role));
   if (targetWorkers.length === 0) {
@@ -904,6 +956,10 @@ async function main() {
   console.log(`Run ID: ${runId}`);
   console.log(`Worker provider: ${workerProvider}`);
   console.log(`Apply provider: ${applyProvider}`);
+  console.log(`Worker model: ${process.env.OPENAI_WORKER_MODEL || "gpt-4.1"}`);
+  console.log(`Apply model: ${process.env.OPENAI_APPLY_MODEL || process.env.OPENAI_WORKER_MODEL || "gpt-4.1"}`);
+  console.log(`Worker reasoning: ${process.env.OPENAI_WORKER_REASONING || "default"}`);
+  console.log(`Apply reasoning: ${process.env.OPENAI_APPLY_REASONING || process.env.OPENAI_WORKER_REASONING || "default"}`);
   console.log(`Workers: ${targetWorkers.map((item) => item.role).join(", ")}`);
   console.log(`Apply edits: ${applyEdits ? "yes" : "no"}`);
   console.log(`Allow dirty worktree: ${allowDirty ? "yes" : "no"}`);

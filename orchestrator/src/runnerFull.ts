@@ -15,6 +15,10 @@ type Args = {
 const workflowFlagsWithValue = new Set([
   "--worker-provider",
   "--apply-provider",
+  "--worker-model",
+  "--apply-model",
+  "--worker-reasoning",
+  "--apply-reasoning",
   "--roles",
   "--concurrency",
 ]);
@@ -79,7 +83,7 @@ function parseArgs(argv: string[]): Args {
   const request = requestParts.join(" ").trim();
   if (!request) {
     throw new Error(
-      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--worker-provider openai|manual|claude|test] [--apply-provider openai|manual|test] [--apply] [--approve-contract-changes] [--approve-open-questions] [--rollback-after-verify|--keep-applied] \"request\"",
+      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--worker-provider openai|manual|claude|test] [--apply-provider openai|manual|test] [--worker-model model] [--apply-model model] [--worker-reasoning minimal|low|medium|high|none] [--apply-reasoning minimal|low|medium|high|none] [--apply] [--approve-contract-changes] [--approve-open-questions] [--rollback-after-verify|--keep-applied] \"request\"",
     );
   }
 

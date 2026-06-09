@@ -7,6 +7,7 @@ import { workerResultPacketSchema, type WorkerResultPacket } from "./resultSchem
 import type { WorkerTaskPacket } from "./taskSchemas.js";
 import { withOpenAIRetry } from "./openaiRetry.js";
 import { appendApiUsageRecord, extractOpenAIUsage, type ApiUsage } from "./apiUsage.js";
+import { openAIReasoningRequestPart, parseOpenAIReasoningEffort } from "./openaiOptions.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -457,6 +458,7 @@ async function runOpenAIWorker(prompt: string, schema: ReturnType<typeof createR
   }
 
   const model = process.env.OPENAI_WORKER_MODEL || "gpt-4.1";
+  const reasoningEffort = parseOpenAIReasoningEffort(process.env.OPENAI_WORKER_REASONING, "OPENAI_WORKER_REASONING");
   return withOpenAIRetry("OpenAI worker", async () => {
     const response = await fetch(process.env.OPENAI_WORKER_API_URL || "https://api.openai.com/v1/responses", {
       method: "POST",
@@ -466,6 +468,7 @@ async function runOpenAIWorker(prompt: string, schema: ReturnType<typeof createR
       },
       body: JSON.stringify({
         model,
+        ...openAIReasoningRequestPart(reasoningEffort),
         input: [
           {
             role: "system",

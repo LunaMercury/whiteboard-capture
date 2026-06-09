@@ -8,6 +8,7 @@ import { assertPacketMatchesApprovedReview, loadApprovedApplyReview } from "./ap
 import { withOpenAIRetry } from "./openaiRetry.js";
 import { appendApiUsageRecord, extractOpenAIUsage, type ApiUsage } from "./apiUsage.js";
 import { assertSamePathSet, matchesRepoPathRule, normalizeRepoRelativePath, resolveRepoPath } from "./pathSafety.js";
+import { openAIReasoningRequestPart, parseOpenAIReasoningEffort } from "./openaiOptions.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -145,6 +146,10 @@ async function runOpenAIApply(prompt: string) {
     throw new Error("OPENAI_API_KEY is not set.");
   }
   const model = process.env.OPENAI_APPLY_MODEL || process.env.OPENAI_WORKER_MODEL || "gpt-4.1";
+  const reasoningEffort = parseOpenAIReasoningEffort(
+    process.env.OPENAI_APPLY_REASONING || process.env.OPENAI_WORKER_REASONING,
+    "OPENAI_APPLY_REASONING",
+  );
 
   const schema = {
     type: "object",
@@ -183,6 +188,7 @@ async function runOpenAIApply(prompt: string) {
       },
       body: JSON.stringify({
         model,
+        ...openAIReasoningRequestPart(reasoningEffort),
         input: [
           {
             role: "system",

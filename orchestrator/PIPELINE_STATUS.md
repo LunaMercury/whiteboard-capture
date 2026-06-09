@@ -206,3 +206,17 @@ HTML report: ...\report.html
 - Mobile 보안 리스크(`SharedPreferences` JWT 저장, HTTP 개발 URL, cleartext traffic)는 실제 배포 전 별도 보안 작업으로 다룹니다.
 - Rust 컨텍스트의 OCI/Object Storage 업로드 언급과 실제 구현 범위 차이는 클라우드 스토리지 작업 때 정합성을 맞춥니다.
 - 보일러 분리는 가능하지만, Kubernetes/ArgoCD 템플릿은 배포 구조 확정 후 추가합니다.
+
+## 2026-06-09 모바일 JWT 보안 저장소 적용 후 전체 검증
+
+- 작업: 모바일 JWT 저장을 `EncryptedSharedPreferences` 기반 보안 저장소로 개선
+- 오케스트레이션 결과: mobile apply 이후 최초 검증은 타입 불일치로 실패했으나, `JwtSecureStorage` 반환 타입과 version catalog 정리 후 수동 복구 성공
+- 보강: 기존 `auth_prefs/jwt_token`의 legacy token을 새 암호화 저장소로 자동 마이그레이션하고, 로그아웃 시 legacy token도 함께 삭제
+- 모바일 검증: `.skills/verify-mobile.ps1` 성공
+- 전체 검증: `.skills/verify-all.ps1` 성공
+- 계약 유지: backend-core JWT 발급 계약과 backend-fast `Authorization: Bearer <JWT>` 업로드 인증 계약은 변경하지 않음
+
+다음 추천 작업:
+
+- 모바일/로컬 개발용 HTTP URL과 `cleartextTraffic` 정책 정리
+- 실제 배포용 HTTPS/WSS 환경변수와 Android network security policy 분리

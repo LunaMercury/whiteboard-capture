@@ -147,6 +147,7 @@ function renderApplyPrompt(packet: ApplyPacket, contexts: ReturnType<typeof load
   lines.push("- Treat every mandatory policy check as a hard requirement when generating final file content.");
   lines.push("- status should be succeeded only if the file contents are ready to write.");
   lines.push("- If status is succeeded, questions must be empty. Move non-blocking follow-up notes into risks.");
+  lines.push("- For Gradle Kotlin DSL (*.gradle.kts), generate valid Kotlin syntax. buildConfigField String values must be Kotlin strings containing a quoted Java string, e.g. buildConfigField(\"String\", \"API_BASE_URL\", \"\\\"http://10.0.2.2:18080\\\"\"). Never use single-quoted multi-character literals such as '\"http://...\"'.");
 
   return `${lines.join("\n")}\n`;
 }

@@ -592,18 +592,25 @@ function prepareWorkerResultForReuse(
 ) {
   const existing = readWorkerResult(manifest, role);
   const applyReviewRisks = existing.risks.filter((item) => item.startsWith("Apply review blocked:"));
+  const verificationRisks = existing.risks.filter((item) => item.startsWith("Verification failed:"));
   const retryingApplyReviewBlock = existing.status === "failed" && applyReviewRisks.length > 0;
+  const retryingVerificationFailure =
+    existing.status === "failed"
+    && (existing.proposedEdits?.length ?? 0) > 0
+    && (verificationRisks.length > 0 || existing.summary.includes("Verification failed during workflow."));
 
-  if (existing.status !== "succeeded" && !retryingApplyReviewBlock) {
+  if (existing.status !== "succeeded" && !retryingApplyReviewBlock && !retryingVerificationFailure) {
     return;
   }
 
   writeWorkerResult(manifest, {
     ...existing,
     status: "succeeded",
-    summary: existing.summary.replace(/ Apply review blocked before file changes\.$/, ""),
+    summary: existing.summary
+      .replace(/ Apply review blocked before file changes\.$/, "")
+      .replace(/ Verification failed during workflow\.$/, ""),
     verificationRun: [],
-    risks: existing.risks.filter((item) => !item.startsWith("Apply review blocked:")),
+    risks: existing.risks.filter((item) => !item.startsWith("Apply review blocked:") && !item.startsWith("Verification failed:")),
   });
 }
 

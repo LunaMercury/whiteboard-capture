@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { summarizeApiUsage } from "./apiUsage.js";
+import { estimateApiUsageCost, formatEstimatedUsd, summarizeApiUsage } from "./apiUsage.js";
 import { readRunnerManifest, readWorkerResults } from "./packetStore.js";
 import { countDisplayStatuses, getBlockedRoles, getDisplayStatus, getFailedRoles } from "./resultClassification.js";
 
@@ -18,6 +18,7 @@ type RunIndexEntry = {
   changedFiles: number;
   proposedEdits: number;
   totalTokens: number;
+  estimatedCostUsd: number;
   reportHtml: string;
   reportMd: string;
 };
@@ -72,6 +73,7 @@ function collectRuns(orchestratorRoot: string) {
         const manifest = readRunnerManifest(orchestratorRoot, entry.name);
         const results = readWorkerResults(manifest);
         const apiUsage = summarizeApiUsage(manifest);
+        const apiCost = estimateApiUsageCost(apiUsage);
         const statusCounts = countDisplayStatuses(results);
         return {
           runId: manifest.runId,
@@ -83,6 +85,7 @@ function collectRuns(orchestratorRoot: string) {
           changedFiles: results.reduce((sum, result) => sum + result.changedFiles.length, 0),
           proposedEdits: results.reduce((sum, result) => sum + (result.proposedEdits?.length ?? 0), 0),
           totalTokens: apiUsage.totalTokens,
+          estimatedCostUsd: apiCost.estimatedUsd,
           reportHtml: `${entry.name}/report.html`,
           reportMd: `${entry.name}/report.md`,
         };
@@ -96,7 +99,7 @@ function collectRuns(orchestratorRoot: string) {
 
 function renderRunRows(entries: RunIndexEntry[]) {
   if (entries.length === 0) {
-    return `<tr><td colspan="8">No runs found.</td></tr>`;
+    return `<tr><td colspan="9">No runs found.</td></tr>`;
   }
 
   return entries.map((entry) => [
@@ -108,6 +111,7 @@ function renderRunRows(entries: RunIndexEntry[]) {
     `<td>${escapeHtml(entry.workers)}</td>`,
     `<td>${entry.proposedEdits}</td>`,
     `<td>${entry.totalTokens}</td>`,
+    `<td>${escapeHtml(formatEstimatedUsd(entry.estimatedCostUsd))}</td>`,
     `<td><a href="${escapeHtml(entry.reportMd)}">md</a></td>`,
     `</tr>`,
   ].join("")).join("\n");
@@ -119,6 +123,7 @@ function renderIndex(entries: RunIndexEntry[]) {
     return acc;
   }, {});
   const totalTokens = entries.reduce((sum, entry) => sum + entry.totalTokens, 0);
+  const estimatedCostUsd = entries.reduce((sum, entry) => sum + entry.estimatedCostUsd, 0);
 
   return `<!doctype html>
 <html lang="ko">
@@ -193,6 +198,7 @@ function renderIndex(entries: RunIndexEntry[]) {
       <article class="card status-blocked"><span>blocked</span><strong>${statusCounts.blocked ?? 0}</strong></article>
       <article class="card status-failed"><span>failed</span><strong>${statusCounts.failed ?? 0}</strong></article>
       <article class="card"><span>tokens</span><strong>${totalTokens}</strong></article>
+      <article class="card"><span>estimated cost</span><strong>${escapeHtml(formatEstimatedUsd(estimatedCostUsd))}</strong></article>
     </section>
     <section class="table-wrap">
       <table>
@@ -205,6 +211,7 @@ function renderIndex(entries: RunIndexEntry[]) {
             <th>workers</th>
             <th>edits</th>
             <th>tokens</th>
+            <th>cost</th>
             <th>report</th>
           </tr>
         </thead>

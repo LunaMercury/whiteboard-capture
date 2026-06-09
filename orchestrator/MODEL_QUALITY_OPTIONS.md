@@ -57,3 +57,17 @@ OPENAI_APPLY_REASONING
 - `--worker-reasoning`과 `--apply-reasoning`은 OpenAI Responses API 요청에 그대로 전달됩니다.
 - 사용 중인 모델이 reasoning 옵션을 지원하지 않으면 해당 옵션을 빼고 다시 실행합니다.
 - reasoning 강도를 올리면 품질은 좋아질 수 있지만 토큰 사용량과 비용이 증가할 수 있습니다.
+
+## 비용 표시
+
+`Final Summary`, `report.md`, `report.html`, `runs/index.html`에는 API 사용량과 함께 예상 비용이 표시됩니다.
+
+기본 가격표는 자주 쓰는 모델만 포함합니다.
+가격이 바뀌거나 다른 모델을 쓰는 경우에는 아래 환경변수로 1M 토큰당 달러 단가를 덮어씁니다.
+
+```powershell
+$env:OPENAI_MODEL_PRICING_JSON='{"gpt-4.1":{"input":2,"output":8}}'
+```
+
+비용은 `input_tokens`와 `output_tokens`를 각각 모델별 입력/출력 단가로 계산합니다.
+따라서 `total_tokens`만으로는 정확한 비용을 알 수 없습니다.

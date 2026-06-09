@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResult, readWorkerResults, readWorkerTask, writeWorkerResult } from "./packetStore.js";
 import { normalizeRepoRelativePath } from "./pathSafety.js";
-import { summarizeApiUsage } from "./apiUsage.js";
+import { estimateApiUsageCost, formatEstimatedUsd, summarizeApiUsage } from "./apiUsage.js";
 import { parseOpenAIReasoningEffort } from "./openaiOptions.js";
 import {
   countDisplayStatuses,
@@ -855,6 +855,7 @@ function printFinalTerminalSummary(
   const changedFiles = results.reduce((sum, result) => sum + result.changedFiles.length, 0);
   const proposedEdits = results.reduce((sum, result) => sum + (result.proposedEdits?.length ?? 0), 0);
   const apiUsage = summarizeApiUsage(manifest);
+  const apiCost = estimateApiUsageCost(apiUsage);
   const verificationRun = Array.from(new Set(results.flatMap((result) => result.verificationRun)));
   const verificationLogs = rollbackSummary.verificationLogs ?? [];
   const verificationFailed = verificationLogs.some((log) => log.status !== 0);
@@ -889,6 +890,10 @@ function printFinalTerminalSummary(
   console.log(`Changed files recorded: ${changedFiles}`);
   console.log(`Proposed edits: ${proposedEdits}`);
   console.log(`API usage: calls=${apiUsage.calls}, total_tokens=${apiUsage.totalTokens}, input_tokens=${apiUsage.inputTokens}, output_tokens=${apiUsage.outputTokens}`);
+  console.log(`API cost: estimated_usd=${formatEstimatedUsd(apiCost.estimatedUsd)}, priced_calls=${apiCost.pricedCalls}, unpriced_calls=${apiCost.unpricedCalls}`);
+  if (apiCost.unpricedModels.length > 0) {
+    console.log(`API cost warning: missing price for ${apiCost.unpricedModels.join(", ")}`);
+  }
   console.log(`Verification: ${verificationStatus}${verificationRun.length > 0 ? ` (${verificationRun.join(", ")})` : ""}`);
   console.log(`Rollback: ${rollbackStatus}`);
   console.log(`Cleanup: ${cleanupStatus === null ? "not run" : cleanupStatus === 0 ? "succeeded" : `failed(${cleanupStatus})`}`);

@@ -18,7 +18,13 @@ import {
   isApplyReviewBlocked,
 } from "./resultClassification.js";
 import type { WorkerResultPacket } from "./resultSchemas.js";
-import { summarizeApiUsage, type ApiUsageSummary } from "./apiUsage.js";
+import {
+  estimateApiUsageCost,
+  formatEstimatedUsd,
+  summarizeApiUsage,
+  type ApiUsageCostSummary,
+  type ApiUsageSummary,
+} from "./apiUsage.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -105,6 +111,7 @@ function renderFinalReport(
   recommendedVerification: string[],
   blockedReasons: string[],
   apiUsage: ApiUsageSummary,
+  apiCost: ApiUsageCostSummary,
 ) {
   const lines = [
     "# Finalized Runner Report",
@@ -126,6 +133,12 @@ function renderFinalReport(
   lines.push(`- input_tokens: ${apiUsage.inputTokens}`);
   lines.push(`- output_tokens: ${apiUsage.outputTokens}`);
   lines.push(`- total_tokens: ${apiUsage.totalTokens}`);
+  lines.push(`- estimated_cost_usd: ${formatEstimatedUsd(apiCost.estimatedUsd)}`);
+  lines.push(`- priced_calls: ${apiCost.pricedCalls}`);
+  lines.push(`- unpriced_calls: ${apiCost.unpricedCalls}`);
+  if (apiCost.unpricedModels.length > 0) {
+    lines.push(`- unpriced_models: ${apiCost.unpricedModels.join(", ")}`);
+  }
 
   lines.push("");
   lines.push("## Worker Results");
@@ -240,6 +253,7 @@ function renderHtmlReport(input: {
   recommendedVerification: string[];
   blockedReasons: string[];
   apiUsage: ApiUsageSummary;
+  apiCost: ApiUsageCostSummary;
 }) {
   const statusCards = renderStatusCards(input.statusCounts) || "<p>No worker status collected.</p>";
   const workerCards = input.results.map(renderWorkerCard).join("");
@@ -347,6 +361,7 @@ function renderHtmlReport(input: {
       <article class="card"><span>input tokens</span><strong>${input.apiUsage.inputTokens}</strong></article>
       <article class="card"><span>output tokens</span><strong>${input.apiUsage.outputTokens}</strong></article>
       <article class="card"><span>total tokens</span><strong>${input.apiUsage.totalTokens}</strong></article>
+      <article class="card"><span>estimated cost</span><strong>${escapeHtml(formatEstimatedUsd(input.apiCost.estimatedUsd))}</strong></article>
     </section>
     ${input.apiUsage.records.length > 0 ? `<section class="section" style="margin-top:16px; overflow:auto;"><table><thead><tr><th>stage</th><th>role</th><th>model</th><th>input</th><th>output</th><th>total</th></tr></thead><tbody>${apiRows}</tbody></table></section>` : ""}
 
@@ -389,6 +404,7 @@ async function main() {
   const recommendedVerification = buildRecommendedVerification(results);
   const finalSummary = buildFinalSummary(results);
   const apiUsage = summarizeApiUsage(manifest);
+  const apiCost = estimateApiUsageCost(apiUsage);
 
   summary.verifierReport = {
     summary: `Finalized worker collection. ${finalSummary}`,
@@ -409,6 +425,7 @@ async function main() {
     recommendedVerification,
     blockedReasons,
     apiUsage,
+    apiCost,
   );
   const htmlReportPath = path.join(manifest.runDir, "report.html");
   const htmlReport = renderHtmlReport({
@@ -423,6 +440,7 @@ async function main() {
     recommendedVerification,
     blockedReasons,
     apiUsage,
+    apiCost,
   });
 
   writeRunnerManifest(orchestratorRoot, manifest);

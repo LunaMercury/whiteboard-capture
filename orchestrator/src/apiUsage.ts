@@ -29,6 +29,26 @@ export type ApiUsageSummary = {
   records: ApiUsageRecord[];
 };
 
+export type ApiUsageCostSummary = {
+  estimatedUsd: number;
+  pricedCalls: number;
+  unpricedCalls: number;
+  unpricedModels: string[];
+};
+
+type ModelTokenPrice = {
+  inputUsdPerMillion: number;
+  outputUsdPerMillion: number;
+};
+
+const defaultModelPrices: Record<string, ModelTokenPrice> = {
+  "gpt-4.1": { inputUsdPerMillion: 2, outputUsdPerMillion: 8 },
+  "gpt-5": { inputUsdPerMillion: 1.25, outputUsdPerMillion: 10 },
+  "gpt-5-mini": { inputUsdPerMillion: 0.25, outputUsdPerMillion: 2 },
+  "gpt-5-nano": { inputUsdPerMillion: 0.05, outputUsdPerMillion: 0.4 },
+  "gpt-5-pro": { inputUsdPerMillion: 15, outputUsdPerMillion: 120 },
+};
+
 function usageFilePath(manifest: RunnerManifest) {
   return path.join(manifest.runDir, "meta", "api-usage.json");
 }
@@ -91,4 +111,69 @@ export function summarizeApiUsage(manifest: RunnerManifest): ApiUsageSummary {
     totalTokens: records.reduce((sum, record) => sum + record.usage.totalTokens, 0),
     records,
   };
+}
+
+function readPricingOverrides() {
+  const raw = process.env.OPENAI_MODEL_PRICING_JSON;
+  if (!raw) {
+    return {};
+  }
+
+  const parsed = JSON.parse(raw) as Record<string, { input?: number; output?: number }>;
+  return Object.fromEntries(
+    Object.entries(parsed).flatMap(([model, price]) => {
+      if (typeof price.input !== "number" || typeof price.output !== "number") {
+        return [];
+      }
+
+      return [[model.toLowerCase(), {
+        inputUsdPerMillion: price.input,
+        outputUsdPerMillion: price.output,
+      } satisfies ModelTokenPrice]];
+    }),
+  );
+}
+
+function getModelPrice(model: string, overrides: Record<string, ModelTokenPrice>) {
+  const normalized = model.toLowerCase();
+  return overrides[normalized] ?? defaultModelPrices[normalized];
+}
+
+export function estimateApiUsageCost(apiUsage: ApiUsageSummary): ApiUsageCostSummary {
+  const overrides = readPricingOverrides();
+  let estimatedUsd = 0;
+  let pricedCalls = 0;
+  const unpricedModels = new Set<string>();
+
+  for (const record of apiUsage.records) {
+    const price = getModelPrice(record.model, overrides);
+    if (!price) {
+      unpricedModels.add(record.model);
+      continue;
+    }
+
+    estimatedUsd +=
+      (record.usage.inputTokens / 1_000_000) * price.inputUsdPerMillion
+      + (record.usage.outputTokens / 1_000_000) * price.outputUsdPerMillion;
+    pricedCalls += 1;
+  }
+
+  return {
+    estimatedUsd,
+    pricedCalls,
+    unpricedCalls: apiUsage.records.length - pricedCalls,
+    unpricedModels: [...unpricedModels].sort(),
+  };
+}
+
+export function formatEstimatedUsd(value: number) {
+  if (value === 0) {
+    return "$0.0000";
+  }
+
+  if (value < 0.0001) {
+    return `$${value.toFixed(6)}`;
+  }
+
+  return `$${value.toFixed(4)}`;
 }

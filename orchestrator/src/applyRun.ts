@@ -37,11 +37,17 @@ type ApplyExecution = z.infer<typeof applyExecutionSchema>;
 function parseArgs(argv: string[]) {
   const filtered = [...argv];
   const providerIndex = filtered.findIndex((item) => item === "--provider");
+  const approveOpenQuestionsIndex = filtered.findIndex((item) => item === "--approve-open-questions");
   let provider: SupportedProvider = (process.env.APPLY_PROVIDER as SupportedProvider) || "openai";
+  let approveOpenQuestions = false;
 
   if (providerIndex >= 0) {
     provider = filtered[providerIndex + 1] as SupportedProvider;
     filtered.splice(providerIndex, 2);
+  }
+  if (approveOpenQuestionsIndex >= 0) {
+    approveOpenQuestions = true;
+    filtered.splice(approveOpenQuestionsIndex, 1);
   }
 
   const [runId, role] = filtered;
@@ -57,6 +63,7 @@ function parseArgs(argv: string[]) {
     runId,
     role,
     provider,
+    approveOpenQuestions,
   };
 }
 
@@ -87,7 +94,7 @@ function loadCurrentContexts(repoRoot: string, packet: ApplyPacket) {
   });
 }
 
-function renderApplyPrompt(packet: ApplyPacket, contexts: ReturnType<typeof loadCurrentContexts>) {
+function renderApplyPrompt(packet: ApplyPacket, contexts: ReturnType<typeof loadCurrentContexts>, approveOpenQuestions: boolean) {
   const lines = [
     "You are Codex applying previously approved worker-proposed edits for the Whiteboard Capture repository.",
     "Return only JSON matching the provided schema.",
@@ -98,6 +105,9 @@ function renderApplyPrompt(packet: ApplyPacket, contexts: ReturnType<typeof load
     "",
     `Role: ${packet.role}`,
     `Goal: ${packet.goal}`,
+    approveOpenQuestions
+      ? "Open questions from the worker/review stage were explicitly approved by the master. Do not repeat approved non-blocking questions; put follow-up notes in risks instead."
+      : "Do not proceed past unresolved blocking questions. If a question blocks safe file content generation, return status failed and put it in questions.",
     "",
     "Contracts:",
     ...packet.contracts.map((item) => `- ${item}`),
@@ -136,6 +146,7 @@ function renderApplyPrompt(packet: ApplyPacket, contexts: ReturnType<typeof load
   lines.push("- changedFiles should match the files you actually changed.");
   lines.push("- Treat every mandatory policy check as a hard requirement when generating final file content.");
   lines.push("- status should be succeeded only if the file contents are ready to write.");
+  lines.push("- If status is succeeded, questions must be empty. Move non-blocking follow-up notes into risks.");
 
   return `${lines.join("\n")}\n`;
 }
@@ -326,6 +337,21 @@ function validateApplyExecution(packet: ApplyPacket, execution: ApplyExecution) 
   assertSamePathSet("Apply execution changedFiles", executionPaths, changedFiles);
 }
 
+function normalizeApplyExecutionQuestions(execution: ApplyExecution, approveOpenQuestions: boolean): ApplyExecution {
+  if (!approveOpenQuestions || execution.status !== "succeeded" || execution.questions.length === 0) {
+    return execution;
+  }
+
+  return {
+    ...execution,
+    risks: [
+      ...execution.risks,
+      ...execution.questions.map((question) => `Approved open follow-up: ${question}`),
+    ],
+    questions: [],
+  };
+}
+
 function runTestApply(packet: ApplyPacket): ApplyExecution {
   const shouldReturnQuestion = packet.goal.includes("apply-question-guard");
   return {
@@ -376,14 +402,14 @@ function syncWorkerResultAfterApply(
 }
 
 async function main() {
-  const { runId, role, provider } = parseArgs(process.argv.slice(2));
+  const { runId, role, provider, approveOpenQuestions } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
   const manifest = readRunnerManifest(orchestratorRoot, runId);
   const { packet } = loadApplyPacket(orchestratorRoot, runId, role);
   const review = loadApprovedApplyReview(orchestratorRoot, runId, role);
   assertPacketMatchesApprovedReview(packet, review.approvedEdits);
   const contexts = loadCurrentContexts(manifest.repoRoot, packet);
-  const prompt = renderApplyPrompt(packet, contexts);
+  const prompt = renderApplyPrompt(packet, contexts, approveOpenQuestions);
 
   if (provider === "manual") {
     const manualPath = path.join(manifest.runDir, "applies", `${role}.apply-execution.md`);
@@ -398,13 +424,14 @@ async function main() {
 
   let apiUsage: ApiUsage | undefined;
   let apiModel: string | undefined;
-  const execution = provider === "test"
+  const rawExecution = provider === "test"
     ? runTestApply(packet)
     : await runOpenAIApply(prompt).then((result) => {
         apiUsage = result.usage;
         apiModel = result.model;
         return result.execution;
       });
+  const execution = normalizeApplyExecutionQuestions(rawExecution, approveOpenQuestions);
   writeExecutionArtifacts(manifest.runDir, role, prompt, execution);
   validateApplyExecution(packet, execution);
   if (execution.status === "succeeded") {

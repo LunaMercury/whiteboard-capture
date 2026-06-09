@@ -1199,7 +1199,13 @@ async function main() {
 
       const applyRun = runNodeScript(
         path.join("src", "applyRun.ts"),
-        [runId, worker.role, "--provider", applyProvider],
+        [
+          runId,
+          worker.role,
+          "--provider",
+          applyProvider,
+          ...(approveOpenQuestions ? ["--approve-open-questions"] : []),
+        ],
         orchestratorRoot,
       );
       printWorkflowChild(applyRun, `apply:run ${worker.role}`, compact);

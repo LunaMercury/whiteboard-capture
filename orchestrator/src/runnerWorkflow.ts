@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResult, readWorkerResults, readWorkerTask, writeWorkerResult } from "./packetStore.js";
 import { normalizeRepoRelativePath } from "./pathSafety.js";
 import { estimateApiUsageCost, formatEstimatedUsd, summarizeApiUsage } from "./apiUsage.js";
-import { parseOpenAIReasoningEffort } from "./openaiOptions.js";
+import { describeOpenAIReasoning, parseOpenAIReasoningEffort } from "./openaiOptions.js";
 import {
   countDisplayStatuses,
   getBlockedReasons,
@@ -961,10 +961,14 @@ async function main() {
   console.log(`Run ID: ${runId}`);
   console.log(`Worker provider: ${workerProvider}`);
   console.log(`Apply provider: ${applyProvider}`);
-  console.log(`Worker model: ${process.env.OPENAI_WORKER_MODEL || "gpt-4.1"}`);
-  console.log(`Apply model: ${process.env.OPENAI_APPLY_MODEL || process.env.OPENAI_WORKER_MODEL || "gpt-4.1"}`);
-  console.log(`Worker reasoning: ${process.env.OPENAI_WORKER_REASONING || "default"}`);
-  console.log(`Apply reasoning: ${process.env.OPENAI_APPLY_REASONING || process.env.OPENAI_WORKER_REASONING || "default"}`);
+  const effectiveWorkerModel = process.env.OPENAI_WORKER_MODEL || "gpt-4.1";
+  const effectiveApplyModel = process.env.OPENAI_APPLY_MODEL || process.env.OPENAI_WORKER_MODEL || "gpt-4.1";
+  const requestedWorkerReasoning = process.env.OPENAI_WORKER_REASONING;
+  const requestedApplyReasoning = process.env.OPENAI_APPLY_REASONING || process.env.OPENAI_WORKER_REASONING;
+  console.log(`Worker model: ${effectiveWorkerModel}`);
+  console.log(`Apply model: ${effectiveApplyModel}`);
+  console.log(`Worker reasoning: ${describeOpenAIReasoning(effectiveWorkerModel, requestedWorkerReasoning)}`);
+  console.log(`Apply reasoning: ${describeOpenAIReasoning(effectiveApplyModel, requestedApplyReasoning)}`);
   console.log(`Workers: ${targetWorkers.map((item) => item.role).join(", ")}`);
   console.log(`Apply edits: ${applyEdits ? "yes" : "no"}`);
   console.log(`Allow dirty worktree: ${allowDirty ? "yes" : "no"}`);

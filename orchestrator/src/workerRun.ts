@@ -468,7 +468,7 @@ async function runOpenAIWorker(prompt: string, schema: ReturnType<typeof createR
       },
       body: JSON.stringify({
         model,
-        ...openAIReasoningRequestPart(reasoningEffort),
+        ...openAIReasoningRequestPart(model, reasoningEffort),
         input: [
           {
             role: "system",

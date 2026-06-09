@@ -55,8 +55,10 @@ OPENAI_APPLY_REASONING
 ## 주의
 
 - `--worker-reasoning`과 `--apply-reasoning`은 OpenAI Responses API 요청에 그대로 전달됩니다.
-- 사용 중인 모델이 reasoning 옵션을 지원하지 않으면 해당 옵션을 빼고 다시 실행합니다.
+- 사용 중인 모델이 reasoning 옵션을 지원하지 않으면 해당 옵션은 자동으로 생략됩니다.
 - reasoning 강도를 올리면 품질은 좋아질 수 있지만 토큰 사용량과 비용이 증가할 수 있습니다.
+- `gpt-4.1`은 non-reasoning 모델이므로 reasoning 플래그를 붙여도 API 요청에는 포함하지 않습니다.
+- 지원 여부를 오케스트레이터가 모르는 신규 모델에 reasoning을 강제로 보내야 하면 `OPENAI_FORCE_REASONING=true`를 설정합니다.
 
 ## 비용 표시
 

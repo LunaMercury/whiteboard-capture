@@ -188,7 +188,7 @@ async function runOpenAIApply(prompt: string) {
       },
       body: JSON.stringify({
         model,
-        ...openAIReasoningRequestPart(reasoningEffort),
+        ...openAIReasoningRequestPart(model, reasoningEffort),
         input: [
           {
             role: "system",

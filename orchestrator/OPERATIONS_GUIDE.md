@@ -1,0 +1,168 @@
+# Orchestrator Operations Guide
+
+이 문서는 오케스트레이터를 실제 작업에 사용할 때 어떤 명령과 옵션을 선택해야 하는지 정리한 운영형 사용 설명서입니다.
+
+## 기본 원칙
+
+- 신뢰도가 비용 절감보다 우선입니다.
+- 토큰 절감은 판단을 생략하는 방식이 아니라, 이미 확보한 결과를 안전하게 재사용하는 방식으로만 합니다.
+- 실제 파일을 바꾸는 실행은 항상 `--apply`가 필요합니다.
+- 테스트 적용은 `--rollback-after-verify`, 실제 적용은 `--keep-applied`를 사용합니다.
+- 계약 변경이나 미해결 질문은 기본적으로 차단합니다.
+- `blocked`는 실패가 아니라 안전 게이트가 작동한 상태입니다. 내용을 확인한 뒤 명시적으로 승인하거나 요청을 보완합니다.
+
+## 가장 많이 쓰는 명령
+
+### 1. 계획과 worker 결과만 확인
+
+실제 파일은 수정하지 않습니다. 비용과 작업 범위를 먼저 확인할 때 사용합니다.
+
+```powershell
+cd "D:\개발\whiteboard capture\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" run runner:full -- --compact --roles frontend,java,rust,mobile --worker-provider openai --concurrency 2 "네이버 로그인 기능을 만들어줘"
+```
+
+### 2. 안전 리허설
+
+실제 파일에 적용하고 검증한 뒤 자동 롤백합니다. 파이프라인 테스트와 위험한 작업 검증에 사용합니다.
+
+```powershell
+cd "D:\개발\whiteboard capture\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" run runner:full -- --compact --roles frontend --worker-provider openai --apply-provider openai --apply --rollback-after-verify --concurrency 1 --continue-on-error "로그인 화면 하단에 개인정보 처리방침 링크를 추가해줘"
+```
+
+성공 여부는 마지막 `Final Summary`에서 확인합니다.
+
+```text
+Status: succeeded
+Verification: passed 또는 recorded
+Rollback: succeeded
+runner:workflow: exit=0
+```
+
+### 3. 실제 적용
+
+검증 후 변경을 유지합니다. 작업트리가 깨끗하고, 요청이 충분히 명확할 때만 사용합니다.
+
+```powershell
+cd "D:\개발\whiteboard capture\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" run runner:full -- --compact --roles frontend --worker-provider openai --apply-provider openai --apply --keep-applied --concurrency 1 --continue-on-error "로그인 화면에 베타 안내 문구를 추가해줘"
+```
+
+적용 후에는 직접 diff를 확인하고 커밋합니다.
+
+```powershell
+git diff --stat
+git diff
+git status --short
+```
+
+### 4. 실패 후 worker 결과 재사용
+
+worker 계획은 이미 성공했고 apply나 verification에서만 실패한 경우 사용합니다. OpenAI worker 호출을 다시 하지 않아 비용을 줄입니다.
+
+```powershell
+cd "D:\개발\whiteboard capture\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" run runner:workflow -- <run-id> --compact --roles mobile --reuse-worker-results --apply-provider openai --apply --rollback-after-verify --concurrency 1 --continue-on-error
+```
+
+미해결 질문이 운영자가 확인 가능한 수준이고, 임시값이나 계약 변경을 만들지 않는다면 다음 옵션을 추가할 수 있습니다.
+
+```powershell
+--approve-open-questions
+```
+
+계약 변경은 더 엄격합니다. 실제 계약 변경을 사람이 승인했을 때만 다음 옵션을 사용합니다.
+
+```powershell
+--approve-contract-changes
+```
+
+## 옵션 선택 기준
+
+| 상황 | 추천 옵션 |
+| --- | --- |
+| 계획만 보고 싶음 | `runner:full --compact` |
+| 실제 적용 전 리허설 | `--apply --rollback-after-verify` |
+| 실제 변경 유지 | `--apply --keep-applied` |
+| 비용을 줄여 재시도 | `--reuse-worker-results` |
+| 출력 줄이기 | `--compact` |
+| TPM rate limit 완화 | `--concurrency 1` 또는 `--concurrency 2` |
+| 전체 검증까지 수행 | `--verify-all` |
+| worker 없이 현재 결과 검증 | `--skip-workers --verify-all` |
+
+## 비용 절감 규칙
+
+좋은 절감 방식:
+
+- 실패 후 같은 `run-id`에서 `--reuse-worker-results`로 재시도
+- 관련 역할만 `--roles`로 선택
+- review-only 역할은 apply하지 않음
+- `--compact`로 터미널 출력 축소
+- 상세 로그는 `runs/<run-id>/report.md`와 `report.html`에서 확인
+- 간단한 파이프라인 확인은 `runner:full:mock` 사용
+
+피해야 할 절감 방식:
+
+- 코드가 바뀐 뒤 오래된 worker 결과를 그대로 믿기
+- auth/JWT 작업에서 Rust 리뷰를 빼기
+- 모바일 영향이 있는 로그인 작업에서 모바일 검토를 임의로 생략하기
+- verifier가 확인해야 할 계약 정보를 prompt에서 제거하기
+- 검증 실패를 비용 문제로 무시하고 커밋하기
+
+## Final Summary 읽는 법
+
+우선 아래 항목만 보면 됩니다.
+
+```text
+Status: succeeded | blocked | failed
+Workers: ...
+Applied roles: ...
+Changed files recorded: ...
+Proposed edits: ...
+API usage: ...
+API cost: ...
+Verification: ...
+Rollback: ...
+Report: ...
+HTML report: ...
+runner:workflow: exit=...
+```
+
+판단 기준:
+
+- `Status: succeeded`와 `runner:workflow: exit=0`이면 흐름은 성공입니다.
+- `Status: blocked`는 안전 차단입니다. 질문 또는 계약 변경 내용을 보고 승인 여부를 결정합니다.
+- `Status: failed`는 worker, apply, verification, rollback, cleanup 중 하나가 실패한 상태입니다.
+- `Rollback: succeeded`이면 테스트 적용으로 생긴 파일 변경은 되돌아간 상태입니다.
+- `Verification: recorded`는 worker가 검증 수행 사실을 기록한 상태입니다. 실제 로컬 검증 로그가 필요하면 해당 `.skills` 스크립트를 직접 실행합니다.
+- `API cost`는 OpenAI provider 호출의 추정 비용입니다. `.skills/verify-*.ps1` 자체는 OpenAI API 비용을 만들지 않습니다.
+
+## 검증 명령
+
+프로젝트 루트에서 전체 검증:
+
+```powershell
+cd "D:\개발\whiteboard capture"
+powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File ".\.skills\verify-all.ps1"
+```
+
+orchestrator 폴더에서 전체 검증:
+
+```powershell
+cd "D:\개발\whiteboard capture\orchestrator"
+powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "..\.skills\verify-all.ps1"
+```
+
+전체 검증은 로컬 빌드와 테스트만 실행하므로 OpenAI API 비용이 없습니다. 다만 Docker, Gradle, Android SDK, Rust build cache 상태에 따라 시간이 오래 걸릴 수 있습니다.
+
+## 운영 체크리스트
+
+- 작업 전 `git status --short`가 깨끗한지 확인
+- 먼저 `--rollback-after-verify`로 리허설
+- 성공하면 `report.html` 또는 `report.md`에서 risks/questions 확인
+- 실제 반영은 `--keep-applied`로 다시 실행하거나, 리허설 결과를 바탕으로 수동 적용
+- 적용 후 `.skills/verify-*` 또는 `.skills/verify-all.ps1` 실행
+- diff 확인 후 의미 있는 단위로 커밋
+- push 전 `git status --short` 확인
+

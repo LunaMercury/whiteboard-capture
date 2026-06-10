@@ -102,3 +102,46 @@
 - ArgoCD Application 템플릿
 - GitHub Actions 외 다른 CI/CD 공급자별 템플릿
 - 모델별 비용 추정 메타데이터
+## 분리 판단 기준
+
+보일러플레이트로 가져갈지, 새 프로젝트에서 다시 작성할지 애매할 때는 아래 기준을 사용합니다.
+
+### 그대로 가져갈 수 있는 것
+
+- manager, worker, verifier, apply, rollback, report 생성 흐름
+- task packet과 result packet 스키마
+- `--compact`, `--concurrency`, `--reuse-worker-results`, `--rollback-after-verify`, `--keep-applied` 같은 실행 옵션
+- apply review gate의 기본 안전 규칙
+- 비용 추정, run cleanup, HTML/Markdown report 생성 구조
+- mock/test provider 기반 dry-run 흐름
+- 보일러플레이트 패키징 스크립트
+
+### 새 프로젝트에서 반드시 다시 정해야 하는 것
+
+- 서비스 목적과 우선순위
+- 모듈 이름과 실제 경로
+- 기술 스택 버전
+- `.skills/verify-*.ps1`의 실제 검증 내용
+- 인증/JWT/세션/스토리지/API/WebSocket 계약
+- 배포 환경, 도메인, secret 주입 방식
+- 개인정보, 보안, 데이터 보관 정책
+- category template의 참여 정책
+
+### 일부만 재사용할 수 있는 것
+
+- `auth`, `redis`, `realtime`, `design` 같은 category template
+- Java 기본 백엔드, Rust hot path, Web, Mobile 역할 분리 정책
+- 보안 체크리스트
+- 비용 절감 기본값
+- 운영형 사용 설명서
+
+이 항목들은 새 프로젝트의 구조가 Whiteboard Capture와 비슷하면 큰 틀은 재사용할 수 있습니다. 다만 실제 경로, 환경변수, 검증 스크립트, API 계약은 반드시 새 프로젝트 기준으로 다시 확인해야 합니다.
+
+## 재사용 시 안전 규칙
+
+- 보일러플레이트는 정책의 출발점이지, 새 프로젝트의 최종 정책이 아닙니다.
+- `AGENTS.md`, 보안 문서, 아키텍처 문서는 새 프로젝트에서 먼저 작성하거나 검토합니다.
+- worker가 볼 context는 새 프로젝트의 현재 파일 상태를 기준으로 생성합니다.
+- 이전 프로젝트의 run 결과나 worker 결과를 새 프로젝트에 재사용하지 않습니다.
+- 비용 절감 기능은 같은 repository, 같은 run, 같은 코드 상태에서만 사용합니다.
+- 다른 프로젝트로 옮긴 직후에는 mock dry-run, 단일 role rollback rehearsal, 전체 verification 순서로 검증합니다.

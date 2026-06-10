@@ -74,8 +74,11 @@ import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 
-private const val LOGIN_URL = "http://10.0.2.2:18080/api/auth/login"
-private const val UPLOAD_URL = "http://10.0.2.2:3000/upload"
+private val LOGIN_URL: String
+    get() = "${BuildConfig.CORE_API_BASE_URL}/api/auth/login"
+
+private val UPLOAD_URL: String
+    get() = "${BuildConfig.FAST_API_BASE_URL}/upload"
 
 class MainActivity : ComponentActivity() {
 

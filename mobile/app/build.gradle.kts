@@ -3,6 +3,33 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val releaseCoreApiBaseUrl = providers.gradleProperty("RELEASE_CORE_API_BASE_URL")
+    .orElse(providers.environmentVariable("RELEASE_CORE_API_BASE_URL"))
+val releaseFastApiBaseUrl = providers.gradleProperty("RELEASE_FAST_API_BASE_URL")
+    .orElse(providers.environmentVariable("RELEASE_FAST_API_BASE_URL"))
+val releaseFastWsBaseUrl = providers.gradleProperty("RELEASE_FAST_WS_BASE_URL")
+    .orElse(providers.environmentVariable("RELEASE_FAST_WS_BASE_URL"))
+
+fun String.asBuildConfigString(): String = "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+val validateReleaseEndpoints = tasks.register("validateReleaseEndpoints") {
+    doLast {
+        val coreApi = releaseCoreApiBaseUrl.orNull
+        val fastApi = releaseFastApiBaseUrl.orNull
+        val fastWs = releaseFastWsBaseUrl.orNull
+
+        if (coreApi.isNullOrBlank() || !coreApi.startsWith("https://")) {
+            throw GradleException("RELEASE_CORE_API_BASE_URL must be set to an HTTPS URL for release builds.")
+        }
+        if (fastApi.isNullOrBlank() || !fastApi.startsWith("https://")) {
+            throw GradleException("RELEASE_FAST_API_BASE_URL must be set to an HTTPS URL for release builds.")
+        }
+        if (fastWs.isNullOrBlank() || !fastWs.startsWith("wss://")) {
+            throw GradleException("RELEASE_FAST_WS_BASE_URL must be set to a WSS URL for release builds.")
+        }
+    }
+}
+
 android {
     namespace = "com.example.whiteboardcapture"
     compileSdk {
@@ -22,7 +49,29 @@ android {
     }
 
     buildTypes {
+        debug {
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+            buildConfigField("String", "CORE_API_BASE_URL", "http://10.0.2.2:18080".asBuildConfigString())
+            buildConfigField("String", "FAST_API_BASE_URL", "http://10.0.2.2:3000".asBuildConfigString())
+            buildConfigField("String", "FAST_WS_BASE_URL", "ws://10.0.2.2:3000/ws".asBuildConfigString())
+        }
         release {
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
+            buildConfigField(
+                "String",
+                "CORE_API_BASE_URL",
+                (releaseCoreApiBaseUrl.orNull ?: "https://release-core-url-required.invalid").asBuildConfigString()
+            )
+            buildConfigField(
+                "String",
+                "FAST_API_BASE_URL",
+                (releaseFastApiBaseUrl.orNull ?: "https://release-fast-url-required.invalid").asBuildConfigString()
+            )
+            buildConfigField(
+                "String",
+                "FAST_WS_BASE_URL",
+                (releaseFastWsBaseUrl.orNull ?: "wss://release-fast-ws-required.invalid/ws").asBuildConfigString()
+            )
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -36,6 +85,15 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+}
+
+afterEvaluate {
+    tasks.matching {
+        it.name != validateReleaseEndpoints.name && it.name.contains("Release")
+    }.configureEach {
+        dependsOn(validateReleaseEndpoints)
     }
 }
 

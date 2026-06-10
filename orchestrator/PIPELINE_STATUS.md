@@ -220,3 +220,35 @@ HTML report: ...\report.html
 
 - 모바일/로컬 개발용 HTTP URL과 `cleartextTraffic` 정책 정리
 - 실제 배포용 HTTPS/WSS 환경변수와 Android network security policy 분리
+
+## 2026-06-10 모바일 개발/운영 네트워크 설정 분리
+
+- 작업: 모바일 앱의 개발용 HTTP/cleartext 설정과 운영용 HTTPS/WSS 설정을 빌드 타입 기준으로 분리
+- debug 빌드:
+  - `CORE_API_BASE_URL=http://10.0.2.2:18080`
+  - `FAST_API_BASE_URL=http://10.0.2.2:3000`
+  - `FAST_WS_BASE_URL=ws://10.0.2.2:3000/ws`
+  - `10.0.2.2`, `localhost`에 한해 cleartext 허용
+- release 빌드:
+  - `RELEASE_CORE_API_BASE_URL`
+  - `RELEASE_FAST_API_BASE_URL`
+  - `RELEASE_FAST_WS_BASE_URL`
+  - Gradle property 또는 현재 프로세스/CI 환경변수로 주입
+  - `https://` / `wss://`가 아니면 release task에서 실패
+  - cleartext traffic 비허용
+- 검증: `.skills/verify-mobile.ps1` 통과
+- 원인 분석:
+  - Docker Desktop과 무관함
+  - 최초 실패는 AI apply가 생성한 Gradle Kotlin DSL 문자열 문법 오류
+  - 이후 실패는 release URL 검증이 debug compile configuration 단계까지 막은 문제
+  - 최종 구현에서는 debug compile은 release URL 없이 통과하고, release task에서만 운영 URL을 검증하도록 정리
+- 문서: `mobile/RELEASE_NETWORK_CONFIG.md`
+- 계약 유지:
+  - backend-core 로그인 API 계약 유지
+  - backend-fast 업로드 `Authorization: Bearer <JWT>` 계약 유지
+
+다음 추천 작업:
+
+- 운영 배포 도메인이 확정되면 CI/CD 또는 ArgoCD/Kubernetes Secret 주입 방식 문서화
+- `verify-all`로 전체 통합 검증 재확인
+- Rust/Object Storage 업로드 계약 정리

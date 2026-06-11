@@ -291,3 +291,23 @@ HTML report: ...\report.html
 - dry-run 결과: `runner:full:mock` + test worker provider 성공
 - API 비용: 없음. `ci:dry-run`은 mock/test provider 기반으로 실행됨
 - 결론: 현재 오케스트레이터 보일러플레이트는 새 폴더에 복사, 설치, mock dry-run까지 독립 실행 가능함
+
+## 2026-06-11 frontend 작은 기능 리허설 및 실제 적용
+
+- 리허설 run: `run-2026-06-11T13-28-40-485Z`
+- 요청: 로그인 화면 하단에 `베타 기간에는 일부 로그인이 지연될 수 있습니다.` 안내 문구 추가
+- 리허설 결과:
+  - `Status: succeeded`
+  - `Workers: succeeded=1`
+  - `Applied roles: frontend`
+  - `Changed files recorded: 2`
+  - `Proposed edits: 2`
+  - `Verification: passed (.skills/verify-web.ps1)`
+  - `Rollback: succeeded`
+  - `runner:workflow: exit=0`
+  - API cost: `$0.0685`
+- 실제 적용:
+  - 리허설 의도를 기준으로 `web/src/components/Login.tsx`와 `web/src/components/Login.module.css`에 최소 변경 적용
+  - 리허설 diff에 포함된 깨진 한글과 불필요한 CSS 주석은 그대로 적용하지 않고 정상 한글 문구와 CSS만 반영
+- 검증: `.skills/verify-web.ps1` 통과
+- 결론: 실제 frontend 변경, 검증, 롤백 리허설, 실제 적용까지 운영 흐름이 동작함

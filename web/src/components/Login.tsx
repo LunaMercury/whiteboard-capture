@@ -141,6 +141,7 @@ export default function Login({ onLogin }: LoginProps) {
             {isSubmitting ? '로그인 중...' : '이메일로 로그인'}
           </button>
           {/* 안내 문구(로그인에 문제가 있으신가요? ... 관리자에게 문의해 주세요.) */}
+          <p className={styles.loginDelayNotice}>베타 기간에는 일부 로그인이 지연될 수 있습니다.</p>
           <p className={styles.login__helpMessage} aria-label="로그인에 문제가 있으신가요? 도움이 필요하시면 관리자에게 문의해 주세요.">
             로그인에 문제가 있으신가요? 도움이 필요하시면 관리자에게 문의해 주세요.
           </p>

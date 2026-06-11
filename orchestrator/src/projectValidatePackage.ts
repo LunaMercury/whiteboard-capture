@@ -1,0 +1,166 @@
+import fs from "node:fs";
+import path from "node:path";
+
+type Args = {
+  targetProjectRoot: string;
+};
+
+const requiredFiles = [
+  "AGENTS.md",
+  "agent_role.md",
+  "security_guidelines.md",
+  "system_architecture.md",
+  path.join(".skills", "verify-all.ps1"),
+  path.join(".skills", "verify-web.ps1"),
+  path.join(".skills", "verify-core.ps1"),
+  path.join(".skills", "verify-fast.ps1"),
+  path.join(".skills", "verify-mobile.ps1"),
+  path.join("orchestrator", "package.json"),
+  path.join("orchestrator", "package-lock.json"),
+  path.join("orchestrator", "tsconfig.json"),
+  path.join("orchestrator", "README.md"),
+  path.join("orchestrator", "OPERATIONS_GUIDE.md"),
+  path.join("orchestrator", "BOILERPLATE_SPLIT_GUIDE.md"),
+  path.join("orchestrator", "BOILERPLATE_MIGRATION_CHECKLIST.md"),
+  path.join("orchestrator", "config", "project.yaml"),
+  path.join("orchestrator", "config", "project-templates.yaml"),
+  path.join("orchestrator", "src", "runnerFull.ts"),
+  path.join("orchestrator", "src", "runnerWorkflow.ts"),
+  path.join("orchestrator", "src", "projectPackage.ts"),
+  path.join("orchestrator", "src", "projectValidatePackage.ts"),
+];
+
+const forbiddenPaths = [
+  ".env",
+  ".env.local",
+  path.join("orchestrator", ".env"),
+  path.join("orchestrator", ".env.local"),
+  path.join("orchestrator", "PIPELINE_STATUS.md"),
+  path.join("orchestrator", ".git"),
+];
+
+const runtimeArtifactPaths = [
+  path.join("orchestrator", "runs"),
+  path.join("orchestrator", "dist"),
+  path.join("orchestrator", "node_modules"),
+];
+
+const requiredScripts = [
+  "ci:dry-run",
+  "runner:full",
+  "runner:full:safe",
+  "runner:full:balanced",
+  "runner:full:rehearse",
+  "runner:workflow",
+  "runner:workflow:safe",
+  "runner:workflow:balanced",
+  "runner:workflow:rehearse",
+  "runner:workflow:reuse",
+  "project:package",
+  "project:validate-package",
+];
+
+function usage(): never {
+  throw new Error("Usage: npm run project:validate-package -- --target <project-root>");
+}
+
+function parseArgs(argv: string[]): Args {
+  let targetProjectRoot = "";
+  for (let index = 0; index < argv.length; index += 1) {
+    const item = argv[index];
+    if (item === "--target") {
+      targetProjectRoot = path.resolve(argv[index + 1] || "");
+      index += 1;
+      continue;
+    }
+    usage();
+  }
+  if (!targetProjectRoot) {
+    usage();
+  }
+  return { targetProjectRoot };
+}
+
+function exists(targetProjectRoot: string, relativePath: string) {
+  return fs.existsSync(path.join(targetProjectRoot, relativePath));
+}
+
+function readPackageJson(targetProjectRoot: string) {
+  const packageJsonPath = path.join(targetProjectRoot, "orchestrator", "package.json");
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as {
+    scripts?: Record<string, string>;
+  };
+  return packageJson;
+}
+
+function main() {
+  const { targetProjectRoot } = parseArgs(process.argv.slice(2));
+  const failures: string[] = [];
+  const warnings: string[] = [];
+
+  if (!fs.existsSync(targetProjectRoot)) {
+    throw new Error(`Target project root does not exist: ${targetProjectRoot}`);
+  }
+
+  for (const relativePath of requiredFiles) {
+    if (!exists(targetProjectRoot, relativePath)) {
+      failures.push(`missing required file: ${relativePath}`);
+    }
+  }
+
+  for (const relativePath of forbiddenPaths) {
+    if (exists(targetProjectRoot, relativePath)) {
+      failures.push(`forbidden packaged path exists: ${relativePath}`);
+    }
+  }
+
+  for (const relativePath of runtimeArtifactPaths) {
+    if (exists(targetProjectRoot, relativePath)) {
+      warnings.push(`runtime artifact path exists: ${relativePath}`);
+    }
+  }
+
+  if (exists(targetProjectRoot, path.join("orchestrator", "package.json"))) {
+    const packageJson = readPackageJson(targetProjectRoot);
+    for (const scriptName of requiredScripts) {
+      if (!packageJson.scripts?.[scriptName]) {
+        failures.push(`missing package script: ${scriptName}`);
+      }
+    }
+  }
+
+  console.log("# Project Package Validation");
+  console.log(`Target project: ${targetProjectRoot}`);
+  console.log(`Required files checked: ${requiredFiles.length}`);
+  console.log(`Forbidden paths checked: ${forbiddenPaths.length}`);
+  console.log(`Runtime artifact paths checked: ${runtimeArtifactPaths.length}`);
+  console.log(`Required scripts checked: ${requiredScripts.length}`);
+
+  if (warnings.length > 0) {
+    console.log("");
+    console.log("Warnings:");
+    for (const warning of warnings) {
+      console.log(`- ${warning}`);
+    }
+    console.log("Runtime artifacts are expected after npm install, build, or ci:dry-run. Validate a clean target right after project:package if you need strict copy-only confirmation.");
+  }
+
+  if (failures.length > 0) {
+    console.log("");
+    console.log("Validation failed:");
+    for (const failure of failures) {
+      console.log(`- ${failure}`);
+    }
+    process.exit(1);
+  }
+
+  console.log("");
+  console.log("Package validation passed.");
+}
+
+try {
+  main();
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}

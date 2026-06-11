@@ -30,6 +30,7 @@
     "runner:review": "tsx src/applyReview.ts",
     "project:init": "tsx src/projectInit.ts",
     "project:package": "tsx src/projectPackage.ts",
+    "project:validate-package": "tsx src/projectValidatePackage.ts",
     "worker:prepare": "tsx src/workerExecutor.ts",
     "worker:run": "tsx src/workerRun.ts",
     "worker:handoff": "tsx src/workerHandoff.ts",

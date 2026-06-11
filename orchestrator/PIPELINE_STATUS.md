@@ -311,3 +311,19 @@ HTML report: ...\report.html
   - 리허설 diff에 포함된 깨진 한글과 불필요한 CSS 주석은 그대로 적용하지 않고 정상 한글 문구와 CSS만 반영
 - 검증: `.skills/verify-web.ps1` 통과
 - 결론: 실제 frontend 변경, 검증, 롤백 리허설, 실제 적용까지 운영 흐름이 동작함
+
+## 2026-06-11 보일러플레이트 패키지 자동 검증 명령 추가
+
+- 추가 명령: `npm run project:validate-package -- --target <project-root>`
+- 검증 항목:
+  - 필수 보일러 파일 존재
+  - 정책 문서와 `.skills` 템플릿 존재
+  - 비용 절감 alias 존재
+  - secret/status/runs 등 패키징 제외 대상 확인
+- 운영 보정:
+  - `node_modules`, `runs`, `dist`는 `npm install`, build, `ci:dry-run` 이후 생길 수 있어 실패가 아닌 warning으로 처리
+- 리허설:
+  - `D:\개발\boilertest` 대상 `project:package --force` 성공
+  - `project:validate-package` 성공
+  - 복사본 `npm run ci:dry-run` 성공
+  - API cost: `$0.0000`

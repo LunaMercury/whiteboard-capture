@@ -66,6 +66,8 @@ cd "D:\개발\whiteboard capture\orchestrator"
 
 & "C:\Program Files\nodejs\npm.cmd" run project:package -- --target "D:\개발\boilertest" --name "Boiler Test" --goal "Reusable orchestrator boilerplate rehearsal" --force
 
+& "C:\Program Files\nodejs\npm.cmd" run project:validate-package -- --target "D:\개발\boilertest"
+
 cd "D:\개발\boilertest\orchestrator"
 & "C:\Program Files\nodejs\npm.cmd" install
 & "C:\Program Files\nodejs\npm.cmd" run ci:dry-run
@@ -100,12 +102,14 @@ cd "D:\개발\boilertest\orchestrator"
 
 복사본 검증:
 
+- [ ] 원본 orchestrator에서 `npm run project:validate-package -- --target "<target>"`가 성공합니다.
 - [ ] `npm install`이 성공합니다.
 - [ ] `npm audit` 결과에 치명적인 취약점이 없습니다.
 - [ ] `npm run ci:dry-run`이 성공합니다.
 - [ ] `ci:dry-run`의 `API cost`가 `$0.0000`입니다.
 - [ ] `ci:dry-run`의 `Status`가 `succeeded`입니다.
 - [ ] `ci:dry-run`에서 `runner:workflow: exit=0`이 출력됩니다.
+- [ ] `project:validate-package`가 `node_modules` 또는 `runs` 경고를 출력하더라도, 이는 `npm install` 또는 `ci:dry-run` 이후의 런타임 산출물이므로 실패로 보지 않습니다.
 
 새 프로젝트에서 반드시 바꿀 것:
 

@@ -55,3 +55,71 @@
 - [ ] `report.md`, `report.html`, `runs/index.html`이 생성되고 사람이 읽을 수 있습니다.
 - [ ] 새 프로젝트에서 반드시 바꿔야 할 Whiteboard 전용 문구가 남아 있지 않습니다.
 - [ ] 독립 보일러 repository로 분리하는 경우, `PIPELINE_STATUS.md`와 실행 산출물(`runs/`)을 포함하지 않습니다.
+## 7. 복사 리허설 기준 체크
+
+새 프로젝트로 옮기기 전에는 실제 임시 폴더에 복사해서 아래 항목을 확인합니다.
+
+예시:
+
+```powershell
+cd "D:\개발\whiteboard capture\orchestrator"
+
+& "C:\Program Files\nodejs\npm.cmd" run project:package -- --target "D:\개발\boilertest" --name "Boiler Test" --goal "Reusable orchestrator boilerplate rehearsal" --force
+
+cd "D:\개발\boilertest\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" install
+& "C:\Program Files\nodejs\npm.cmd" run ci:dry-run
+```
+
+복사 직후 확인:
+
+- [ ] `orchestrator/package.json`이 생성되었습니다.
+- [ ] `orchestrator/package-lock.json`이 생성되었습니다.
+- [ ] `orchestrator/src/`가 생성되었습니다.
+- [ ] `orchestrator/config/project.yaml`이 생성되었습니다.
+- [ ] `orchestrator/config/project-templates.yaml`이 생성되었습니다.
+- [ ] `orchestrator/OPERATIONS_GUIDE.md`가 생성되었습니다.
+- [ ] `orchestrator/BOILERPLATE_SPLIT_GUIDE.md`가 생성되었습니다.
+- [ ] `orchestrator/BOILERPLATE_MIGRATION_CHECKLIST.md`가 생성되었습니다.
+- [ ] `.skills/verify-all.ps1`이 생성되었습니다.
+- [ ] 루트 `AGENTS.md`가 생성되었습니다.
+- [ ] 루트 `security_guidelines.md`가 생성되었습니다.
+- [ ] `orchestrator/PIPELINE_STATUS.md`는 복사되지 않았습니다.
+- [ ] `orchestrator/runs/`는 복사되지 않았습니다.
+- [ ] `.env`와 `.env.local`은 복사되지 않았습니다.
+
+비용 절감 alias 확인:
+
+- [ ] `runner:full:safe`가 존재합니다.
+- [ ] `runner:full:balanced`가 존재합니다.
+- [ ] `runner:full:rehearse`가 존재합니다.
+- [ ] `runner:workflow:safe`가 존재합니다.
+- [ ] `runner:workflow:balanced`가 존재합니다.
+- [ ] `runner:workflow:rehearse`가 존재합니다.
+- [ ] `runner:workflow:reuse`가 존재합니다.
+
+복사본 검증:
+
+- [ ] `npm install`이 성공합니다.
+- [ ] `npm audit` 결과에 치명적인 취약점이 없습니다.
+- [ ] `npm run ci:dry-run`이 성공합니다.
+- [ ] `ci:dry-run`의 `API cost`가 `$0.0000`입니다.
+- [ ] `ci:dry-run`의 `Status`가 `succeeded`입니다.
+- [ ] `ci:dry-run`에서 `runner:workflow: exit=0`이 출력됩니다.
+
+새 프로젝트에서 반드시 바꿀 것:
+
+- [ ] 루트 `AGENTS.md`의 프로젝트 목적과 우선순위
+- [ ] 루트 `agent_role.md`의 역할 설명
+- [ ] 루트 `security_guidelines.md`의 보안 정책
+- [ ] 루트 `system_architecture.md`의 실제 아키텍처
+- [ ] `orchestrator/config/project.yaml`의 모듈 이름, 경로, 계약
+- [ ] `orchestrator/config/project-templates.yaml`의 category 참여 정책
+- [ ] `.skills/verify-*.ps1`의 실제 빌드/테스트 명령
+- [ ] 배포 도메인, secret 주입 방식, 운영 URL 정책
+
+완료 기준:
+
+- [ ] 새 프로젝트 복사본에서 mock/test provider 기반 dry-run이 API 비용 없이 동작합니다.
+- [ ] 새 프로젝트 전용 정책 문서와 검증 스크립트가 현재 코드베이스와 일치합니다.
+- [ ] 첫 실제 기능 리허설은 `--rollback-after-verify`로 실행하고 성공 기록을 남깁니다.

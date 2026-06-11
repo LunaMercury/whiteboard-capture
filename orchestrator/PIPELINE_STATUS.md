@@ -327,3 +327,20 @@ HTML report: ...\report.html
   - `project:validate-package` 성공
   - 복사본 `npm run ci:dry-run` 성공
   - API cost: `$0.0000`
+
+## 2026-06-11 worker 결과 재사용 안전 가드 강화
+
+- 대상: `--reuse-worker-results`
+- 보강 내용:
+  - 같은 `run-id` 내부 worker result만 재사용
+  - `meta/reuse-guard.json`에 Git HEAD와 worktree status 저장
+  - 재사용 시 현재 Git HEAD 또는 worktree status가 달라지면 차단
+  - `pending`, `running`, 일반 `failed` result 재사용 차단
+  - verification/apply-review 재시도 가능한 실패만 기존 `proposedEdits`로 재사용 허용
+  - `contractsChanged` 또는 `questions`가 있으면 명시 승인 옵션 없이는 재사용 apply 차단
+  - unsafe proposed edit path 차단
+- 검증:
+  - mock/test provider 기반 reuse smoke test 성공
+  - 임시 untracked 파일 추가 후 reuse 시도 시 repository state 변경으로 차단 확인
+  - `npx tsc -p tsconfig.json --noEmit` 통과
+- API 비용: 없음. mock/test provider와 로컬 타입 검증만 사용

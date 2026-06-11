@@ -614,6 +614,157 @@ function prepareWorkerResultForReuse(
   });
 }
 
+type ReuseGuard = {
+  runId: string;
+  createdAt: string;
+  repoHead: string;
+  dirtyStatus: string;
+};
+
+function getGitHead(repoRoot: string) {
+  const child = runCommand("git", ["rev-parse", "HEAD"], repoRoot);
+  if (child.status !== 0) {
+    throw new Error(child.stderr?.trim() || child.stdout?.trim() || "git rev-parse HEAD failed");
+  }
+  return child.stdout.trim();
+}
+
+function getReuseGuardPath(manifest: ReturnType<typeof readRunnerManifest>) {
+  return path.join(getWorkflowDirs(manifest).metaDir, "reuse-guard.json");
+}
+
+function buildReuseGuard(manifest: ReturnType<typeof readRunnerManifest>): ReuseGuard {
+  return {
+    runId: manifest.runId,
+    createdAt: new Date().toISOString(),
+    repoHead: getGitHead(manifest.repoRoot),
+    dirtyStatus: getDirtyWorktreeOutput(manifest.repoRoot),
+  };
+}
+
+function writeReuseGuard(manifest: ReturnType<typeof readRunnerManifest>) {
+  writeJson(getReuseGuardPath(manifest), buildReuseGuard(manifest));
+}
+
+function readReuseGuard(manifest: ReturnType<typeof readRunnerManifest>): ReuseGuard {
+  const guardPath = getReuseGuardPath(manifest);
+  if (!fs.existsSync(guardPath)) {
+    throw new Error(
+      [
+        "Cannot reuse worker results because this run has no reuse guard metadata.",
+        "Re-run workers once with the current pipeline version before using --reuse-worker-results.",
+      ].join("\n"),
+    );
+  }
+  return JSON.parse(fs.readFileSync(guardPath, "utf8")) as ReuseGuard;
+}
+
+function assertReuseGuardMatchesCurrentRepo(manifest: ReturnType<typeof readRunnerManifest>) {
+  const guard = readReuseGuard(manifest);
+  const current = buildReuseGuard(manifest);
+  const failures: string[] = [];
+
+  if (guard.runId !== manifest.runId) {
+    failures.push(`run id mismatch: guard=${guard.runId}, current=${manifest.runId}`);
+  }
+  if (guard.repoHead !== current.repoHead) {
+    failures.push(`git HEAD changed: guard=${guard.repoHead}, current=${current.repoHead}`);
+  }
+  if (guard.dirtyStatus !== current.dirtyStatus) {
+    failures.push("git worktree status changed since worker results were produced");
+  }
+
+  if (failures.length > 0) {
+    throw new Error(
+      [
+        "Refusing to reuse worker results because the repository state changed.",
+        ...failures.map((failure) => `- ${failure}`),
+        "Re-run workers so proposed edits are based on the current code state.",
+      ].join("\n"),
+    );
+  }
+}
+
+function isRetryableApplyReviewFailure(result: WorkerResultPacket) {
+  return result.status === "failed" && result.risks.some((item) => item.startsWith("Apply review blocked:"));
+}
+
+function isRetryableVerificationFailure(result: WorkerResultPacket) {
+  return (
+    result.status === "failed"
+    && (result.proposedEdits?.length ?? 0) > 0
+    && (
+      result.risks.some((item) => item.startsWith("Verification failed:"))
+      || result.summary.includes("Verification failed during workflow.")
+    )
+  );
+}
+
+function assertWorkerResultReusable(
+  task: WorkerTaskPacket,
+  result: WorkerResultPacket,
+  options: {
+    applyEdits: boolean;
+    approveContractChanges: boolean;
+    approveOpenQuestions: boolean;
+  },
+) {
+  const failures: string[] = [];
+  const proposedEdits = result.proposedEdits ?? [];
+
+  if (result.role !== task.role) {
+    failures.push(`result role ${result.role} does not match task role ${task.role}`);
+  }
+
+  if (result.status === "pending" || result.status === "running") {
+    failures.push(`worker result status is ${result.status}`);
+  }
+
+  if (result.status === "failed" && !isRetryableApplyReviewFailure(result) && !isRetryableVerificationFailure(result)) {
+    failures.push("failed worker result is not a retryable apply-review or verification failure");
+  }
+
+  if (options.applyEdits && result.status === "failed" && proposedEdits.length === 0) {
+    failures.push("failed worker result has no proposedEdits to retry");
+  }
+
+  if (options.applyEdits && result.contractsChanged.length > 0 && !options.approveContractChanges) {
+    failures.push("worker result reports contractsChanged; re-run with --approve-contract-changes only after manual review");
+  }
+
+  if (options.applyEdits && result.questions.length > 0 && !options.approveOpenQuestions) {
+    failures.push("worker result has unresolved questions; re-run with --approve-open-questions only after manual review");
+  }
+
+  for (const edit of proposedEdits) {
+    if (!normalizeRepoRelativePath(edit.path)) {
+      failures.push(`proposed edit path is unsafe: ${edit.path}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(
+      [
+        `Refusing to reuse worker result for ${task.role}.`,
+        ...failures.map((failure) => `- ${failure}`),
+      ].join("\n"),
+    );
+  }
+
+  const notes: string[] = [];
+  if (result.status === "skipped") {
+    notes.push(`${task.role}: worker result is skipped; apply will be skipped.`);
+  } else if (options.applyEdits && proposedEdits.length === 0) {
+    notes.push(`${task.role}: worker result has no proposedEdits; apply will be skipped.`);
+  } else if (result.status === "failed") {
+    notes.push(`${task.role}: retrying previously failed apply/verification using existing proposedEdits.`);
+  }
+
+  for (const note of notes) {
+    console.log(`Reuse guard: ${note}`);
+  }
+}
+
 async function runVerificationScript(
   manifest: ReturnType<typeof readRunnerManifest>,
   role: WorkerTaskPacket["role"],
@@ -992,6 +1143,21 @@ async function main() {
   console.log(`Cleanup dry run: ${cleanupDryRun ? "yes" : "no"}`);
   console.log(`Compact output: ${compact ? "yes" : "no"}`);
   console.log("");
+
+  if (!skipWorkers && reuseWorkerResults) {
+    assertReuseGuardMatchesCurrentRepo(manifest);
+    for (const worker of targetWorkers) {
+      const task = readWorkerTask(manifest, worker.role);
+      const result = readWorkerResult(manifest, worker.role);
+      assertWorkerResultReusable(task, result, {
+        applyEdits,
+        approveContractChanges,
+        approveOpenQuestions,
+      });
+    }
+  } else if (!skipWorkers) {
+    writeReuseGuard(manifest);
+  }
 
   const rollbackSummary: {
     enabled: boolean;

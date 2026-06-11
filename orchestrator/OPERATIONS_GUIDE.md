@@ -66,6 +66,8 @@ cd "D:\개발\whiteboard capture\orchestrator"
 & "C:\Program Files\nodejs\npm.cmd" run runner:workflow -- <run-id> --compact --roles mobile --reuse-worker-results --apply-provider openai --apply --rollback-after-verify --concurrency 1 --continue-on-error
 ```
 
+재사용은 같은 `run-id`, 같은 Git HEAD, 같은 worktree 상태에서만 허용됩니다. worker 결과 생성 이후 commit, 파일 수정, untracked 파일 추가 등이 있으면 안전 가드가 재사용을 차단합니다.
+
 미해결 질문이 운영자가 확인 가능한 수준이고, 임시값이나 계약 변경을 만들지 않는다면 다음 옵션을 추가할 수 있습니다.
 
 ```powershell
@@ -96,6 +98,7 @@ cd "D:\개발\whiteboard capture\orchestrator"
 좋은 절감 방식:
 
 - 실패 후 같은 `run-id`에서 `--reuse-worker-results`로 재시도
+- 같은 Git HEAD와 같은 worktree 상태에서만 `--reuse-worker-results` 사용
 - 관련 역할만 `--roles`로 선택
 - review-only 역할은 apply하지 않음
 - `--compact`로 터미널 출력 축소

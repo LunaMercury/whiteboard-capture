@@ -273,3 +273,21 @@ HTML report: ...\report.html
 - 운영 배포 도메인이 정해지면 모바일 release URL 주입 방식을 CI/CD 또는 ArgoCD/Kubernetes Secret 기준으로 문서화
 - Rust/Object Storage 업로드 계약 정리
 - 보일러플레이트 분리 전, 현재 파이프라인 성공 기준을 재사용 템플릿 문서에 반영
+
+## 2026-06-11 보일러플레이트 복사 리허설 통과
+
+- 대상: `D:\개발\boilertest`
+- 실행 명령:
+  - `npm run project:package -- --target D:\개발\boilertest --name "Boiler Test" --goal "Reusable orchestrator boilerplate rehearsal" --force`
+  - 대상 복사본에서 `npm install`
+  - 대상 복사본에서 `npm run ci:dry-run`
+- 패키징 결과: 79개 파일 생성, 기존 충돌 0개
+- 포함 확인:
+  - `orchestrator/OPERATIONS_GUIDE.md`
+  - `orchestrator/BOILERPLATE_SPLIT_GUIDE.md`
+  - `runner:full:safe`
+  - `runner:workflow:reuse`
+- 설치 결과: `npm install` 성공, `found 0 vulnerabilities`
+- dry-run 결과: `runner:full:mock` + test worker provider 성공
+- API 비용: 없음. `ci:dry-run`은 mock/test provider 기반으로 실행됨
+- 결론: 현재 오케스트레이터 보일러플레이트는 새 폴더에 복사, 설치, mock dry-run까지 독립 실행 가능함

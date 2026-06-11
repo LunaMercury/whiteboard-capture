@@ -166,3 +166,56 @@ powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "..\.skills\
 - diff 확인 후 의미 있는 단위로 커밋
 - push 전 `git status --short` 확인
 
+## 비용 절감 기본 alias
+
+기본 `runner:full`과 `runner:workflow`의 동작은 유지합니다. 대신 자주 쓰는 저비용/안전 조합은 package script alias로 제공합니다.
+
+### 계획과 worker 결과 확인
+
+가장 안전하고 저렴한 기본 실행입니다. 출력은 compact이고 worker는 한 번에 하나씩 실행합니다.
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run runner:full:safe -- --roles frontend,java "요청 내용"
+```
+
+조금 더 빠르게 실행하고 싶을 때는 동시성을 2로 올린 balanced alias를 사용합니다.
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run runner:full:balanced -- --roles frontend,java,rust,mobile "요청 내용"
+```
+
+### 적용 리허설
+
+실제 파일에 적용하고 검증한 뒤 자동 롤백합니다. 파이프라인 테스트와 위험도 확인에 사용합니다.
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run runner:full:rehearse -- --roles frontend --worker-provider openai --apply-provider openai --continue-on-error "요청 내용"
+```
+
+기존 run을 대상으로 리허설할 때는 다음 alias를 사용합니다.
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run runner:workflow:rehearse -- <run-id> --roles java --worker-provider openai --apply-provider openai --continue-on-error
+```
+
+### 실패 후 재시도
+
+worker 결과가 이미 생성되어 있고 apply 또는 verification만 다시 시도하면 되는 경우 사용합니다.
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run runner:workflow:reuse -- <run-id> --roles mobile --apply-provider openai --apply --rollback-after-verify --continue-on-error
+```
+
+### alias 선택 기준
+
+| alias | 목적 | 비용 특성 |
+| --- | --- | --- |
+| `runner:full:safe` | 기본 계획/worker 확인 | 가장 보수적 |
+| `runner:full:balanced` | 전체 역할을 조금 빠르게 확인 | 속도와 TPM 균형 |
+| `runner:full:rehearse` | 적용 후 검증 및 자동 롤백 | apply 비용 포함 |
+| `runner:workflow:safe` | 기존 run을 compact/concurrency 1로 처리 | 재실행 범위 제어 |
+| `runner:workflow:balanced` | 기존 run을 compact/concurrency 2로 처리 | 역할이 많을 때 사용 |
+| `runner:workflow:rehearse` | 기존 run에서 적용 리허설 | 안전 검증용 |
+| `runner:workflow:reuse` | worker 결과 재사용 | 실패 재시도 비용 절감 |
+
+운영 기본값은 `safe`입니다. `balanced`는 요청이 명확하고 rate limit 여유가 있을 때만 사용합니다.

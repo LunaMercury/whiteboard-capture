@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResult, readWorkerResults, readWorkerTask, writeWorkerResult } from "./packetStore.js";
 import { normalizeRepoRelativePath } from "./pathSafety.js";
-import { estimateApiUsageCost, formatEstimatedUsd, summarizeApiUsage, summarizeApiUsageBreakdown } from "./apiUsage.js";
+import { estimateApiUsageCost, formatEstimatedUsd, summarizeApiUsage } from "./apiUsage.js";
 import { describeOpenAIReasoning, parseOpenAIReasoningEffort } from "./openaiOptions.js";
 import {
   countDisplayStatuses,
@@ -1014,9 +1014,6 @@ function printFinalTerminalSummary(
   const proposedEdits = results.reduce((sum, result) => sum + (result.proposedEdits?.length ?? 0), 0);
   const apiUsage = summarizeApiUsage(manifest);
   const apiCost = estimateApiUsageCost(apiUsage);
-  const apiBreakdown = summarizeApiUsageBreakdown(apiUsage);
-  const workerCost = apiBreakdown.byStage.find((item) => item.key === "worker")?.estimatedUsd ?? 0;
-  const applyCost = apiBreakdown.byStage.find((item) => item.key === "apply")?.estimatedUsd ?? 0;
   const verificationRun = Array.from(new Set(results.flatMap((result) => result.verificationRun)));
   const verificationLogs = rollbackSummary.verificationLogs ?? [];
   const verificationFailed = verificationLogs.some((log) => log.status !== 0);
@@ -1051,10 +1048,7 @@ function printFinalTerminalSummary(
   console.log(`Changed files recorded: ${changedFiles}`);
   console.log(`Proposed edits: ${proposedEdits}`);
   console.log(`API usage: calls=${apiUsage.calls}, total_tokens=${apiUsage.totalTokens}, input_tokens=${apiUsage.inputTokens}, output_tokens=${apiUsage.outputTokens}`);
-  console.log(`API cost: total=${formatEstimatedUsd(apiCost.estimatedUsd)}, worker=${formatEstimatedUsd(workerCost)}, apply=${formatEstimatedUsd(applyCost)}, priced_calls=${apiCost.pricedCalls}, unpriced_calls=${apiCost.unpricedCalls}`);
-  if (apiBreakdown.byRole.length > 0) {
-    console.log(`API cost by role: ${apiBreakdown.byRole.map((item) => `${item.key}=${formatEstimatedUsd(item.estimatedUsd)}`).join(", ")}`);
-  }
+  console.log(`API cost: estimated_usd=${formatEstimatedUsd(apiCost.estimatedUsd)}, priced_calls=${apiCost.pricedCalls}, unpriced_calls=${apiCost.unpricedCalls}`);
   if (apiCost.unpricedModels.length > 0) {
     console.log(`API cost warning: missing price for ${apiCost.unpricedModels.join(", ")}`);
   }

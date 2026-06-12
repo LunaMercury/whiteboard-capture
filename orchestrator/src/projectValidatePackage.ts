@@ -26,6 +26,7 @@ const requiredFiles = [
   path.join("orchestrator", "config", "project-templates.yaml"),
   path.join("orchestrator", "src", "runnerFull.ts"),
   path.join("orchestrator", "src", "runnerWorkflow.ts"),
+  path.join("orchestrator", "src", "runnerDoctor.ts"),
   path.join("orchestrator", "src", "projectPackage.ts"),
   path.join("orchestrator", "src", "projectValidatePackage.ts"),
 ];
@@ -56,6 +57,7 @@ const requiredScripts = [
   "runner:workflow:balanced",
   "runner:workflow:rehearse",
   "runner:workflow:reuse",
+  "runner:doctor",
   "project:package",
   "project:validate-package",
 ];

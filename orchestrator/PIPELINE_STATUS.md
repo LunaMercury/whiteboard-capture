@@ -398,3 +398,19 @@ HTML report: ...\report.html
   - `warning`: 진행은 가능하지만 확인 필요
   - `failed`: 필수 요소 누락으로 진행 전 수정 필요
 - API 비용: 없음. 로컬 파일/명령 점검만 수행
+
+## 2026-06-12 runner doctor 보일러플레이트 검증 연결
+
+- 대상: 패키징/보일러플레이트 리허설 경로
+- 보강 내용:
+  - `project:validate-package`가 `orchestrator/src/runnerDoctor.ts` 파일 존재 여부 확인
+  - `project:validate-package`가 `runner:doctor` package script 존재 여부 확인
+  - `ci:dry-run` 시작 단계에 `runner:doctor --compact` 실행 추가
+  - `project:package` 완료 안내에 target orchestrator에서 `runner:doctor --compact`를 먼저 실행하도록 추가
+  - `runner:doctor` 자체도 `runner:doctor` script 존재 여부를 검사
+- 검증:
+  - `npx tsc -p tsconfig.json --noEmit` 통과
+  - `npm run runner:doctor -- --compact` 통과. 현재 작업 중 변경사항 때문에 `git clean`만 warning
+  - `npm run ci:dry-run` 통과
+  - `CreatorTemp` 아래 임시 패키지 대상에 `project:package` 실행 후 `project:validate-package` 통과
+- API 비용: 없음. mock/test provider와 로컬 검증만 사용

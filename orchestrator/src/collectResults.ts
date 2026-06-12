@@ -2,7 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResults } from "./packetStore.js";
 import { countDisplayStatuses, getDisplayStatus } from "./resultClassification.js";
-import { estimateApiUsageCost, formatEstimatedUsd, summarizeApiUsage } from "./apiUsage.js";
+import { estimateApiUsageCost, formatEstimatedUsd, summarizeApiUsage, summarizeApiUsageBreakdown } from "./apiUsage.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,6 +24,7 @@ async function main() {
   const results = readWorkerResults(manifest);
   const apiUsage = summarizeApiUsage(manifest);
   const apiCost = estimateApiUsageCost(apiUsage);
+  const apiBreakdown = summarizeApiUsageBreakdown(apiUsage);
 
   const statusCounts = countDisplayStatuses(results);
 
@@ -46,6 +47,14 @@ async function main() {
   console.log(`  estimated_cost_usd: ${formatEstimatedUsd(apiCost.estimatedUsd)}`);
   console.log(`  priced_calls: ${apiCost.pricedCalls}`);
   console.log(`  unpriced_calls: ${apiCost.unpricedCalls}`);
+  console.log("  by_stage:");
+  for (const item of apiBreakdown.byStage) {
+    console.log(`    ${item.key}: calls=${item.calls}, total_tokens=${item.totalTokens}, estimated_cost_usd=${formatEstimatedUsd(item.estimatedUsd)}`);
+  }
+  console.log("  by_role:");
+  for (const item of apiBreakdown.byRole) {
+    console.log(`    ${item.key}: calls=${item.calls}, total_tokens=${item.totalTokens}, estimated_cost_usd=${formatEstimatedUsd(item.estimatedUsd)}`);
+  }
   if (apiCost.unpricedModels.length > 0) {
     console.log(`  unpriced_models: ${apiCost.unpricedModels.join(", ")}`);
   }

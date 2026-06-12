@@ -22,6 +22,8 @@ import {
   estimateApiUsageCost,
   formatEstimatedUsd,
   summarizeApiUsage,
+  summarizeApiUsageBreakdown,
+  type ApiUsageBreakdown,
   type ApiUsageCostSummary,
   type ApiUsageSummary,
 } from "./apiUsage.js";
@@ -112,6 +114,7 @@ function renderFinalReport(
   blockedReasons: string[],
   apiUsage: ApiUsageSummary,
   apiCost: ApiUsageCostSummary,
+  apiBreakdown: ApiUsageBreakdown,
 ) {
   const lines = [
     "# Finalized Runner Report",
@@ -138,6 +141,25 @@ function renderFinalReport(
   lines.push(`- unpriced_calls: ${apiCost.unpricedCalls}`);
   if (apiCost.unpricedModels.length > 0) {
     lines.push(`- unpriced_models: ${apiCost.unpricedModels.join(", ")}`);
+  }
+
+  lines.push("");
+  lines.push("## API Cost Breakdown");
+  lines.push("### By Stage");
+  if (apiBreakdown.byStage.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const item of apiBreakdown.byStage) {
+      lines.push(`- ${item.key}: calls=${item.calls}, total_tokens=${item.totalTokens}, estimated_cost_usd=${formatEstimatedUsd(item.estimatedUsd)}`);
+    }
+  }
+  lines.push("### By Role");
+  if (apiBreakdown.byRole.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const item of apiBreakdown.byRole) {
+      lines.push(`- ${item.key}: calls=${item.calls}, total_tokens=${item.totalTokens}, estimated_cost_usd=${formatEstimatedUsd(item.estimatedUsd)}`);
+    }
   }
 
   lines.push("");
@@ -254,12 +276,18 @@ function renderHtmlReport(input: {
   blockedReasons: string[];
   apiUsage: ApiUsageSummary;
   apiCost: ApiUsageCostSummary;
+  apiBreakdown: ApiUsageBreakdown;
 }) {
   const statusCards = renderStatusCards(input.statusCounts) || "<p>No worker status collected.</p>";
   const workerCards = input.results.map(renderWorkerCard).join("");
   const apiRows = input.apiUsage.records
     .map((record) => `<tr><td>${escapeHtml(record.stage)}</td><td>${escapeHtml(record.role)}</td><td>${escapeHtml(record.model)}</td><td>${record.usage.inputTokens}</td><td>${record.usage.outputTokens}</td><td>${record.usage.totalTokens}</td></tr>`)
     .join("");
+  const apiBreakdownRows = input.apiBreakdown.byStageRole
+    .map((item) => `<tr><td>${escapeHtml(item.key)}</td><td>${item.calls}</td><td>${item.inputTokens}</td><td>${item.outputTokens}</td><td>${item.totalTokens}</td><td>${escapeHtml(formatEstimatedUsd(item.estimatedUsd))}</td></tr>`)
+    .join("");
+  const workerStageCost = input.apiBreakdown.byStage.find((item) => item.key === "worker")?.estimatedUsd ?? 0;
+  const applyStageCost = input.apiBreakdown.byStage.find((item) => item.key === "apply")?.estimatedUsd ?? 0;
 
   return `<!doctype html>
 <html lang="ko">
@@ -362,8 +390,11 @@ function renderHtmlReport(input: {
       <article class="card"><span>output tokens</span><strong>${input.apiUsage.outputTokens}</strong></article>
       <article class="card"><span>total tokens</span><strong>${input.apiUsage.totalTokens}</strong></article>
       <article class="card"><span>estimated cost</span><strong>${escapeHtml(formatEstimatedUsd(input.apiCost.estimatedUsd))}</strong></article>
+      <article class="card"><span>worker cost</span><strong>${escapeHtml(formatEstimatedUsd(workerStageCost))}</strong></article>
+      <article class="card"><span>apply cost</span><strong>${escapeHtml(formatEstimatedUsd(applyStageCost))}</strong></article>
     </section>
     ${input.apiUsage.records.length > 0 ? `<section class="section" style="margin-top:16px; overflow:auto;"><table><thead><tr><th>stage</th><th>role</th><th>model</th><th>input</th><th>output</th><th>total</th></tr></thead><tbody>${apiRows}</tbody></table></section>` : ""}
+    ${input.apiBreakdown.byStageRole.length > 0 ? `<section class="section" style="margin-top:16px; overflow:auto;"><h3>Cost by stage and role</h3><table><thead><tr><th>stage:role</th><th>calls</th><th>input</th><th>output</th><th>total</th><th>estimated cost</th></tr></thead><tbody>${apiBreakdownRows}</tbody></table></section>` : ""}
 
     <h2>Workers</h2>
     <section class="workers">${workerCards}</section>
@@ -405,6 +436,7 @@ async function main() {
   const finalSummary = buildFinalSummary(results);
   const apiUsage = summarizeApiUsage(manifest);
   const apiCost = estimateApiUsageCost(apiUsage);
+  const apiBreakdown = summarizeApiUsageBreakdown(apiUsage);
 
   summary.verifierReport = {
     summary: `Finalized worker collection. ${finalSummary}`,
@@ -426,6 +458,7 @@ async function main() {
     blockedReasons,
     apiUsage,
     apiCost,
+    apiBreakdown,
   );
   const htmlReportPath = path.join(manifest.runDir, "report.html");
   const htmlReport = renderHtmlReport({
@@ -441,6 +474,7 @@ async function main() {
     blockedReasons,
     apiUsage,
     apiCost,
+    apiBreakdown,
   });
 
   writeRunnerManifest(orchestratorRoot, manifest);

@@ -344,3 +344,21 @@ HTML report: ...\report.html
   - 임시 untracked 파일 추가 후 reuse 시도 시 repository state 변경으로 차단 확인
   - `npx tsc -p tsconfig.json --noEmit` 통과
 - API 비용: 없음. mock/test provider와 로컬 타입 검증만 사용
+
+## 2026-06-12 API 비용 리포트 분해 표시 개선
+
+- 대상: `runner:workflow`, `runner:collect`, `runner:finalize`, Markdown/HTML report
+- 보강 내용:
+  - `worker` 단계와 `apply` 단계의 추정 비용을 분리 표시
+  - `frontend`, `java`, `rust`, `mobile` 역할별 추정 비용 표시
+  - `report.md`에 `API Cost Breakdown` 섹션 추가
+  - `report.html`에 `worker cost`, `apply cost`, `Cost by stage and role` 표 추가
+  - `runner:collect` 출력에 `by_stage`, `by_role` 비용 요약 추가
+- 사용자가 봐야 할 위치:
+  - 터미널에서는 마지막 `Final Summary`의 `API cost`와 `API cost by role`
+  - 자세한 내역은 `runs/<run-id>/report.md` 또는 `runs/<run-id>/report.html`
+- 검증:
+  - `npx tsc -p tsconfig.json --noEmit` 통과
+  - 기존 run `run-2026-06-11T13-28-40-485Z` 대상으로 `runner:collect --compact` 확인
+  - 같은 run 대상으로 `runner:finalize --compact` 확인
+- API 비용: 없음. 기존 저장된 usage metadata와 로컬 타입 검증만 사용

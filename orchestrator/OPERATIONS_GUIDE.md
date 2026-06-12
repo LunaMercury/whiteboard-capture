@@ -140,6 +140,9 @@ runner:workflow: exit=...
 - `Rollback: succeeded`이면 테스트 적용으로 생긴 파일 변경은 되돌아간 상태입니다.
 - `Verification: recorded`는 worker가 검증 수행 사실을 기록한 상태입니다. 실제 로컬 검증 로그가 필요하면 해당 `.skills` 스크립트를 직접 실행합니다.
 - `API cost`는 OpenAI provider 호출의 추정 비용입니다. `.skills/verify-*.ps1` 자체는 OpenAI API 비용을 만들지 않습니다.
+- `API cost: total=..., worker=..., apply=...`에서 `worker`는 계획/제안 생성 비용이고, `apply`는 실제 파일 수정안을 적용하는 비용입니다.
+- `API cost by role`은 `frontend`, `java`, `rust`, `mobile` 중 어느 역할에서 비용이 발생했는지 보여줍니다.
+- 더 자세한 비용 분해는 `runs/<run-id>/report.md`의 `API Cost Breakdown` 또는 `report.html`의 `Cost by stage and role` 표에서 확인합니다.
 
 ## 검증 명령
 

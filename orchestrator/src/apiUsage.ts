@@ -41,6 +41,21 @@ type ModelTokenPrice = {
   outputUsdPerMillion: number;
 };
 
+export type ApiUsageBreakdownItem = {
+  key: string;
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  estimatedUsd: number;
+};
+
+export type ApiUsageBreakdown = {
+  byStage: ApiUsageBreakdownItem[];
+  byRole: ApiUsageBreakdownItem[];
+  byStageRole: ApiUsageBreakdownItem[];
+};
+
 const defaultModelPrices: Record<string, ModelTokenPrice> = {
   "gpt-4.1": { inputUsdPerMillion: 2, outputUsdPerMillion: 8 },
   "gpt-5": { inputUsdPerMillion: 1.25, outputUsdPerMillion: 10 },
@@ -163,6 +178,56 @@ export function estimateApiUsageCost(apiUsage: ApiUsageSummary): ApiUsageCostSum
     pricedCalls,
     unpricedCalls: apiUsage.records.length - pricedCalls,
     unpricedModels: [...unpricedModels].sort(),
+  };
+}
+
+function estimateRecordCost(record: ApiUsageRecord, overrides: Record<string, ModelTokenPrice>) {
+  const price = getModelPrice(record.model, overrides);
+  if (!price) {
+    return 0;
+  }
+
+  return (
+    (record.usage.inputTokens / 1_000_000) * price.inputUsdPerMillion
+    + (record.usage.outputTokens / 1_000_000) * price.outputUsdPerMillion
+  );
+}
+
+function summarizeRecordsBy(
+  records: ApiUsageRecord[],
+  keyOf: (record: ApiUsageRecord) => string,
+  overrides: Record<string, ModelTokenPrice>,
+): ApiUsageBreakdownItem[] {
+  const items = new Map<string, ApiUsageBreakdownItem>();
+
+  for (const record of records) {
+    const key = keyOf(record);
+    const current = items.get(key) ?? {
+      key,
+      calls: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      estimatedUsd: 0,
+    };
+
+    current.calls += 1;
+    current.inputTokens += record.usage.inputTokens;
+    current.outputTokens += record.usage.outputTokens;
+    current.totalTokens += record.usage.totalTokens;
+    current.estimatedUsd += estimateRecordCost(record, overrides);
+    items.set(key, current);
+  }
+
+  return [...items.values()].sort((left, right) => left.key.localeCompare(right.key));
+}
+
+export function summarizeApiUsageBreakdown(apiUsage: ApiUsageSummary): ApiUsageBreakdown {
+  const overrides = readPricingOverrides();
+  return {
+    byStage: summarizeRecordsBy(apiUsage.records, (record) => record.stage, overrides),
+    byRole: summarizeRecordsBy(apiUsage.records, (record) => record.role, overrides),
+    byStageRole: summarizeRecordsBy(apiUsage.records, (record) => `${record.stage}:${record.role}`, overrides),
   };
 }
 

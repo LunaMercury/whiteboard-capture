@@ -28,6 +28,22 @@ cd "D:\개발\whiteboard capture\orchestrator"
 & "C:\Program Files\nodejs\npm.cmd" run project:package -- --target "D:\개발\new-project" --name "New Project" --goal "Describe the product outcome"
 ```
 
+## 복사 리허설
+
+보일러플레이트 복사가 가능한지 빠르게 확인하려면 임시 폴더에 패키징하고 `project:validate-package`까지 자동 실행합니다.
+OpenAI API를 호출하지 않으며, 기본 실행 후 임시 폴더를 삭제합니다.
+
+```powershell
+cd "D:\개발\whiteboard capture\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" run project:rehearse-package
+```
+
+생성된 임시 폴더를 보존하고 싶다면 `--keep`을 사용합니다.
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run project:rehearse-package -- --keep
+```
+
 ## 안전장치
 
 - 현재 프로젝트 루트에는 패키징하지 않습니다.

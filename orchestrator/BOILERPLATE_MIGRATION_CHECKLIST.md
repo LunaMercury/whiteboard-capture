@@ -64,6 +64,8 @@
 ```powershell
 cd "D:\개발\whiteboard capture\orchestrator"
 
+& "C:\Program Files\nodejs\npm.cmd" run project:rehearse-package
+
 & "C:\Program Files\nodejs\npm.cmd" run project:package -- --target "D:\개발\boilertest" --name "Boiler Test" --goal "Reusable orchestrator boilerplate rehearsal" --force
 
 & "C:\Program Files\nodejs\npm.cmd" run project:validate-package -- --target "D:\개발\boilertest"
@@ -89,6 +91,7 @@ cd "D:\개발\boilertest\orchestrator"
 - [ ] `orchestrator/PIPELINE_STATUS.md`는 복사되지 않았습니다.
 - [ ] `orchestrator/runs/`는 복사되지 않았습니다.
 - [ ] `.env`와 `.env.local`은 복사되지 않았습니다.
+- [ ] 원본 orchestrator에서 `npm run project:rehearse-package`가 성공합니다.
 
 비용 절감 alias 확인:
 

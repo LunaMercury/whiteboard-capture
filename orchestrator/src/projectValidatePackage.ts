@@ -28,6 +28,7 @@ const requiredFiles = [
   path.join("orchestrator", "src", "runnerWorkflow.ts"),
   path.join("orchestrator", "src", "runnerDoctor.ts"),
   path.join("orchestrator", "src", "projectPackage.ts"),
+  path.join("orchestrator", "src", "projectRehearsePackage.ts"),
   path.join("orchestrator", "src", "projectValidatePackage.ts"),
 ];
 
@@ -59,6 +60,7 @@ const requiredScripts = [
   "runner:workflow:reuse",
   "runner:doctor",
   "project:package",
+  "project:rehearse-package",
   "project:validate-package",
 ];
 

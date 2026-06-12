@@ -30,6 +30,12 @@ warning도 CI에서 실패로 다루고 싶다면 `--strict`를 추가합니다.
 & "C:\Program Files\nodejs\npm.cmd" run runner:doctor -- --compact --strict
 ```
 
+보일러플레이트 복사가 가능한지 빠르게 확인하려면 다음 명령을 사용합니다. 임시 폴더에 패키징하고 검증한 뒤 기본적으로 삭제합니다.
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run project:rehearse-package
+```
+
 ### 1. 계획과 worker 결과만 확인
 
 실제 파일은 수정하지 않습니다. 비용과 작업 범위를 먼저 확인할 때 사용합니다.

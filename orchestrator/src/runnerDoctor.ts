@@ -104,6 +104,7 @@ function checkPackageScripts(orchestratorRoot: string): CheckResult {
     "runner:workflow:reuse",
     "runner:doctor",
     "project:package",
+    "project:rehearse-package",
     "project:validate-package",
     "ci:dry-run",
   ];

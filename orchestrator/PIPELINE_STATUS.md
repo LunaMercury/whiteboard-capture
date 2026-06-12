@@ -427,3 +427,22 @@ HTML report: ...\report.html
   - `PIPELINE_STATUS.md`는 현재 프로젝트 운영 이력이라 재사용 패키지에는 포함하지 않는 것이 맞음
   - 실제 apply workflow 전에는 대상 프로젝트에서 `git init`과 첫 커밋을 완료하는 것이 안전함
 - API 비용: 없음. 로컬 검증만 사용
+
+## 2026-06-12 보일러플레이트 복사 리허설 명령 추가
+
+- 추가 명령: `npm run project:rehearse-package`
+- 목적:
+  - 임시 폴더에 reusable orchestrator package를 생성
+  - `project:validate-package`까지 자동 실행
+  - 기본 실행 후 임시 폴더 삭제
+  - `--keep` 사용 시 임시 폴더 보존
+- 보강 내용:
+  - `project:rehearse-package` package script 추가
+  - `projectValidatePackage`와 `runnerDoctor`의 필수 script 목록에 추가
+  - `projectRehearsePackage.ts` 추가
+  - `PACKAGING.md`, `OPERATIONS_GUIDE.md`, `BOILERPLATE_MIGRATION_CHECKLIST.md`에 사용법 반영
+- 검증:
+  - `npx tsc -p tsconfig.json --noEmit` 통과
+  - `npm run runner:doctor -- --compact` 통과. 현재 작업 중 변경사항 때문에 `git clean`만 warning
+  - `npm run project:rehearse-package` 통과
+- API 비용: 없음. 로컬 패키징/검증만 사용

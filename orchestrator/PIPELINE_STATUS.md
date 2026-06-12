@@ -381,3 +381,20 @@ HTML report: ...\report.html
   - `npx tsc -p tsconfig.json --noEmit` 통과
   - `runner:full:mock --compact --roles frontend --worker-provider test --max-cost-usd 0.01`로 옵션 전달 및 헤더 출력 확인
 - API 비용: 없음. mock/test provider와 로컬 타입 검증만 사용
+
+## 2026-06-12 runner 사전 점검 명령 추가
+
+- 추가 명령: `npm run runner:doctor -- --compact`
+- 목적:
+  - 오케스트레이션 실행 전에 로컬 환경과 필수 파일이 준비되어 있는지 빠르게 확인
+  - OpenAI API 호출 전에 깨질 가능성이 높은 설정 누락을 먼저 발견
+- 점검 항목:
+  - Node/npm/git 사용 가능 여부
+  - Git worktree 상태
+  - 필수 package script 존재 여부
+  - `AGENTS.md`, `.skills/verify-*.ps1`, 운영 문서, 보일러플레이트 템플릿 존재 여부
+- 결과:
+  - `ok`: 바로 진행 가능
+  - `warning`: 진행은 가능하지만 확인 필요
+  - `failed`: 필수 요소 누락으로 진행 전 수정 필요
+- API 비용: 없음. 로컬 파일/명령 점검만 수행

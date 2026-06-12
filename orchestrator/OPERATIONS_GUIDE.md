@@ -13,6 +13,15 @@
 
 ## 가장 많이 쓰는 명령
 
+### 0. 작업 전 빠른 점검
+
+로컬 도구, 필수 스크립트, 정책 문서, 검증 파일이 준비되어 있는지 확인합니다. OpenAI API를 호출하지 않으므로 비용이 들지 않습니다.
+
+```powershell
+cd "D:\개발\whiteboard capture\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" run runner:doctor -- --compact
+```
+
 ### 1. 계획과 worker 결과만 확인
 
 실제 파일은 수정하지 않습니다. 비용과 작업 범위를 먼저 확인할 때 사용합니다.

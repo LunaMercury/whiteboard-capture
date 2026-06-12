@@ -42,6 +42,7 @@ type Args = {
   cleanupRuns: boolean;
   cleanupDryRun: boolean;
   compact: boolean;
+  maxCostUsd?: number;
   workerModel?: string;
   applyModel?: string;
   workerReasoning?: string;
@@ -83,6 +84,9 @@ function parseArgs(argv: string[]): Args {
   let applyModel: string | undefined;
   let workerReasoning: string | undefined;
   let applyReasoning: string | undefined;
+  let maxCostUsd = process.env.RUNNER_MAX_COST_USD
+    ? Number.parseFloat(process.env.RUNNER_MAX_COST_USD)
+    : undefined;
   let concurrency = Number.parseInt(process.env.RUNNER_CONCURRENCY || "1", 10);
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -127,6 +131,11 @@ function parseArgs(argv: string[]): Args {
     }
     if (item === "--continue-on-error") {
       continueOnError = true;
+      continue;
+    }
+    if (item === "--max-cost-usd") {
+      maxCostUsd = Number.parseFloat(argv[index + 1] || "");
+      index += 1;
       continue;
     }
     if (item === "--apply-review") {
@@ -197,7 +206,7 @@ function parseArgs(argv: string[]): Args {
 
   if (!runId) {
     throw new Error(
-      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--worker-model model] [--apply-model model] [--worker-reasoning minimal|low|medium|high|none] [--apply-reasoning minimal|low|medium|high|none] [--roles frontend,java] [--concurrency 2] [--apply] [--rollback-after-verify|--keep-applied] [--compact] [--allow-dirty] [--apply-review] [--approve-contract-changes] [--approve-open-questions] [--continue-on-error] [--skip-workers] [--reuse-worker-results] [--verify-all] [--skip-finalize] [--skip-cleanup|--cleanup-dry-run]",
+      "Usage: npm run runner:workflow -- <run-id> [--worker-provider openai|claude|manual|test] [--apply-provider openai|manual|test] [--worker-model model] [--apply-model model] [--worker-reasoning minimal|low|medium|high|none] [--apply-reasoning minimal|low|medium|high|none] [--roles frontend,java] [--concurrency 2] [--max-cost-usd 0.10] [--apply] [--rollback-after-verify|--keep-applied] [--compact] [--allow-dirty] [--apply-review] [--approve-contract-changes] [--approve-open-questions] [--continue-on-error] [--skip-workers] [--reuse-worker-results] [--verify-all] [--skip-finalize] [--skip-cleanup|--cleanup-dry-run]",
     );
   }
 
@@ -218,6 +227,9 @@ function parseArgs(argv: string[]): Args {
   }
   if (applyReasoning) {
     parseOpenAIReasoningEffort(applyReasoning, "--apply-reasoning");
+  }
+  if (maxCostUsd !== undefined && (!Number.isFinite(maxCostUsd) || maxCostUsd < 0)) {
+    throw new Error("--max-cost-usd must be a non-negative number.");
   }
 
   return {
@@ -241,6 +253,7 @@ function parseArgs(argv: string[]): Args {
     cleanupRuns,
     cleanupDryRun,
     compact,
+    maxCostUsd,
     workerModel,
     applyModel,
     workerReasoning,
@@ -1062,8 +1075,32 @@ function printFinalTerminalSummary(
   console.log(`HTML report: ${path.join(manifest.runDir, "report.html")}`);
 }
 
+function assertCostBudget(
+  manifest: ReturnType<typeof readRunnerManifest>,
+  maxCostUsd: number | undefined,
+  context: string,
+) {
+  if (maxCostUsd === undefined) {
+    return;
+  }
+
+  const apiUsage = summarizeApiUsage(manifest);
+  const apiCost = estimateApiUsageCost(apiUsage);
+  if (apiCost.estimatedUsd <= maxCostUsd) {
+    return;
+  }
+
+  throw new Error(
+    [
+      `API cost budget exceeded before ${context}.`,
+      `estimated_usd=${formatEstimatedUsd(apiCost.estimatedUsd)}, max_cost_usd=${formatEstimatedUsd(maxCostUsd)}`,
+      "No further apply steps were run. Re-run with a higher --max-cost-usd only after reviewing the report.",
+    ].join("\n"),
+  );
+}
+
 async function main() {
-  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, approveOpenQuestions, applyEdits, allowDirty, skipWorkers, reuseWorkerResults, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, keepApplied, cleanupRuns, cleanupDryRun, compact, workerModel, applyModel, workerReasoning, applyReasoning } = parseArgs(
+  const { runId, workerProvider, applyProvider, roles, continueOnError, applyReview, approveContractChanges, approveOpenQuestions, applyEdits, allowDirty, skipWorkers, reuseWorkerResults, verifyAll, skipFinalize, concurrency, rollbackAfterVerify, keepApplied, cleanupRuns, cleanupDryRun, compact, maxCostUsd, workerModel, applyModel, workerReasoning, applyReasoning } = parseArgs(
     process.argv.slice(2),
   );
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -1141,6 +1178,7 @@ async function main() {
   console.log(`Keep applied edits: ${keepApplied ? "yes" : "no"}`);
   console.log(`Cleanup runs: ${cleanupRuns ? "yes" : "no"}`);
   console.log(`Cleanup dry run: ${cleanupDryRun ? "yes" : "no"}`);
+  console.log(`Max API cost: ${maxCostUsd === undefined ? "none" : formatEstimatedUsd(maxCostUsd)}`);
   console.log(`Compact output: ${compact ? "yes" : "no"}`);
   console.log("");
 
@@ -1314,6 +1352,7 @@ async function main() {
         continue;
       }
 
+      assertCostBudget(manifest, maxCostUsd, `${worker.role} apply review`);
       console.log(`Reviewing apply safety for ${worker.role}.`);
       const applyReviewRun = runNodeScript(
         path.join("src", "applyReview.ts"),
@@ -1347,6 +1386,7 @@ async function main() {
         continue;
       }
 
+      assertCostBudget(manifest, maxCostUsd, `${worker.role} apply preparation`);
       console.log(`Preparing apply for ${worker.role}: ${applyDecision.reason}`);
       const applyPrepare = runNodeScript(
         path.join("src", "applyExecutor.ts"),
@@ -1370,6 +1410,7 @@ async function main() {
         continue;
       }
 
+      assertCostBudget(manifest, maxCostUsd, `${worker.role} apply run`);
       const applyRun = runNodeScript(
         path.join("src", "applyRun.ts"),
         [

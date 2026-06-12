@@ -362,3 +362,22 @@ HTML report: ...\report.html
   - 기존 run `run-2026-06-11T13-28-40-485Z` 대상으로 `runner:collect --compact` 확인
   - 같은 run 대상으로 `runner:finalize --compact` 확인
 - API 비용: 없음. 기존 저장된 usage metadata와 로컬 타입 검증만 사용
+
+## 2026-06-12 API 비용 한도 가드 추가
+
+- 대상: `runner:workflow`, `runner:full`
+- 추가 옵션:
+  - `--max-cost-usd <amount>`
+  - `RUNNER_MAX_COST_USD` 환경변수
+- 동작:
+  - apply review, apply preparation, apply run 직전에 현재까지 기록된 OpenAI API 추정 비용 확인
+  - 한도를 초과하면 추가 apply를 실행하지 않고 workflow를 실패 상태로 종료
+  - `--rollback-after-verify`가 켜져 있으면 기존 rollback 경로 유지
+- 출력:
+  - workflow 헤더에 `Max API cost: $...` 표시
+  - `Final Summary`의 `API cost`는 기존 총액 요약 형식 유지
+  - 상세 비용 분해는 `report.md` / `report.html`에서 확인
+- 검증:
+  - `npx tsc -p tsconfig.json --noEmit` 통과
+  - `runner:full:mock --compact --roles frontend --worker-provider test --max-cost-usd 0.01`로 옵션 전달 및 헤더 출력 확인
+- API 비용: 없음. mock/test provider와 로컬 타입 검증만 사용

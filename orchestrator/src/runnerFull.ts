@@ -21,6 +21,7 @@ const workflowFlagsWithValue = new Set([
   "--apply-reasoning",
   "--roles",
   "--concurrency",
+  "--max-cost-usd",
 ]);
 
 const workflowBooleanFlags = new Set([
@@ -83,7 +84,7 @@ function parseArgs(argv: string[]): Args {
   const request = requestParts.join(" ").trim();
   if (!request) {
     throw new Error(
-      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--worker-provider openai|manual|claude|test] [--apply-provider openai|manual|test] [--worker-model model] [--apply-model model] [--worker-reasoning minimal|low|medium|high|none] [--apply-reasoning minimal|low|medium|high|none] [--apply] [--approve-contract-changes] [--approve-open-questions] [--rollback-after-verify|--keep-applied] \"request\"",
+      "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--max-cost-usd 0.10] [--worker-provider openai|manual|claude|test] [--apply-provider openai|manual|test] [--worker-model model] [--apply-model model] [--worker-reasoning minimal|low|medium|high|none] [--apply-reasoning minimal|low|medium|high|none] [--apply] [--approve-contract-changes] [--approve-open-questions] [--rollback-after-verify|--keep-applied] \"request\"",
     );
   }
 

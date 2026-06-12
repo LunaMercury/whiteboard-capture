@@ -414,3 +414,16 @@ HTML report: ...\report.html
   - `npm run ci:dry-run` 통과
   - `CreatorTemp` 아래 임시 패키지 대상에 `project:package` 실행 후 `project:validate-package` 통과
 - API 비용: 없음. mock/test provider와 로컬 검증만 사용
+
+## 2026-06-12 runner doctor 보일러플레이트 초기 상태 보정
+
+- 보정 내용:
+  - Git 저장소가 아직 초기화되지 않은 복사본에서는 `git worktree`를 실패가 아닌 warning으로 처리
+  - `--strict` 옵션 추가. warning도 실패로 다루고 싶을 때 사용
+  - `PIPELINE_STATUS.md`는 패키징에서 의도적으로 제외되므로 doctor에서 optional warning으로 처리
+  - `project:package` 완료 안내에 Git 초기화 전 warning이 정상일 수 있음을 명시
+- 이유:
+  - 보일러플레이트 복사 직후에는 아직 `.git`이 없을 수 있음
+  - `PIPELINE_STATUS.md`는 현재 프로젝트 운영 이력이라 재사용 패키지에는 포함하지 않는 것이 맞음
+  - 실제 apply workflow 전에는 대상 프로젝트에서 `git init`과 첫 커밋을 완료하는 것이 안전함
+- API 비용: 없음. 로컬 검증만 사용

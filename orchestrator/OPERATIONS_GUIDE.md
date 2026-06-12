@@ -22,6 +22,14 @@ cd "D:\개발\whiteboard capture\orchestrator"
 & "C:\Program Files\nodejs\npm.cmd" run runner:doctor -- --compact
 ```
 
+복사 직후 아직 Git 저장소가 아닌 프로젝트에서는 `git worktree`가 warning으로 표시될 수 있습니다. 실제 apply workflow를 사용하기 전에는 대상 프로젝트에서 `git init`과 첫 커밋을 완료하는 것이 좋습니다.
+
+warning도 CI에서 실패로 다루고 싶다면 `--strict`를 추가합니다.
+
+```powershell
+& "C:\Program Files\nodejs\npm.cmd" run runner:doctor -- --compact --strict
+```
+
 ### 1. 계획과 worker 결과만 확인
 
 실제 파일은 수정하지 않습니다. 비용과 작업 범위를 먼저 확인할 때 사용합니다.

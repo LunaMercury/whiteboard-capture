@@ -15,6 +15,7 @@ type CheckResult = {
 function parseArgs(argv: string[]) {
   return {
     compact: argv.includes("--compact") || argv.includes("--summary-only"),
+    strict: argv.includes("--strict"),
   };
 }
 
@@ -125,6 +126,15 @@ function checkPackageScripts(orchestratorRoot: string): CheckResult {
 }
 
 function checkGitClean(repoRoot: string): CheckResult {
+  const insideWorkTree = run("git", ["rev-parse", "--is-inside-work-tree"], repoRoot);
+  if (insideWorkTree.status !== 0) {
+    return {
+      name: "git worktree",
+      status: "warn",
+      detail: "not a git worktree yet; initialize git before running apply workflows",
+    };
+  }
+
   const child = run("git", ["status", "--porcelain"], repoRoot);
   if (child.status !== 0) {
     return {
@@ -154,7 +164,7 @@ function printCheck(result: CheckResult, compact: boolean) {
 }
 
 async function main() {
-  const { compact } = parseArgs(process.argv.slice(2));
+  const { compact, strict } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
   const repoRoot = path.resolve(orchestratorRoot, "..");
 
@@ -172,7 +182,7 @@ async function main() {
     checkFile("verify mobile", path.join(repoRoot, ".skills", "verify-mobile.ps1"), repoRoot),
     checkFile("verify all", path.join(repoRoot, ".skills", "verify-all.ps1"), repoRoot),
     checkFile("operations guide", path.join(orchestratorRoot, "OPERATIONS_GUIDE.md"), repoRoot),
-    checkFile("pipeline status", path.join(orchestratorRoot, "PIPELINE_STATUS.md"), repoRoot),
+    checkFile("pipeline status", path.join(orchestratorRoot, "PIPELINE_STATUS.md"), repoRoot, false),
     checkFile("boilerplate split guide", path.join(orchestratorRoot, "BOILERPLATE_SPLIT_GUIDE.md"), repoRoot),
     checkFile("project config template", path.join(orchestratorRoot, "templates", "project-config", "project.yaml"), repoRoot),
   ];
@@ -183,6 +193,7 @@ async function main() {
   console.log("# Runner Doctor");
   console.log(`Repo: ${repoRoot}`);
   console.log(`Orchestrator: ${orchestratorRoot}`);
+  console.log(`Strict warnings: ${strict ? "yes" : "no"}`);
   console.log("");
   for (const check of checks) {
     printCheck(check, compact);
@@ -190,10 +201,10 @@ async function main() {
 
   console.log("");
   console.log("## Summary");
-  console.log(`Status: ${failed.length > 0 ? "failed" : warned.length > 0 ? "warning" : "ok"}`);
+  console.log(`Status: ${failed.length > 0 || (strict && warned.length > 0) ? "failed" : warned.length > 0 ? "warning" : "ok"}`);
   console.log(`Checks: ok=${checks.filter((check) => check.status === "ok").length}, warn=${warned.length}, fail=${failed.length}`);
 
-  if (failed.length > 0) {
+  if (failed.length > 0 || (strict && warned.length > 0)) {
     process.exit(1);
   }
 }

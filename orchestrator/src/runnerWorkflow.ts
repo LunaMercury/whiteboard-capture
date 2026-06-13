@@ -1027,6 +1027,60 @@ function formatStatusCounts(statusCounts: Record<string, number>) {
     .join(", ") || "none";
 }
 
+function formatRolesArg(roles: WorkerTaskPacket["role"][]) {
+  return roles.join(",");
+}
+
+function buildNextActionLines(args: {
+  manifest: ReturnType<typeof readRunnerManifest>;
+  targetRoles: WorkerTaskPacket["role"][];
+  finalStatus: string;
+  blockedRoles: WorkerTaskPacket["role"][];
+  failedRoles: WorkerTaskPacket["role"][];
+  appliedRoles: Set<WorkerTaskPacket["role"]>;
+  rollbackStatus: string;
+  verificationStatus: string;
+}) {
+  const rolesArg = formatRolesArg(args.targetRoles);
+  const appliedRolesArg = formatRolesArg([...args.appliedRoles]);
+  const lines: string[] = [];
+
+  if (args.finalStatus === "blocked") {
+    lines.push("Review the blocked reason in the report, then either refine the request or explicitly approve the open question/contract change.");
+    lines.push(`If the question is acceptable: npm run runner:reuse-apply -- ${args.manifest.runId} --roles ${formatRolesArg(args.blockedRoles)} --approve-open-questions`);
+    return lines;
+  }
+
+  if (args.finalStatus === "failed") {
+    lines.push("Open the report first and inspect the failed worker/apply/verification section before retrying.");
+    if (args.failedRoles.length > 0) {
+      lines.push(`Retry without new worker calls when proposed edits exist: npm run runner:reuse-apply -- ${args.manifest.runId} --roles ${formatRolesArg(args.failedRoles)}`);
+    }
+    return lines;
+  }
+
+  if (args.rollbackStatus === "succeeded" && args.appliedRoles.size > 0) {
+    lines.push("Rehearsal passed and rollback succeeded; no files were kept.");
+    lines.push(`To keep the same worker result intentionally: npm run runner:workflow -- ${args.manifest.runId} --compact --roles ${appliedRolesArg} --reuse-worker-results --apply-provider openai --apply --keep-applied --concurrency 1 --continue-on-error`);
+    return lines;
+  }
+
+  if (args.appliedRoles.size > 0) {
+    lines.push("Applied edits are still in the worktree. Review diff, run any needed verification, then commit.");
+    lines.push("Suggested checks: git diff --stat && git status --short");
+    return lines;
+  }
+
+  if (args.verificationStatus === "none") {
+    lines.push("No files were applied. Review worker proposals in the report, then run runner:rehearse or runner:apply when ready.");
+    lines.push(`Safe rehearsal: npm run runner:rehearse -- --roles ${rolesArg} "<same request>"`);
+    return lines;
+  }
+
+  lines.push("Review the report and continue with the next role or verification step.");
+  return lines;
+}
+
 function printFinalTerminalSummary(
   manifest: ReturnType<typeof readRunnerManifest>,
   targetRoles: WorkerTaskPacket["role"][],
@@ -1101,6 +1155,20 @@ function printFinalTerminalSummary(
   console.log(`Cleanup: ${cleanupStatus === null ? "not run" : cleanupStatus === 0 ? "succeeded" : `failed(${cleanupStatus})`}`);
   if (blockedReasons.length > 0) {
     console.log(`Reason: ${blockedReasons.join(" | ")}`);
+  }
+  const nextActionLines = buildNextActionLines({
+    manifest,
+    targetRoles,
+    finalStatus,
+    blockedRoles,
+    failedRoles,
+    appliedRoles,
+    rollbackStatus,
+    verificationStatus,
+  });
+  console.log("Next action:");
+  for (const line of nextActionLines) {
+    console.log(`- ${line}`);
   }
   console.log(`Report: ${manifest.reportPath}`);
   console.log(`HTML report: ${path.join(manifest.runDir, "report.html")}`);

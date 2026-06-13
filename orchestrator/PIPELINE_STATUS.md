@@ -549,3 +549,16 @@ HTML report: ...\report.html
 - 보정:
   - `runner:doctor`와 `project:validate-package`의 필수 script 목록에 새 alias를 포함
   - `OPERATIONS_GUIDE.md`와 `README.md`에 빠른 사용 예시 추가
+
+## 2026-06-13 Final Summary 다음 행동 안내 추가
+
+- 변경 내용:
+  - `runner:workflow`의 `Final Summary`에 `Next action` 블록 추가
+  - 성공했지만 apply가 없을 때는 `runner:rehearse` 또는 `runner:apply`로 이어가도록 안내
+  - rollback 리허설이 성공했을 때는 같은 run의 worker 결과를 재사용해 `--keep-applied`로 유지하는 명령을 안내
+  - blocked 상태에서는 report 확인 후 open question 또는 contract change 승인 여부를 판단하도록 안내
+  - failed 상태에서는 report 확인과 worker 결과 재사용 재시도 가능성을 안내
+- 검증:
+  - `npx tsc -p tsconfig.json --noEmit` 통과
+  - `runner:full:mock --compact --roles frontend,java,rust,mobile --worker-provider test "auth flow check"` 통과
+  - `Final Summary`에 `Next action` 출력 확인

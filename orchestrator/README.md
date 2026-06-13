@@ -189,6 +189,9 @@ cd orchestrator
 # 계획과 worker 제안만 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:plan -- --roles frontend,java "요청 내용"
 
+# 비용 없이 plan/worker 흐름만 점검
+"C:\Program Files\nodejs\npm.cmd" run runner:plan:mock -- --roles frontend,java "요청 내용"
+
 # 적용 가능성을 검증하고 자동 롤백
 "C:\Program Files\nodejs\npm.cmd" run runner:rehearse -- --roles frontend "요청 내용"
 

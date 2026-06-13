@@ -18,6 +18,7 @@
 | alias | 언제 사용하나 | 파일 변경 |
 | --- | --- | --- |
 | `runner:plan` | 계획과 worker 제안만 확인 | 없음 |
+| `runner:plan:mock` | 비용 없이 plan/worker 흐름만 점검 | 없음 |
 | `runner:rehearse` | 실제 적용 가능성을 검증하고 자동 롤백 | 검증 후 롤백 |
 | `runner:apply` | 검증된 작업을 실제로 남김 | 변경 유지 |
 | `runner:reuse-apply` | 기존 worker 결과를 재사용해 apply만 재시도 | 검증 후 롤백 |
@@ -28,6 +29,9 @@ cd "D:\개발\whiteboard capture\orchestrator"
 
 # 계획과 worker 결과만 확인
 & "C:\Program Files\nodejs\npm.cmd" run runner:plan -- --roles frontend,java "요청 내용"
+
+# 비용 없이 plan/worker 흐름만 점검
+& "C:\Program Files\nodejs\npm.cmd" run runner:plan:mock -- --roles frontend,java "요청 내용"
 
 # 안전 리허설: 적용, 검증, 자동 롤백
 & "C:\Program Files\nodejs\npm.cmd" run runner:rehearse -- --roles frontend "요청 내용"
@@ -138,6 +142,7 @@ cd "D:\개발\whiteboard capture\orchestrator"
 | 상황 | 추천 옵션 |
 | --- | --- |
 | 계획만 보고 싶음 | `runner:plan` |
+| 비용 없이 plan 흐름만 점검 | `runner:plan:mock` |
 | 실제 적용 전 리허설 | `runner:rehearse` |
 | 실제 변경 유지 | `runner:apply` |
 | 비용을 줄여 재시도 | `runner:reuse-apply` |
@@ -156,7 +161,8 @@ cd "D:\개발\whiteboard capture\orchestrator"
 - review-only 역할은 apply하지 않음
 - `--compact`로 터미널 출력 축소
 - 상세 로그는 `runs/<run-id>/report.md`와 `report.html`에서 확인
-- 간단한 파이프라인 확인은 `runner:full:mock` 사용
+- 간단한 plan 흐름 확인은 `runner:plan:mock` 사용
+- 전체 mock 파이프라인 확인은 `runner:full:mock` 또는 `ci:dry-run` 사용
 
 피해야 할 절감 방식:
 
@@ -252,7 +258,7 @@ powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "..\.skills\
 ## 비용 절감 기본 alias
 
 기본 `runner:full`과 `runner:workflow`의 동작은 유지합니다. 대신 자주 쓰는 저비용/안전 조합은 package script alias로 제공합니다.
-운영 기본 alias는 `runner:plan`, `runner:rehearse`, `runner:apply`, `runner:reuse-apply`입니다.
+운영 기본 alias는 `runner:plan`, `runner:rehearse`, `runner:apply`, `runner:reuse-apply`입니다. 비용 없는 흐름 점검은 `runner:plan:mock`을 사용합니다.
 `runner:full:safe`, `runner:full:balanced`, `runner:workflow:*` 계열은 세부 조정이 필요할 때 사용하는 호환/고급 alias입니다.
 
 ### 계획과 worker 결과 확인

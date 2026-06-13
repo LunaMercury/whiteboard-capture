@@ -591,3 +591,14 @@ HTML report: ...\report.html
 - 검증:
   - `npx tsc -p tsconfig.json --noEmit` 통과
   - 기존 mock run 대상 `runner:continue` 출력 확인
+
+## 2026-06-13 runner plan mock alias 추가
+
+- 추가 alias:
+  - `npm run runner:plan:mock -- --roles <roles> "<request>"`
+- 목적:
+  - OpenAI API 비용 없이 plan/worker 흐름을 빠르게 점검
+  - `runner:plan`의 실제 OpenAI 기본값과 테스트용 mock 흐름을 명확히 분리
+- 결정:
+  - `runner:rehearse:mock`은 mock proposed edits를 실제 apply로 넘겨 혼란을 만들 수 있어 추가하지 않음
+  - apply 없는 plan 흐름 테스트는 `runner:plan:mock`, 전체 파이프라인 mock 검증은 기존 `ci:dry-run`을 사용

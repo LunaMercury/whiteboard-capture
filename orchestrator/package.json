@@ -15,6 +15,7 @@
     "runner:execute": "tsx src/runnerExecute.ts",
     "runner:workflow": "tsx src/runnerWorkflow.ts",
     "runner:plan": "tsx src/runnerFull.ts --compact --worker-provider openai --concurrency 2",
+    "runner:plan:mock": "tsx src/runnerFull.ts --mock --compact --worker-provider test --concurrency 2",
     "runner:rehearse": "tsx src/runnerFull.ts --compact --worker-provider openai --apply-provider openai --apply --rollback-after-verify --concurrency 1 --continue-on-error",
     "runner:apply": "tsx src/runnerFull.ts --compact --worker-provider openai --apply-provider openai --apply --keep-applied --concurrency 1 --continue-on-error",
     "runner:reuse-apply": "tsx src/runnerWorkflow.ts --compact --reuse-worker-results --apply-provider openai --apply --rollback-after-verify --concurrency 1 --continue-on-error",

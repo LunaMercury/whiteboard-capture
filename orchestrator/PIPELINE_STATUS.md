@@ -577,3 +577,17 @@ HTML report: ...\report.html
   - proposed edits가 있으면 `runner:reuse-apply`를 추천해 worker 토큰 재사용 가능
 - 향후 확장:
   - 충분히 검증되면 `--execute` 옵션을 추가해 추천 명령을 실제 실행하는 자동 continue 단계로 확장 가능
+
+## 2026-06-13 runner continue 선택지 안내 강화
+
+- 변경 내용:
+  - blocked 상태에서 승인 진행과 새 요청 재계획을 `Option A/B/C`로 분리
+  - failed 상태에서 상세 확인, worker 결과 재사용 재시도, 새 요청 재계획을 분리
+  - editable succeeded 상태에서 안전 리허설, keep-applied, 새 요청 재계획을 분리
+  - open question과 contract change 여부에 따라 `--approve-open-questions`, `--approve-contract-changes` 플래그를 추천 명령에 자동 포함
+- 목적:
+  - 위험한 변경을 자동 승인하지 않고, 사용자가 명시적으로 승인 또는 재계획을 선택하도록 유도
+  - 향후 `runner:continue --execute` 또는 제한형 `runner:goal`로 확장하기 전 안전한 의사결정 규칙을 먼저 정리
+- 검증:
+  - `npx tsc -p tsconfig.json --noEmit` 통과
+  - 기존 mock run 대상 `runner:continue` 출력 확인

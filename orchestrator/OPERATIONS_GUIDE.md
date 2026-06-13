@@ -194,6 +194,7 @@ runner:workflow: exit=...
 - `Verification: recorded`는 worker가 검증 수행 사실을 기록한 상태입니다. 실제 로컬 검증 로그가 필요하면 해당 `.skills` 스크립트를 직접 실행합니다.
 - `Next action`은 현재 결과에서 이어갈 추천 행동입니다. 짧은 판단에는 이 항목을 먼저 보고, 자세한 근거는 `report.md` 또는 `report.html`에서 확인합니다.
 - 기존 run에서 다음 행동만 다시 확인하려면 `runner:continue -- <run-id>`를 사용합니다. 이 명령은 파일을 수정하지 않습니다.
+- `runner:continue`는 blocked, failed, ready-for-apply 상태를 구분하고 `Option A/B/C` 형태로 승인 진행, 새 요청 재계획, 상세 확인 경로를 보여줍니다.
 - `API cost`는 OpenAI provider 호출의 추정 비용입니다. `.skills/verify-*.ps1` 자체는 OpenAI API 비용을 만들지 않습니다.
 - `Final Summary`의 `API cost`는 짧은 총액 요약만 표시합니다.
 - 더 자세한 비용 분해는 `runs/<run-id>/report.md`의 `API Cost Breakdown` 또는 `report.html`의 `Cost by stage and role` 표에서 확인합니다.

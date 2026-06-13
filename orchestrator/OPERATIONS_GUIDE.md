@@ -31,6 +31,7 @@ warning도 CI에서 실패로 다루고 싶다면 `--strict`를 추가합니다.
 ```
 
 보일러플레이트 복사가 가능한지 빠르게 확인하려면 다음 명령을 사용합니다. 임시 폴더에 패키징하고 검증한 뒤 기본적으로 삭제합니다.
+기본 리허설 경로는 `D:\개발\test` 아래이며, 필요하면 `--target` 또는 `ORCHESTRATOR_REHEARSAL_ROOT`로 바꿀 수 있습니다.
 
 ```powershell
 & "C:\Program Files\nodejs\npm.cmd" run project:rehearse-package

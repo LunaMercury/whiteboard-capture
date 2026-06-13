@@ -453,7 +453,8 @@ HTML report: ...\report.html
 - 복사본 위치:
   - `C:\Users\Public\Documents\ESTsoft\CreatorTemp\orchestrator-package-rehearsal-2026-06-12T13-22-05-213Z`
 - 보정 내용:
-  - 리허설 기본 임시 경로를 Codex에서 접근 가능한 `C:\Users\Public\Documents\ESTsoft\CreatorTemp`로 변경
+  - 당시 리허설 기본 임시 경로를 Codex에서 접근 가능한 `C:\Users\Public\Documents\ESTsoft\CreatorTemp`로 변경
+  - 이후 2026-06-13부터 기본 리허설 경로는 `D:\개발\test`로 전환
   - Git 저장소가 아닌 복사본 dry-run에서는 reuse guard 생성을 fatal error가 아닌 설명형 warning으로 처리
 - 검증:
   - 복사본 `npm install` 성공
@@ -466,3 +467,16 @@ HTML report: ...\report.html
   - `git worktree` warning: 복사 직후 아직 `git init` 전이므로 정상
   - `PIPELINE_STATUS.md` missing warning: 패키징에서 의도적으로 제외하므로 정상
 - API 비용: 없음. test provider와 로컬 검증만 사용
+
+## 2026-06-13 보일러플레이트 리허설 기본 경로 D 드라이브 전환
+
+- 변경 이유:
+  - 리허설과 테스트 산출물을 가능하면 C 드라이브가 아닌 D 드라이브에 보관하기 위함
+  - Codex/로컬 테스트가 만든 임시 복사본을 사용자가 찾고 정리하기 쉽도록 하기 위함
+- 변경 내용:
+  - `project:rehearse-package` 기본 대상 루트를 `D:\개발\test`로 변경
+  - 필요 시 `ORCHESTRATOR_REHEARSAL_ROOT` 환경변수나 `--target` 옵션으로 리허설 위치를 덮어쓸 수 있음
+  - 기존 C 드라이브 `CreatorTemp` 리허설 복사본은 정리 대상
+- 기대 동작:
+  - 기본 실행: `D:\개발\test\orchestrator-package-rehearsal-*` 생성 후 검증, 기본적으로 삭제
+  - `--keep` 실행: 같은 D 드라이브 경로에 복사본 보존

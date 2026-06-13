@@ -534,3 +534,18 @@ HTML report: ...\report.html
   - 새 프로젝트 초기화 전 루트 `.gitignore`를 먼저 만들고 `node_modules/`, `runs/`, `dist/`, `.env`, `.env.local`을 제외해야 함
   - `project:init`과 `runner:doctor`는 루트가 아니라 `orchestrator` 폴더에서 실행해야 함
   - 보일러플레이트 복사본에서는 `PIPELINE_STATUS.md`가 의도적으로 없으므로 `runner:doctor --strict`에서도 optional missing으로 처리하도록 보정
+
+## 2026-06-13 실사용 runner alias 정리
+
+- 추가 alias:
+  - `runner:plan`: 계획과 worker 제안만 확인
+  - `runner:rehearse`: apply, verification, rollback을 한 번에 수행하는 안전 리허설
+  - `runner:apply`: apply 후 변경을 유지하는 실제 적용
+  - `runner:reuse-apply`: 기존 run의 worker 결과를 재사용해 apply만 다시 시도
+- 목적:
+  - 긴 `runner:full`/`runner:workflow` 옵션 조합을 매번 외우지 않아도 되게 함
+  - 기본 사용 흐름을 plan, rehearse, apply, reuse-apply 네 단계로 단순화
+  - 기존 `runner:full:safe`, `runner:full:balanced`, `runner:workflow:*` alias는 호환/고급 옵션으로 유지
+- 보정:
+  - `runner:doctor`와 `project:validate-package`의 필수 script 목록에 새 alias를 포함
+  - `OPERATIONS_GUIDE.md`와 `README.md`에 빠른 사용 예시 추가

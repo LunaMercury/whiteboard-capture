@@ -179,6 +179,26 @@ orchestrator/runs/<run-id>/
 
 ## 현재 사용 가능한 명령
 
+### 0. 실사용 기본 alias
+
+대부분의 작업은 아래 4개 alias 중 하나로 시작합니다.
+
+```powershell
+cd orchestrator
+
+# 계획과 worker 제안만 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:plan -- --roles frontend,java "요청 내용"
+
+# 적용 가능성을 검증하고 자동 롤백
+"C:\Program Files\nodejs\npm.cmd" run runner:rehearse -- --roles frontend "요청 내용"
+
+# 실제 변경을 남김
+"C:\Program Files\nodejs\npm.cmd" run runner:apply -- --roles frontend "요청 내용"
+
+# 기존 run의 worker 결과를 재사용해 apply만 다시 시도
+"C:\Program Files\nodejs\npm.cmd" run runner:reuse-apply -- <run-id> --roles mobile
+```
+
 ### 1. 일반 오케스트레이션 보기
 
 ```powershell

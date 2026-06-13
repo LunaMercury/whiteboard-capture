@@ -105,6 +105,10 @@ function checkFile(name: string, filePath: string, root: string, required = true
 function checkPackageScripts(orchestratorRoot: string): CheckResult {
   const packagePath = path.join(orchestratorRoot, "package.json");
   const requiredScripts = [
+    "runner:plan",
+    "runner:rehearse",
+    "runner:apply",
+    "runner:reuse-apply",
     "runner:full",
     "runner:full:safe",
     "runner:full:rehearse",

@@ -13,6 +13,31 @@
 
 ## 가장 많이 쓰는 명령
 
+먼저 아래 4개 alias만 기억하면 됩니다. 긴 원본 명령은 그대로 남겨두되, 실사용은 이 alias를 기본으로 합니다.
+
+| alias | 언제 사용하나 | 파일 변경 |
+| --- | --- | --- |
+| `runner:plan` | 계획과 worker 제안만 확인 | 없음 |
+| `runner:rehearse` | 실제 적용 가능성을 검증하고 자동 롤백 | 검증 후 롤백 |
+| `runner:apply` | 검증된 작업을 실제로 남김 | 변경 유지 |
+| `runner:reuse-apply` | 기존 worker 결과를 재사용해 apply만 재시도 | 검증 후 롤백 |
+
+```powershell
+cd "D:\개발\whiteboard capture\orchestrator"
+
+# 계획과 worker 결과만 확인
+& "C:\Program Files\nodejs\npm.cmd" run runner:plan -- --roles frontend,java "요청 내용"
+
+# 안전 리허설: 적용, 검증, 자동 롤백
+& "C:\Program Files\nodejs\npm.cmd" run runner:rehearse -- --roles frontend "요청 내용"
+
+# 실제 적용: 성공한 변경을 worktree에 유지
+& "C:\Program Files\nodejs\npm.cmd" run runner:apply -- --roles frontend "요청 내용"
+
+# 기존 run의 worker 결과를 재사용해 apply만 다시 시도
+& "C:\Program Files\nodejs\npm.cmd" run runner:reuse-apply -- <run-id> --roles mobile
+```
+
 ### 0. 작업 전 빠른 점검
 
 로컬 도구, 필수 스크립트, 정책 문서, 검증 파일이 준비되어 있는지 확인합니다. OpenAI API를 호출하지 않으므로 비용이 들지 않습니다.
@@ -108,10 +133,10 @@ cd "D:\개발\whiteboard capture\orchestrator"
 
 | 상황 | 추천 옵션 |
 | --- | --- |
-| 계획만 보고 싶음 | `runner:full --compact` |
-| 실제 적용 전 리허설 | `--apply --rollback-after-verify` |
-| 실제 변경 유지 | `--apply --keep-applied` |
-| 비용을 줄여 재시도 | `--reuse-worker-results` |
+| 계획만 보고 싶음 | `runner:plan` |
+| 실제 적용 전 리허설 | `runner:rehearse` |
+| 실제 변경 유지 | `runner:apply` |
+| 비용을 줄여 재시도 | `runner:reuse-apply` |
 | 출력 줄이기 | `--compact` |
 | TPM rate limit 완화 | `--concurrency 1` 또는 `--concurrency 2` |
 | 전체 검증까지 수행 | `--verify-all` |
@@ -220,6 +245,8 @@ powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "..\.skills\
 ## 비용 절감 기본 alias
 
 기본 `runner:full`과 `runner:workflow`의 동작은 유지합니다. 대신 자주 쓰는 저비용/안전 조합은 package script alias로 제공합니다.
+운영 기본 alias는 `runner:plan`, `runner:rehearse`, `runner:apply`, `runner:reuse-apply`입니다.
+`runner:full:safe`, `runner:full:balanced`, `runner:workflow:*` 계열은 세부 조정이 필요할 때 사용하는 호환/고급 alias입니다.
 
 ### 계획과 worker 결과 확인
 

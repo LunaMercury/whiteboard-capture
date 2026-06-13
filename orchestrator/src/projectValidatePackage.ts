@@ -49,6 +49,10 @@ const runtimeArtifactPaths = [
 
 const requiredScripts = [
   "ci:dry-run",
+  "runner:plan",
+  "runner:rehearse",
+  "runner:apply",
+  "runner:reuse-apply",
   "runner:full",
   "runner:full:safe",
   "runner:full:balanced",

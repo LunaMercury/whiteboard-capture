@@ -446,3 +446,23 @@ HTML report: ...\report.html
   - `npm run runner:doctor -- --compact` 통과. 현재 작업 중 변경사항 때문에 `git clean`만 warning
   - `npm run project:rehearse-package` 통과
 - API 비용: 없음. 로컬 패키징/검증만 사용
+
+## 2026-06-12 보일러플레이트 복사본 자체 ci 리허설 통과
+
+- 대상: `project:rehearse-package --keep`로 생성한 보존 복사본
+- 복사본 위치:
+  - `C:\Users\Public\Documents\ESTsoft\CreatorTemp\orchestrator-package-rehearsal-2026-06-12T13-22-05-213Z`
+- 보정 내용:
+  - 리허설 기본 임시 경로를 Codex에서 접근 가능한 `C:\Users\Public\Documents\ESTsoft\CreatorTemp`로 변경
+  - Git 저장소가 아닌 복사본 dry-run에서는 reuse guard 생성을 fatal error가 아닌 설명형 warning으로 처리
+- 검증:
+  - 복사본 `npm install` 성공
+  - 복사본 `npm audit` 결과 `found 0 vulnerabilities`
+  - 복사본 `npm run runner:doctor -- --compact` warning-only 통과
+  - 복사본 `npm run ci:dry-run` 통과
+  - `runner:workflow exit=0`
+  - `API cost: estimated_usd=$0.0000`
+- 남는 warning:
+  - `git worktree` warning: 복사 직후 아직 `git init` 전이므로 정상
+  - `PIPELINE_STATUS.md` missing warning: 패키징에서 의도적으로 제외하므로 정상
+- API 비용: 없음. test provider와 로컬 검증만 사용

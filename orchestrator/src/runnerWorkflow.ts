@@ -642,6 +642,11 @@ function getGitHead(repoRoot: string) {
   return child.stdout.trim();
 }
 
+function isGitWorktree(repoRoot: string) {
+  const child = runCommand("git", ["rev-parse", "--is-inside-work-tree"], repoRoot);
+  return child.status === 0 && child.stdout.trim() === "true";
+}
+
 function getReuseGuardPath(manifest: ReturnType<typeof readRunnerManifest>) {
   return path.join(getWorkflowDirs(manifest).metaDir, "reuse-guard.json");
 }
@@ -657,6 +662,32 @@ function buildReuseGuard(manifest: ReturnType<typeof readRunnerManifest>): Reuse
 
 function writeReuseGuard(manifest: ReturnType<typeof readRunnerManifest>) {
   writeJson(getReuseGuardPath(manifest), buildReuseGuard(manifest));
+}
+
+function tryWriteReuseGuard(manifest: ReturnType<typeof readRunnerManifest>) {
+  if (!isGitWorktree(manifest.repoRoot)) {
+    console.warn(
+      [
+        "Reuse guard warning: git worktree is not initialized.",
+        "This is allowed for dry-runs in a package rehearsal before git init.",
+        "Reusing worker results will remain unavailable until the project is a git worktree.",
+      ].join("\n"),
+    );
+    return;
+  }
+
+  try {
+    writeReuseGuard(manifest);
+  } catch (error) {
+    console.warn(
+      [
+        "Reuse guard warning: could not record git state for this run.",
+        "This is allowed for dry-runs in a package rehearsal before git init.",
+        "Reusing worker results will remain unavailable until the project is a git worktree.",
+        error instanceof Error ? error.message : String(error),
+      ].join("\n"),
+    );
+  }
 }
 
 function readReuseGuard(manifest: ReturnType<typeof readRunnerManifest>): ReuseGuard {
@@ -1194,7 +1225,7 @@ async function main() {
       });
     }
   } else if (!skipWorkers) {
-    writeReuseGuard(manifest);
+    tryWriteReuseGuard(manifest);
   }
 
   const rollbackSummary: {

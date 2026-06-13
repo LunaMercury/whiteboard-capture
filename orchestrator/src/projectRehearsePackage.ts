@@ -84,7 +84,9 @@ function printChild(child: ReturnType<typeof runNodeScript>, label: string) {
 
 function makeDefaultTarget() {
   const safeStamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return path.join(os.tmpdir(), `orchestrator-package-rehearsal-${safeStamp}`);
+  const preferredTempRoot = "C:\\Users\\Public\\Documents\\ESTsoft\\CreatorTemp";
+  const tempRoot = fs.existsSync(preferredTempRoot) ? preferredTempRoot : os.tmpdir();
+  return path.join(tempRoot, `orchestrator-package-rehearsal-${safeStamp}`);
 }
 
 function removeTarget(target: string) {

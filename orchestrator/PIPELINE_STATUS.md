@@ -454,7 +454,7 @@ HTML report: ...\report.html
   - `C:\Users\Public\Documents\ESTsoft\CreatorTemp\orchestrator-package-rehearsal-2026-06-12T13-22-05-213Z`
 - 보정 내용:
   - 당시 리허설 기본 임시 경로를 Codex에서 접근 가능한 `C:\Users\Public\Documents\ESTsoft\CreatorTemp`로 변경
-  - 이후 2026-06-13부터 기본 리허설 경로는 `D:\개발\test`로 전환
+  - 이후 2026-06-13부터 기본 리허설 경로는 `D:\개발\boilerplate-test`로 전환
   - Git 저장소가 아닌 복사본 dry-run에서는 reuse guard 생성을 fatal error가 아닌 설명형 warning으로 처리
 - 검증:
   - 복사본 `npm install` 성공
@@ -474,9 +474,32 @@ HTML report: ...\report.html
   - 리허설과 테스트 산출물을 가능하면 C 드라이브가 아닌 D 드라이브에 보관하기 위함
   - Codex/로컬 테스트가 만든 임시 복사본을 사용자가 찾고 정리하기 쉽도록 하기 위함
 - 변경 내용:
-  - `project:rehearse-package` 기본 대상 루트를 `D:\개발\test`로 변경
+  - `project:rehearse-package` 기본 대상 루트를 `D:\개발\boilerplate-test`로 변경
   - 필요 시 `ORCHESTRATOR_REHEARSAL_ROOT` 환경변수나 `--target` 옵션으로 리허설 위치를 덮어쓸 수 있음
   - 기존 C 드라이브 `CreatorTemp` 리허설 복사본은 정리 대상
 - 기대 동작:
-  - 기본 실행: `D:\개발\test\orchestrator-package-rehearsal-*` 생성 후 검증, 기본적으로 삭제
+  - 기본 실행: `D:\개발\boilerplate-test\orchestrator-package-rehearsal-*` 생성 후 검증, 기본적으로 삭제
   - `--keep` 실행: 같은 D 드라이브 경로에 복사본 보존
+
+## 2026-06-13 D 드라이브 보일러플레이트 복사본 자체 CI 리허설 통과
+
+- 대상:
+  - `D:\개발\boilerplate-test\orchestrator-package-rehearsal-2026-06-13T11-57-00-360Z`
+- 확인 내용:
+  - `project:rehearse-package --keep`로 D 드라이브에 복사본 생성 성공
+  - `project:validate-package` 통과
+  - 복사본 `npm install` 성공
+  - 복사본 `npm audit` 결과 `found 0 vulnerabilities`
+  - 복사본 `npm run ci:dry-run` 통과
+  - mock workflow 결과 `Workers: succeeded=4`, `runner:workflow exit=0`
+  - API 비용: `$0.0000`
+- 보정 내용:
+  - 최초 실행에서 `D:\개발\boilerplate-test` 루트가 없으면 `os.tmpdir()`로 fallback되어 C 드라이브에 생성되는 문제가 확인됨
+  - `project:rehearse-package`가 기본 리허설 루트를 직접 생성하도록 수정하여 C 드라이브 fallback을 제거
+  - `npm audit`에서 원본 lockfile의 `esbuild 0.28.0` high 취약점이 발견되어 `npm audit fix`로 `esbuild 0.28.1`로 갱신
+- 정리:
+  - 테스트 복사본은 삭제 완료
+  - `D:\개발\boilerplate-test` 루트 폴더만 유지
+- 남는 warning:
+  - `git worktree` warning: 복사 직후 아직 `git init` 전이므로 정상
+  - `PIPELINE_STATUS.md` missing warning: 보일러플레이트 패키지에서 의도적으로 제외하므로 정상

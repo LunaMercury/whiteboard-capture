@@ -503,3 +503,34 @@ HTML report: ...\report.html
 - 남는 warning:
   - `git worktree` warning: 복사 직후 아직 `git init` 전이므로 정상
   - `PIPELINE_STATUS.md` missing warning: 보일러플레이트 패키지에서 의도적으로 제외하므로 정상
+
+## 2026-06-13 sample-project-1 새 프로젝트 초기화 리허설 통과
+
+- 대상:
+  - `D:\개발\boilerplate-test\sample-project-1`
+- 목적:
+  - 보일러플레이트 복사본을 실제 새 프로젝트처럼 초기화할 수 있는지 확인
+  - 복사 직후 Git 초기화, 첫 커밋, project init, strict doctor, dry-run이 이어서 동작하는지 검증
+- 실행 순서:
+  - `project:package --target D:\개발\boilerplate-test\sample-project-1 --force`
+  - 복사본 `npm install`
+  - 복사본 `npm audit`
+  - 루트 `.gitignore` 생성
+  - 복사본 `git init`
+  - 첫 커밋: `Initial orchestrator boilerplate rehearsal`
+  - 복사본 `npm run project:init -- --name "Sample Project 1" --goal "Reusable orchestrator boilerplate initialization rehearsal" --force`
+  - 복사본 `npm run runner:doctor -- --compact --strict`
+  - 복사본 `npm run ci:dry-run`
+- 결과:
+  - `npm install` 성공
+  - `npm audit` 결과 `found 0 vulnerabilities`
+  - 첫 커밋 성공
+  - `runner:doctor --strict` 결과 `Status: ok`, `warn=0`, `fail=0`
+  - `ci:dry-run` 결과 `Status: succeeded`, `Workers: succeeded=4`
+  - `API cost: estimated_usd=$0.0000`
+  - sample project Git 상태 깨끗함
+- 리허설 중 발견 및 보정:
+  - `npm install` 후 루트에서 `git add .`를 실행하면 `node_modules`까지 stage하려고 하면서 오래 걸릴 수 있음
+  - 새 프로젝트 초기화 전 루트 `.gitignore`를 먼저 만들고 `node_modules/`, `runs/`, `dist/`, `.env`, `.env.local`을 제외해야 함
+  - `project:init`과 `runner:doctor`는 루트가 아니라 `orchestrator` 폴더에서 실행해야 함
+  - 보일러플레이트 복사본에서는 `PIPELINE_STATUS.md`가 의도적으로 없으므로 `runner:doctor --strict`에서도 optional missing으로 처리하도록 보정

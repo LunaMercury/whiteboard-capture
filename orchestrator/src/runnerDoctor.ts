@@ -87,9 +87,17 @@ function checkFile(name: string, filePath: string, root: string, required = true
     };
   }
 
+  if (!required) {
+    return {
+      name,
+      status: "ok",
+      detail: `${relative} is optional and missing`,
+    };
+  }
+
   return {
     name,
-    status: required ? "fail" : "warn",
+    status: "fail",
     detail: `${relative} is missing`,
   };
 }

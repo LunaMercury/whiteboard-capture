@@ -53,6 +53,7 @@ const requiredScripts = [
   "runner:rehearse",
   "runner:apply",
   "runner:reuse-apply",
+  "runner:continue",
   "runner:full",
   "runner:full:safe",
   "runner:full:balanced",

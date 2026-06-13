@@ -109,6 +109,7 @@ function checkPackageScripts(orchestratorRoot: string): CheckResult {
     "runner:rehearse",
     "runner:apply",
     "runner:reuse-apply",
+    "runner:continue",
     "runner:full",
     "runner:full:safe",
     "runner:full:rehearse",

@@ -32,6 +32,7 @@
     "runner:recover": "tsx src/runnerRecover.ts",
     "runner:finalize": "tsx src/runnerFinalize.ts",
     "runner:reports": "tsx src/runnerReports.ts",
+    "runner:continue": "tsx src/runnerContinue.ts",
     "runner:review": "tsx src/applyReview.ts",
     "project:init": "tsx src/projectInit.ts",
     "project:package": "tsx src/projectPackage.ts",

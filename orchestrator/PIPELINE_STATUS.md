@@ -562,3 +562,18 @@ HTML report: ...\report.html
   - `npx tsc -p tsconfig.json --noEmit` 통과
   - `runner:full:mock --compact --roles frontend,java,rust,mobile --worker-provider test "auth flow check"` 통과
   - `Final Summary`에 `Next action` 출력 확인
+
+## 2026-06-13 runner continue 추천 명령 추가
+
+- 추가 명령:
+  - `npm run runner:continue -- <run-id>`
+- 목적:
+  - 기존 run의 worker 결과와 상태를 읽고 다음에 실행할 명령을 추천
+  - `/goal`형 자동 반복으로 가기 전, 안전한 수동-반자동 연결 단계 제공
+- 현재 동작:
+  - 파일 수정 없음
+  - worker/API 호출 없음
+  - blocked, failed, editable succeeded, review-only 상태를 기준으로 다음 행동 안내
+  - proposed edits가 있으면 `runner:reuse-apply`를 추천해 worker 토큰 재사용 가능
+- 향후 확장:
+  - 충분히 검증되면 `--execute` 옵션을 추가해 추천 명령을 실제 실행하는 자동 continue 단계로 확장 가능

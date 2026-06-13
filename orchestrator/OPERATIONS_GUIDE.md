@@ -21,6 +21,7 @@
 | `runner:rehearse` | 실제 적용 가능성을 검증하고 자동 롤백 | 검증 후 롤백 |
 | `runner:apply` | 검증된 작업을 실제로 남김 | 변경 유지 |
 | `runner:reuse-apply` | 기존 worker 결과를 재사용해 apply만 재시도 | 검증 후 롤백 |
+| `runner:continue` | 기존 run 상태를 읽고 다음 명령 추천 | 없음 |
 
 ```powershell
 cd "D:\개발\whiteboard capture\orchestrator"
@@ -36,6 +37,9 @@ cd "D:\개발\whiteboard capture\orchestrator"
 
 # 기존 run의 worker 결과를 재사용해 apply만 다시 시도
 & "C:\Program Files\nodejs\npm.cmd" run runner:reuse-apply -- <run-id> --roles mobile
+
+# 기존 run에서 다음 행동 추천만 확인
+& "C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id>
 ```
 
 ### 0. 작업 전 빠른 점검
@@ -189,6 +193,7 @@ runner:workflow: exit=...
 - `Rollback: succeeded`이면 테스트 적용으로 생긴 파일 변경은 되돌아간 상태입니다.
 - `Verification: recorded`는 worker가 검증 수행 사실을 기록한 상태입니다. 실제 로컬 검증 로그가 필요하면 해당 `.skills` 스크립트를 직접 실행합니다.
 - `Next action`은 현재 결과에서 이어갈 추천 행동입니다. 짧은 판단에는 이 항목을 먼저 보고, 자세한 근거는 `report.md` 또는 `report.html`에서 확인합니다.
+- 기존 run에서 다음 행동만 다시 확인하려면 `runner:continue -- <run-id>`를 사용합니다. 이 명령은 파일을 수정하지 않습니다.
 - `API cost`는 OpenAI provider 호출의 추정 비용입니다. `.skills/verify-*.ps1` 자체는 OpenAI API 비용을 만들지 않습니다.
 - `Final Summary`의 `API cost`는 짧은 총액 요약만 표시합니다.
 - 더 자세한 비용 분해는 `runs/<run-id>/report.md`의 `API Cost Breakdown` 또는 `report.html`의 `Cost by stage and role` 표에서 확인합니다.

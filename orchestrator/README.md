@@ -197,6 +197,9 @@ cd orchestrator
 
 # 기존 run의 worker 결과를 재사용해 apply만 다시 시도
 "C:\Program Files\nodejs\npm.cmd" run runner:reuse-apply -- <run-id> --roles mobile
+
+# 기존 run에서 다음 행동 추천만 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id>
 ```
 
 ### 1. 일반 오케스트레이션 보기

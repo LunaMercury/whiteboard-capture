@@ -630,3 +630,16 @@ HTML report: ...\report.html
   - plan, rehearse, apply, continue 흐름의 사용자 경험 통일
   - 사용자가 긴 workflow 옵션 조합을 직접 복사하지 않아도 되게 함
   - `/goal`형 자동 진행을 만들기 전, 사람이 명시적으로 다음 선택을 확인하는 안전한 중간 단계 마련
+
+## 2026-06-14 runner goal 안전 실행 alias 추가
+
+- 추가 alias:
+  - `runner:goal`: 목표형 요청을 plan, worker, apply rehearsal, verification, rollback까지 한 번에 수행
+  - `runner:goal:mock`: 비용 없이 목표형 흐름을 점검
+- 결정:
+  - `runner:goal`은 기본적으로 변경을 남기지 않고 rollback한다.
+  - 실제 변경 유지가 필요하면 기존대로 `runner:apply` 또는 `runner:continue --choose B --execute`를 사용한다.
+  - 무한 자동 반복이나 자동 커밋은 아직 추가하지 않는다. 신뢰도와 사용자의 명시적 승인 흐름을 우선한다.
+- 목적:
+  - `/goal`에 가까운 사용자 경험을 제공하되, 현재 단계에서는 안전한 1회 리허설로 제한
+  - 세부 옵션을 모르는 상태에서도 목표형 작업을 시작하기 쉽게 함

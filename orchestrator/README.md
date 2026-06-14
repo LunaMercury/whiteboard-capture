@@ -192,6 +192,12 @@ cd orchestrator
 # 비용 없이 plan/worker 흐름만 점검
 "C:\Program Files\nodejs\npm.cmd" run runner:plan:mock -- --roles frontend,java "요청 내용"
 
+# 목표형 안전 실행: 적용 가능성 검증 후 자동 롤백
+"C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
+
+# 비용 없이 목표형 흐름 점검
+"C:\Program Files\nodejs\npm.cmd" run runner:goal:mock -- --roles frontend,java "요청 내용"
+
 # 적용 가능성을 검증하고 자동 롤백
 "C:\Program Files\nodejs\npm.cmd" run runner:rehearse -- --roles frontend "요청 내용"
 

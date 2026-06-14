@@ -51,6 +51,8 @@ const requiredScripts = [
   "ci:dry-run",
   "runner:plan",
   "runner:plan:mock",
+  "runner:goal",
+  "runner:goal:mock",
   "runner:rehearse",
   "runner:apply",
   "runner:reuse-apply",

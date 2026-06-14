@@ -57,6 +57,8 @@ const requiredScripts = [
   "runner:apply",
   "runner:reuse-apply",
   "runner:latest",
+  "runner:latest:any",
+  "runner:latest:mock",
   "runner:latest:status",
   "runner:latest:continue",
   "runner:latest:a",

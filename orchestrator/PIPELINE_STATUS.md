@@ -712,3 +712,15 @@ HTML report: ...\report.html
   - goal/latest/continue 체인 명령을 한 화면에 정리
   - run id가 있을 때와 없을 때의 다음 행동을 빠르게 확인
   - 비용 없는 점검 명령과 안전 주의사항을 함께 표시
+
+## 2026-06-14 runner latest live 기본값 적용
+
+- 변경 내용:
+  - `runner:latest` 기본 조회 대상을 live run으로 제한
+  - `runner:latest:any`와 `runner:latest:mock` alias 추가
+  - `runnerLatest`에 `--mode live|mock|any` 옵션 추가
+- 목적:
+  - `ci:dry-run`이나 mock 테스트가 최신 run이 되어 실작업 체인을 가로채는 문제 방지
+  - mock run을 보고 싶을 때는 명시적으로 `runner:latest:any` 또는 `runner:latest:mock` 사용
+- 안전 규칙:
+  - 실제 적용 체인에 가까운 latest 기본값은 live만 대상으로 삼음

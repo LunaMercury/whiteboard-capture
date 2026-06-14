@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 type Choice = "A" | "B" | "C";
+type ModeFilter = "live" | "mock" | "any";
 
 type Action = "print" | "status" | "continue";
 
@@ -15,6 +16,7 @@ function parseArgs(argv: string[]) {
   let action: Action = "print";
   let choose: Choice | undefined;
   let execute = false;
+  let mode: ModeFilter = "live";
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -41,12 +43,21 @@ function parseArgs(argv: string[]) {
       execute = true;
       continue;
     }
+    if (arg === "--mode") {
+      const value = argv[index + 1];
+      if (value !== "live" && value !== "mock" && value !== "any") {
+        throw new Error("--mode must be one of live, mock, or any");
+      }
+      mode = value;
+      index += 1;
+      continue;
+    }
     throw new Error(`Unknown option: ${arg}`);
   }
-  return { action, choose, execute };
+  return { action, choose, execute, mode };
 }
 
-function findLatestRunId(orchestratorRoot: string) {
+function findLatestRunId(orchestratorRoot: string, mode: ModeFilter) {
   const runsRoot = path.join(orchestratorRoot, "runs");
   if (!fs.existsSync(runsRoot)) {
     throw new Error("No runs directory found.");
@@ -64,17 +75,19 @@ function findLatestRunId(orchestratorRoot: string) {
         return {
           runId: manifest.runId,
           createdAt: manifest.createdAt,
+          mode: manifest.mode,
         };
       } catch {
         return undefined;
       }
     })
-    .filter((entry): entry is { runId: string; createdAt: string } => entry !== undefined)
+    .filter((entry): entry is { runId: string; createdAt: string; mode: "mock" | "live" } => entry !== undefined)
+    .filter((entry) => mode === "any" || entry.mode === mode)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
 
   const latest = candidates[0];
   if (!latest) {
-    throw new Error("No readable runs found.");
+    throw new Error(`No readable ${mode === "any" ? "" : `${mode} `}runs found.`);
   }
   return latest.runId;
 }
@@ -90,9 +103,9 @@ function runNodeScript(orchestratorRoot: string, script: "runnerStatus.ts" | "ru
 }
 
 async function main() {
-  const { action, choose, execute } = parseArgs(process.argv.slice(2));
+  const { action, choose, execute, mode } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
-  const runId = findLatestRunId(orchestratorRoot);
+  const runId = findLatestRunId(orchestratorRoot, mode);
 
   if (action === "status") {
     const result = runNodeScript(orchestratorRoot, "runnerStatus.ts", [runId]);
@@ -114,6 +127,7 @@ async function main() {
   console.log(`Created at: ${manifest.createdAt}`);
   console.log(`Request: ${manifest.request}`);
   console.log(`Mode: ${manifest.mode}`);
+  console.log(`Mode filter: ${mode}`);
   console.log("");
   console.log("Next commands:");
   console.log(`- Status: npm run runner:latest:status`);
@@ -121,6 +135,7 @@ async function main() {
   console.log(`- Option A preview: npm run runner:latest:a`);
   console.log(`- Option B preview: npm run runner:latest:b`);
   console.log(`- Option B execute: npm run runner:latest:b:execute`);
+  console.log(`- Include mock runs: npm run runner:latest:any`);
   console.log(`- Explicit status: npm run runner:status -- ${manifest.runId}`);
   console.log(`- Explicit continue: npm run runner:continue -- ${manifest.runId}`);
 }

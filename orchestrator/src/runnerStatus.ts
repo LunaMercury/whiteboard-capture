@@ -4,6 +4,7 @@ import { readRunnerManifest, readWorkerResults } from "./packetStore.js";
 import {
   getBlockedReasons,
   getBlockedRoles,
+  getFailedRoles,
   getDisplayStatus,
 } from "./resultClassification.js";
 
@@ -25,7 +26,9 @@ async function main() {
   const manifest = readRunnerManifest(orchestratorRoot, runId);
   const results = readWorkerResults(manifest);
   const blockedRoles = getBlockedRoles(results);
+  const failedRoles = getFailedRoles(results);
   const blockedReasons = getBlockedReasons(results);
+  const editableResults = results.filter((result) => result.status === "succeeded" && (result.proposedEdits?.length ?? 0) > 0);
 
   console.log(`# Runner Status`);
   console.log("");
@@ -58,11 +61,32 @@ async function main() {
       console.log(`- ${reason}`);
     }
     console.log("");
-    console.log("Review the questions and contracts before intentionally re-running with approval flags.");
-    console.log(
-      `npm run runner:workflow -- ${manifest.runId} --roles ${blockedRoles.join(",")} --reuse-worker-results --apply --rollback-after-verify --approve-open-questions`,
-    );
+    console.log("Review the questions and contracts before intentionally continuing.");
   }
+
+  console.log("");
+  console.log("## Continue Chain");
+  console.log(`Inspect options: npm run runner:continue -- ${manifest.runId}`);
+  if (blockedRoles.length > 0) {
+    console.log(`Preview approval path: npm run runner:continue:b -- ${manifest.runId}`);
+    console.log(`Execute approval rehearsal: npm run runner:continue:b:execute -- ${manifest.runId}`);
+    console.log(`Reject this plan: npm run runner:continue:c -- ${manifest.runId}`);
+  } else if (failedRoles.length > 0) {
+    console.log(`Inspect failure details first: npm run runner:continue:a -- ${manifest.runId}`);
+    console.log(`Retry reusable apply path when available: npm run runner:continue:b:execute -- ${manifest.runId}`);
+    console.log(`Reject this plan: npm run runner:continue:c -- ${manifest.runId}`);
+  } else if (editableResults.length > 0) {
+    console.log(`Safe rehearsal with rollback: npm run runner:continue:a:execute -- ${manifest.runId}`);
+    console.log(`Preview keep-applied path: npm run runner:continue:b -- ${manifest.runId}`);
+    console.log(`Keep applied intentionally: npm run runner:continue:b:execute -- ${manifest.runId}`);
+    console.log(`Reject this plan: npm run runner:continue:c -- ${manifest.runId}`);
+  } else {
+    console.log("No editable proposed changes were found. Review the report or start a new request if implementation is still needed.");
+  }
+
+  console.log("");
+  console.log(`Report: ${manifest.reportPath}`);
+  console.log(`HTML report: ${path.join(manifest.runDir, "report.html")}`);
 }
 
 main().catch((error) => {

@@ -667,3 +667,13 @@ HTML report: ...\report.html
 - 목적:
   - 사용자가 A/B/C 선택을 명령 이름에서 바로 확인할 수 있게 함
   - 긴 `--choose A --execute` 조합을 반복 입력하지 않아도 되게 함
+
+## 2026-06-14 runner status 체인 안내 추가
+
+- 변경 내용:
+  - `runner:status` 출력에 `Continue Chain` 섹션 추가
+  - blocked, failed, editable succeeded 상태에 따라 `runner:continue:a`, `runner:continue:b`, `runner:continue:b:execute`, `runner:continue:c` 안내
+  - 기존 긴 workflow 재실행 명령 대신 체인형 alias를 우선 표시
+- 목적:
+  - run id만 알고 있어도 status에서 바로 다음 행동으로 이어가게 함
+  - report를 열기 전 빠른 판단 경로 제공

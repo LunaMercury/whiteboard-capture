@@ -7,11 +7,17 @@ import { readRunnerManifest } from "./packetStore.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+type Choice = "A" | "B" | "C";
+
 type Action = "print" | "status" | "continue";
 
 function parseArgs(argv: string[]) {
   let action: Action = "print";
-  for (const arg of argv) {
+  let choose: Choice | undefined;
+  let execute = false;
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
     if (arg === "--status") {
       action = "status";
       continue;
@@ -20,9 +26,24 @@ function parseArgs(argv: string[]) {
       action = "continue";
       continue;
     }
+    if (arg === "--choose") {
+      const value = argv[index + 1]?.toUpperCase();
+      if (value !== "A" && value !== "B" && value !== "C") {
+        throw new Error("--choose must be one of A, B, or C");
+      }
+      action = "continue";
+      choose = value;
+      index += 1;
+      continue;
+    }
+    if (arg === "--execute") {
+      action = "continue";
+      execute = true;
+      continue;
+    }
     throw new Error(`Unknown option: ${arg}`);
   }
-  return { action };
+  return { action, choose, execute };
 }
 
 function findLatestRunId(orchestratorRoot: string) {
@@ -69,7 +90,7 @@ function runNodeScript(orchestratorRoot: string, script: "runnerStatus.ts" | "ru
 }
 
 async function main() {
-  const { action } = parseArgs(process.argv.slice(2));
+  const { action, choose, execute } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
   const runId = findLatestRunId(orchestratorRoot);
 
@@ -79,7 +100,11 @@ async function main() {
   }
 
   if (action === "continue") {
-    const result = runNodeScript(orchestratorRoot, "runnerContinue.ts", [runId]);
+    const result = runNodeScript(orchestratorRoot, "runnerContinue.ts", [
+      ...(choose ? ["--choose", choose] : []),
+      ...(execute ? ["--execute"] : []),
+      runId,
+    ]);
     process.exit(result.status ?? 1);
   }
 
@@ -93,6 +118,9 @@ async function main() {
   console.log("Next commands:");
   console.log(`- Status: npm run runner:latest:status`);
   console.log(`- Continue options: npm run runner:latest:continue`);
+  console.log(`- Option A preview: npm run runner:latest:a`);
+  console.log(`- Option B preview: npm run runner:latest:b`);
+  console.log(`- Option B execute: npm run runner:latest:b:execute`);
   console.log(`- Explicit status: npm run runner:status -- ${manifest.runId}`);
   console.log(`- Explicit continue: npm run runner:continue -- ${manifest.runId}`);
 }

@@ -690,3 +690,16 @@ HTML report: ...\report.html
 - 안전 규칙:
   - latest 계열은 기본적으로 상태 확인과 선택지 출력만 수행
   - 실제 적용은 여전히 `runner:continue:b:execute -- <run-id>` 또는 명시적 continue execute alias가 필요
+
+## 2026-06-14 runner latest 선택 alias 추가
+
+- 추가 alias:
+  - `runner:latest:a`, `runner:latest:b`, `runner:latest:c`
+  - `runner:latest:a:execute`, `runner:latest:b:execute`
+- 변경 내용:
+  - `runnerLatest`가 최신 run id를 찾은 뒤 `runnerContinue`에 `--choose`와 `--execute`를 위임
+- 목적:
+  - 최신 run 기준으로 run id 복사 없이 A/B/C 체인을 바로 실행
+  - 평소 흐름을 `runner:goal` -> `runner:latest:b` -> `runner:latest:b:execute`처럼 더 짧게 만듦
+- 안전 규칙:
+  - Option C는 preview만 제공하고 execute alias는 만들지 않음

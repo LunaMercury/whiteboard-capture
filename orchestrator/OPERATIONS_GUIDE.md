@@ -67,6 +67,8 @@ cd "D:\개발\whiteboard capture\orchestrator"
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:status
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:continue
+& "C:\Program Files\nodejs\npm.cmd" run runner:latest:b
+& "C:\Program Files\nodejs\npm.cmd" run runner:latest:b:execute
 ```
 
 ### 0. 작업 전 빠른 점검

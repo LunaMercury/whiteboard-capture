@@ -58,6 +58,10 @@ cd "D:\개발\whiteboard capture\orchestrator"
 
 # 추천 옵션 실행
 & "C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id> --choose A --execute
+
+# 같은 의미의 짧은 alias
+& "C:\Program Files\nodejs\npm.cmd" run runner:continue:a -- <run-id>
+& "C:\Program Files\nodejs\npm.cmd" run runner:continue:b:execute -- <run-id>
 ```
 
 ### 0. 작업 전 빠른 점검

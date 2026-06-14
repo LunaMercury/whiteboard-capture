@@ -653,3 +653,17 @@ HTML report: ...\report.html
 - 목적:
   - `runner:goal`이 실제 파일을 남기는 명령인지 헷갈리지 않게 함
   - goal 성공 후에는 `runner:continue -- <run-id> --choose B --execute`로 같은 worker 결과를 유지 적용하도록 안내
+
+## 2026-06-14 runner continue 선택 alias 추가
+
+- 추가 alias:
+  - `runner:continue:a`: Option A preview
+  - `runner:continue:b`: Option B preview
+  - `runner:continue:c`: Option C preview
+  - `runner:continue:a:execute`: Option A execute
+  - `runner:continue:b:execute`: Option B execute
+- 변경:
+  - Option C는 수동 결정이므로 실행은 불가하지만 preview는 가능하게 처리
+- 목적:
+  - 사용자가 A/B/C 선택을 명령 이름에서 바로 확인할 수 있게 함
+  - 긴 `--choose A --execute` 조합을 반복 입력하지 않아도 되게 함

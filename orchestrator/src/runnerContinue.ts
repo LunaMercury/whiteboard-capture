@@ -349,7 +349,15 @@ async function main() {
       console.log(selected.description);
     }
     if (!selected.command) {
-      throw new Error(`Option ${selected.choice} is a manual decision and cannot be executed.`);
+      console.log("Manual decision required; this option is not executable.");
+      if (execute) {
+        throw new Error(`Option ${selected.choice} is a manual decision and cannot be executed.`);
+      }
+      console.log("Preview only. Start a new request manually if this is the right choice.");
+      console.log("");
+      console.log(`Report: ${manifest.reportPath}`);
+      console.log(`HTML report: ${path.join(manifest.runDir, "report.html")}`);
+      return;
     }
     console.log(`Expands to: ${selected.command.display}`);
     if (!execute) {

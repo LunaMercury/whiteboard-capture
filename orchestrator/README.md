@@ -217,6 +217,10 @@ cd orchestrator
 
 # 추천 옵션 실행
 "C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id> --choose A --execute
+
+# 같은 의미의 짧은 alias
+"C:\Program Files\nodejs\npm.cmd" run runner:continue:a -- <run-id>
+"C:\Program Files\nodejs\npm.cmd" run runner:continue:b:execute -- <run-id>
 ```
 
 ### 1. 일반 오케스트레이션 보기

@@ -677,3 +677,16 @@ HTML report: ...\report.html
 - 목적:
   - run id만 알고 있어도 status에서 바로 다음 행동으로 이어가게 함
   - report를 열기 전 빠른 판단 경로 제공
+
+## 2026-06-14 runner latest alias 추가
+
+- 추가 alias:
+  - `runner:latest`: 최신 run id, 요청, 다음 명령 표시
+  - `runner:latest:status`: 최신 run의 status 출력
+  - `runner:latest:continue`: 최신 run의 continue 선택지 출력
+- 목적:
+  - 긴 run id를 매번 복사하지 않아도 최근 작업으로 바로 이어갈 수 있게 함
+  - goal, status, continue 체인 사용성을 개선
+- 안전 규칙:
+  - latest 계열은 기본적으로 상태 확인과 선택지 출력만 수행
+  - 실제 적용은 여전히 `runner:continue:b:execute -- <run-id>` 또는 명시적 continue execute alias가 필요

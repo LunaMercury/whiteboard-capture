@@ -62,6 +62,11 @@ cd "D:\개발\whiteboard capture\orchestrator"
 # 같은 의미의 짧은 alias
 & "C:\Program Files\nodejs\npm.cmd" run runner:continue:a -- <run-id>
 & "C:\Program Files\nodejs\npm.cmd" run runner:continue:b:execute -- <run-id>
+
+# 최신 run 기준으로 바로 확인
+& "C:\Program Files\nodejs\npm.cmd" run runner:latest
+& "C:\Program Files\nodejs\npm.cmd" run runner:latest:status
+& "C:\Program Files\nodejs\npm.cmd" run runner:latest:continue
 ```
 
 ### 0. 작업 전 빠른 점검

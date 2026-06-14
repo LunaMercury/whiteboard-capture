@@ -703,3 +703,12 @@ HTML report: ...\report.html
   - 평소 흐름을 `runner:goal` -> `runner:latest:b` -> `runner:latest:b:execute`처럼 더 짧게 만듦
 - 안전 규칙:
   - Option C는 preview만 제공하고 execute alias는 만들지 않음
+
+## 2026-06-14 runner help 추가
+
+- 추가 alias:
+  - `runner:help`
+- 목적:
+  - goal/latest/continue 체인 명령을 한 화면에 정리
+  - run id가 있을 때와 없을 때의 다음 행동을 빠르게 확인
+  - 비용 없는 점검 명령과 안전 주의사항을 함께 표시

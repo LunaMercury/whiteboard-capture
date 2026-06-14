@@ -69,6 +69,9 @@ cd "D:\개발\whiteboard capture\orchestrator"
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:continue
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:b
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:b:execute
+
+# 명령이 헷갈릴 때
+& "C:\Program Files\nodejs\npm.cmd" run runner:help
 ```
 
 ### 0. 작업 전 빠른 점검

@@ -132,6 +132,7 @@ function checkPackageScripts(orchestratorRoot: string): CheckResult {
     "runner:workflow",
     "runner:workflow:reuse",
     "runner:doctor",
+    "runner:help",
     "project:package",
     "project:rehearse-package",
     "project:validate-package",

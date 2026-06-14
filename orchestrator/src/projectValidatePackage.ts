@@ -80,6 +80,7 @@ const requiredScripts = [
   "runner:workflow:rehearse",
   "runner:workflow:reuse",
   "runner:doctor",
+  "runner:help",
   "project:package",
   "project:rehearse-package",
   "project:validate-package",

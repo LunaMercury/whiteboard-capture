@@ -203,6 +203,12 @@ cd orchestrator
 
 # 기존 run에서 다음 행동 추천만 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id>
+
+# 추천 옵션을 명시적으로 미리보기
+"C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id> --choose A
+
+# 추천 옵션 실행
+"C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id> --choose A --execute
 ```
 
 ### 1. 일반 오케스트레이션 보기

@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResults } from "./packetStore.js";
@@ -13,12 +14,58 @@ import type { WorkerResultPacket } from "./resultSchemas.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+type Choice = "A" | "B" | "C";
+
+type ContinueCommand = {
+  script: "runnerStatus.ts" | "runnerWorkflow.ts";
+  args: string[];
+  display: string;
+};
+
+type ContinueOption = {
+  choice: Choice;
+  title: string;
+  description?: string;
+  command?: ContinueCommand;
+};
+
+type ContinueDecision = {
+  status: string;
+  intro: string[];
+  options: ContinueOption[];
+};
+
 function parseArgs(argv: string[]) {
-  const runId = argv.join(" ").trim();
-  if (!runId) {
-    throw new Error("Usage: npm run runner:continue -- <run-id>");
+  let choose: Choice | undefined;
+  let execute = false;
+  const positional: string[] = [];
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--choose" || arg === "--option") {
+      const value = argv[index + 1]?.toUpperCase();
+      if (value !== "A" && value !== "B" && value !== "C") {
+        throw new Error("--choose must be one of A, B, or C");
+      }
+      choose = value;
+      index += 1;
+      continue;
+    }
+    if (arg === "--execute") {
+      execute = true;
+      continue;
+    }
+    if (arg.startsWith("--")) {
+      throw new Error(`Unknown option: ${arg}`);
+    }
+    positional.push(arg);
   }
-  return { runId };
+
+  const runId = positional.join(" ").trim();
+  if (!runId) {
+    throw new Error("Usage: npm run runner:continue -- <run-id> [--choose A|B|C] [--execute]");
+  }
+  return { runId, choose, execute };
 }
 
 function formatStatusCounts(statusCounts: Record<string, number>) {
@@ -63,71 +110,218 @@ function buildApprovalFlags(results: WorkerResultPacket[], roles: WorkerTaskPack
   if (hasContractChanges(results, roles)) {
     flags.push("--approve-contract-changes");
   }
-  return flags.join(" ");
+  return flags;
 }
 
-function buildContinueAdvice(runId: string, results: WorkerResultPacket[]) {
+function statusCommand(runId: string): ContinueCommand {
+  return {
+    script: "runnerStatus.ts",
+    args: [runId],
+    display: `npm run runner:status -- ${runId}`,
+  };
+}
+
+function reuseApplyCommand(runId: string, roles: WorkerTaskPacket["role"][], extraFlags: string[] = []): ContinueCommand {
+  const rolesArg = formatRoles(roles);
+  return {
+    script: "runnerWorkflow.ts",
+    args: [
+      runId,
+      "--compact",
+      "--roles",
+      rolesArg,
+      "--reuse-worker-results",
+      "--apply-provider",
+      "openai",
+      "--apply",
+      "--rollback-after-verify",
+      "--concurrency",
+      "1",
+      "--continue-on-error",
+      ...extraFlags,
+    ],
+    display: `npm run runner:reuse-apply -- ${runId} --roles ${rolesArg}${extraFlags.length > 0 ? ` ${extraFlags.join(" ")}` : ""}`,
+  };
+}
+
+function keepAppliedCommand(runId: string, roles: WorkerTaskPacket["role"][]): ContinueCommand {
+  const rolesArg = formatRoles(roles);
+  return {
+    script: "runnerWorkflow.ts",
+    args: [
+      runId,
+      "--compact",
+      "--roles",
+      rolesArg,
+      "--reuse-worker-results",
+      "--apply-provider",
+      "openai",
+      "--apply",
+      "--keep-applied",
+      "--concurrency",
+      "1",
+      "--continue-on-error",
+    ],
+    display: `npm run runner:workflow -- ${runId} --compact --roles ${rolesArg} --reuse-worker-results --apply-provider openai --apply --keep-applied --concurrency 1 --continue-on-error`,
+  };
+}
+
+function buildContinueDecision(runId: string, results: WorkerResultPacket[]): ContinueDecision {
   const blockedRoles = getBlockedRoles(results);
   const failedRoles = getFailedRoles(results);
   const editableSucceededRoles = getEditableSucceededRoles(results);
   const reviewOnlyRoles = getReviewOnlyRoles(results);
-  const lines: string[] = [];
 
   if (blockedRoles.length > 0) {
     const approvalFlags = buildApprovalFlags(results, blockedRoles);
-    lines.push("Status: blocked");
-    lines.push("This run reached a safety gate. Do not apply until you decide how to handle the question or contract change.");
-    lines.push("Option A - inspect details first:");
-    lines.push(`  npm run runner:status -- ${runId}`);
-    lines.push("Option B - approve and continue with the existing proposed edits:");
-    lines.push(`  npm run runner:reuse-apply -- ${runId} --roles ${formatRoles(blockedRoles)}${approvalFlags ? ` ${approvalFlags}` : ""}`);
-    lines.push("Option C - do not approve; create a safer new plan:");
-    lines.push('  npm run runner:plan -- --roles <roles> "<revised request>"');
-    return lines;
+    return {
+      status: "blocked",
+      intro: [
+        "This run reached a safety gate. Do not apply until you decide how to handle the question or contract change.",
+      ],
+      options: [
+        {
+          choice: "A",
+          title: "Inspect details first",
+          command: statusCommand(runId),
+        },
+        {
+          choice: "B",
+          title: "Approve and rehearse the existing proposed edits",
+          description: "Runs with rollback and includes required approval flags.",
+          command: reuseApplyCommand(runId, blockedRoles, approvalFlags),
+        },
+        {
+          choice: "C",
+          title: "Do not approve; create a safer new plan",
+          description: 'Manual next step: npm run runner:plan -- --roles <roles> "<revised request>"',
+        },
+      ],
+    };
   }
 
   if (failedRoles.length > 0) {
-    lines.push("Status: failed");
-    lines.push("Something failed outside the normal safety-gate flow.");
-    lines.push("Option A - inspect the failure first:");
-    lines.push(`  npm run runner:status -- ${runId}`);
-    lines.push("Option B - retry apply without another worker call if proposed edits exist:");
-    lines.push(`  npm run runner:reuse-apply -- ${runId} --roles ${formatRoles(failedRoles)}`);
-    lines.push("Option C - if the proposed edits look wrong, start a new plan with a narrower request.");
-    return lines;
+    return {
+      status: "failed",
+      intro: ["Something failed outside the normal safety-gate flow."],
+      options: [
+        {
+          choice: "A",
+          title: "Inspect the failure first",
+          command: statusCommand(runId),
+        },
+        {
+          choice: "B",
+          title: "Retry apply without another worker call if proposed edits exist",
+          command: reuseApplyCommand(runId, failedRoles),
+        },
+        {
+          choice: "C",
+          title: "Start a new narrower request",
+          description: "Use this when the proposed edits look wrong or the failure needs a different plan.",
+        },
+      ],
+    };
   }
 
   if (editableSucceededRoles.length > 0) {
-    lines.push("Status: ready for apply rehearsal");
-    lines.push("Worker proposed edits are available. Reuse them to avoid another worker call.");
-    lines.push("Option A - safe rehearsal with rollback:");
-    lines.push(`  npm run runner:reuse-apply -- ${runId} --roles ${formatRoles(editableSucceededRoles)}`);
-    lines.push("Option B - keep the same proposed edits intentionally:");
-    lines.push(`  npm run runner:workflow -- ${runId} --compact --roles ${formatRoles(editableSucceededRoles)} --reuse-worker-results --apply-provider openai --apply --keep-applied --concurrency 1 --continue-on-error`);
-    lines.push("Option C - if the plan is not right, start a new request instead of approving this run.");
-    return lines;
+    return {
+      status: "ready for apply rehearsal",
+      intro: ["Worker proposed edits are available. Reuse them to avoid another worker call."],
+      options: [
+        {
+          choice: "A",
+          title: "Safe rehearsal with rollback",
+          command: reuseApplyCommand(runId, editableSucceededRoles),
+        },
+        {
+          choice: "B",
+          title: "Keep the same proposed edits intentionally",
+          description: "This applies files to the worktree. Use only after the rehearsal/report looks right.",
+          command: keepAppliedCommand(runId, editableSucceededRoles),
+        },
+        {
+          choice: "C",
+          title: "Start a new request instead of approving this run",
+          description: "Use this when the plan is not right.",
+        },
+      ],
+    };
   }
 
   if (reviewOnlyRoles.length > 0) {
-    lines.push("Status: review complete");
-    lines.push("No editable proposed changes were found.");
-    lines.push("Option A - review the report and treat this run as complete.");
-    lines.push("Option B - start a new request if implementation work is still needed.");
-    return lines;
+    return {
+      status: "review complete",
+      intro: ["No editable proposed changes were found."],
+      options: [
+        {
+          choice: "A",
+          title: "Inspect the report and treat this run as complete",
+          command: statusCommand(runId),
+        },
+        {
+          choice: "B",
+          title: "Start a new request if implementation work is still needed",
+        },
+      ],
+    };
   }
 
-  lines.push("Status: no actionable worker result");
-  lines.push("Run runner:status or inspect the report before continuing.");
-  return lines;
+  return {
+    status: "no actionable worker result",
+    intro: ["Run runner:status or inspect the report before continuing."],
+    options: [
+      {
+        choice: "A",
+        title: "Inspect details",
+        command: statusCommand(runId),
+      },
+    ],
+  };
+}
+
+function printOption(runId: string, option: ContinueOption) {
+  console.log(`Option ${option.choice} - ${option.title}`);
+  if (option.description) {
+    console.log(`  ${option.description}`);
+  }
+  if (option.command) {
+    console.log(`  Preview: npm run runner:continue -- ${runId} --choose ${option.choice}`);
+    console.log(`  Execute: npm run runner:continue -- ${runId} --choose ${option.choice} --execute`);
+    console.log(`  Expands to: ${option.command.display}`);
+  } else {
+    console.log("  Manual decision required; this option is not executable.");
+  }
+}
+
+function printDecision(runId: string, decision: ContinueDecision) {
+  console.log(`Status: ${decision.status}`);
+  for (const line of decision.intro) {
+    console.log(line);
+  }
+  for (const option of decision.options) {
+    printOption(runId, option);
+  }
+}
+
+function runCommand(orchestratorRoot: string, command: ContinueCommand) {
+  const tsxCli = path.join(orchestratorRoot, "node_modules", "tsx", "dist", "cli.mjs");
+  const scriptPath = path.join(orchestratorRoot, "src", command.script);
+  return spawnSync(process.execPath, [tsxCli, scriptPath, ...command.args], {
+    cwd: orchestratorRoot,
+    stdio: "inherit",
+    windowsHide: true,
+  });
 }
 
 async function main() {
-  const { runId } = parseArgs(process.argv.slice(2));
+  const { runId, choose, execute } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
   const manifest = readRunnerManifest(orchestratorRoot, runId);
   const results = readWorkerResults(manifest);
   const statusCounts = countDisplayStatuses(results);
   const blockedReasons = getBlockedReasons(results);
+  const decision = buildContinueDecision(manifest.runId, results);
 
   console.log("# Runner Continue");
   console.log(`Run ID: ${manifest.runId}`);
@@ -142,9 +336,32 @@ async function main() {
   }
   console.log("");
   console.log("## Recommended Next Step");
-  for (const line of buildContinueAdvice(manifest.runId, results)) {
-    console.log(line);
+
+  if (!choose) {
+    printDecision(manifest.runId, decision);
+  } else {
+    const selected = decision.options.find((option) => option.choice === choose);
+    if (!selected) {
+      throw new Error(`Option ${choose} is not available for this run status.`);
+    }
+    console.log(`Selected: Option ${selected.choice} - ${selected.title}`);
+    if (selected.description) {
+      console.log(selected.description);
+    }
+    if (!selected.command) {
+      throw new Error(`Option ${selected.choice} is a manual decision and cannot be executed.`);
+    }
+    console.log(`Expands to: ${selected.command.display}`);
+    if (!execute) {
+      console.log("Preview only. Add --execute to run this option.");
+    } else {
+      console.log("");
+      console.log(`## Executing Option ${selected.choice}`);
+      const result = runCommand(orchestratorRoot, selected.command);
+      process.exit(result.status ?? 1);
+    }
   }
+
   console.log("");
   console.log(`Report: ${manifest.reportPath}`);
   console.log(`HTML report: ${path.join(manifest.runDir, "report.html")}`);

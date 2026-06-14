@@ -602,3 +602,20 @@ HTML report: ...\report.html
 - 결정:
   - `runner:rehearse:mock`은 mock proposed edits를 실제 apply로 넘겨 혼란을 만들 수 있어 추가하지 않음
   - apply 없는 plan 흐름 테스트는 `runner:plan:mock`, 전체 파이프라인 mock 검증은 기존 `ci:dry-run`을 사용
+
+## 2026-06-14 runner continue 선택 실행 옵션 추가
+
+- 추가:
+  - `npm run runner:continue -- <run-id> --choose A|B|C`
+  - `npm run runner:continue -- <run-id> --choose A|B|C --execute`
+- 목적:
+  - 추천된 Option A/B/C 중 무엇을 선택했는지 명확히 표시
+  - 기본은 preview-only로 유지하고, `--execute`가 있을 때만 실제 명령 실행
+  - 실행 가능한 옵션은 내부 `tsx` 스크립트로 호출해 Windows npm 인자/따옴표 문제 완화
+- 안전 규칙:
+  - Option C처럼 새 요청이 필요한 수동 결정은 실행 불가
+  - keep-applied 옵션은 사용자가 명시적으로 `--choose B --execute`를 입력해야만 실행
+- 검증:
+  - `npx tsc -p tsconfig.json --noEmit`
+  - `npm run runner:continue -- run-2026-06-13T13-45-14-468Z`
+  - `npm run runner:continue -- run-2026-06-13T13-45-14-468Z --choose B`

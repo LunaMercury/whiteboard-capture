@@ -1041,27 +1041,29 @@ function buildNextActionLines(args: {
   rollbackStatus: string;
   verificationStatus: string;
 }) {
-  const rolesArg = formatRolesArg(args.targetRoles);
-  const appliedRolesArg = formatRolesArg([...args.appliedRoles]);
   const lines: string[] = [];
 
   if (args.finalStatus === "blocked") {
     lines.push("Review the blocked reason in the report, then either refine the request or explicitly approve the open question/contract change.");
-    lines.push(`If the question is acceptable: npm run runner:reuse-apply -- ${args.manifest.runId} --roles ${formatRolesArg(args.blockedRoles)} --approve-open-questions`);
+    lines.push(`Inspect options: npm run runner:continue -- ${args.manifest.runId}`);
+    lines.push(`If the question is acceptable, preview approval path: npm run runner:continue -- ${args.manifest.runId} --choose B`);
+    lines.push(`Execute approval path intentionally: npm run runner:continue -- ${args.manifest.runId} --choose B --execute`);
     return lines;
   }
 
   if (args.finalStatus === "failed") {
     lines.push("Open the report first and inspect the failed worker/apply/verification section before retrying.");
     if (args.failedRoles.length > 0) {
-      lines.push(`Retry without new worker calls when proposed edits exist: npm run runner:reuse-apply -- ${args.manifest.runId} --roles ${formatRolesArg(args.failedRoles)}`);
+      lines.push(`Inspect retry options: npm run runner:continue -- ${args.manifest.runId}`);
+      lines.push(`Retry without new worker calls when proposed edits exist: npm run runner:continue -- ${args.manifest.runId} --choose B --execute`);
     }
     return lines;
   }
 
   if (args.rollbackStatus === "succeeded" && args.appliedRoles.size > 0) {
     lines.push("Rehearsal passed and rollback succeeded; no files were kept.");
-    lines.push(`To keep the same worker result intentionally: npm run runner:workflow -- ${args.manifest.runId} --compact --roles ${appliedRolesArg} --reuse-worker-results --apply-provider openai --apply --keep-applied --concurrency 1 --continue-on-error`);
+    lines.push(`Preview keep-applied path: npm run runner:continue -- ${args.manifest.runId} --choose B`);
+    lines.push(`Keep the same worker result intentionally: npm run runner:continue -- ${args.manifest.runId} --choose B --execute`);
     return lines;
   }
 
@@ -1073,7 +1075,8 @@ function buildNextActionLines(args: {
 
   if (args.verificationStatus === "none") {
     lines.push("No files were applied. Review worker proposals in the report, then run runner:rehearse or runner:apply when ready.");
-    lines.push(`Safe rehearsal: npm run runner:rehearse -- --roles ${rolesArg} "<same request>"`);
+    lines.push(`Inspect reusable options: npm run runner:continue -- ${args.manifest.runId}`);
+    lines.push(`Safe rehearsal when proposed edits exist: npm run runner:continue -- ${args.manifest.runId} --choose A --execute`);
     return lines;
   }
 

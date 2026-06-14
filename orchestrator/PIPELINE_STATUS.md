@@ -619,3 +619,14 @@ HTML report: ...\report.html
   - `npx tsc -p tsconfig.json --noEmit`
   - `npm run runner:continue -- run-2026-06-13T13-45-14-468Z`
   - `npm run runner:continue -- run-2026-06-13T13-45-14-468Z --choose B`
+
+## 2026-06-14 Final Summary continue 안내 연결
+
+- 변경 내용:
+  - `runner:workflow`의 `Final Summary > Next action`을 `runner:continue --choose A|B|C` 흐름과 연결
+  - rehearsal 성공 후 keep-applied 안내를 긴 raw workflow 명령 대신 `runner:continue --choose B --execute`로 표시
+  - blocked/failed 상태에서도 먼저 `runner:continue`로 선택지를 확인하고, 필요한 경우 선택 실행하도록 안내
+- 목적:
+  - plan, rehearse, apply, continue 흐름의 사용자 경험 통일
+  - 사용자가 긴 workflow 옵션 조합을 직접 복사하지 않아도 되게 함
+  - `/goal`형 자동 진행을 만들기 전, 사람이 명시적으로 다음 선택을 확인하는 안전한 중간 단계 마련

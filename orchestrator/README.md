@@ -195,6 +195,8 @@ cd orchestrator
 # 목표형 안전 실행: 적용 가능성 검증 후 자동 롤백
 "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
 
+`runner:goal`은 안전 리허설입니다. 성공해도 파일 변경은 롤백되며, 결과가 마음에 들면 `runner:continue -- <run-id> --choose B --execute`로 같은 worker 결과를 실제 적용합니다.
+
 # 비용 없이 목표형 흐름 점검
 "C:\Program Files\nodejs\npm.cmd" run runner:goal:mock -- --roles frontend,java "요청 내용"
 

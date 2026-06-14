@@ -161,6 +161,19 @@ function extractRunId(output: string) {
   return match?.[1]?.trim();
 }
 
+function describeRunIntent(workflowArgs: string[]) {
+  if (!workflowArgs.includes("--apply")) {
+    return "plan only; no files will be applied";
+  }
+  if (workflowArgs.includes("--rollback-after-verify")) {
+    return "safe rehearsal; edits are applied, verified, and rolled back";
+  }
+  if (workflowArgs.includes("--keep-applied")) {
+    return "intentional apply; successful edits remain in the worktree";
+  }
+  return "apply requested; runner will require an explicit rollback or keep-applied mode";
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -170,6 +183,7 @@ async function main() {
   console.log(`Mode: ${args.mock ? "mock" : "live"}`);
   console.log(`Workflow args: ${args.workflowArgs.join(" ") || "none"}`);
   console.log(`Compact output: ${args.compact ? "yes" : "no"}`);
+  console.log(`Run intent: ${describeRunIntent(args.workflowArgs)}`);
   console.log("");
 
   const prepareArgs = [...(args.mock ? ["--mock"] : []), ...(args.compact ? ["--compact"] : []), args.request];

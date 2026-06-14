@@ -643,3 +643,13 @@ HTML report: ...\report.html
 - 목적:
   - `/goal`에 가까운 사용자 경험을 제공하되, 현재 단계에서는 안전한 1회 리허설로 제한
   - 세부 옵션을 모르는 상태에서도 목표형 작업을 시작하기 쉽게 함
+
+## 2026-06-14 runner full 실행 의도 표시 추가
+
+- 변경 내용:
+  - `runnerFull` 시작 출력에 `Run intent` 한 줄 추가
+  - plan only, safe rehearsal, keep-applied 의도를 터미널 상단에서 바로 확인 가능
+  - README와 운영 가이드에 `runner:goal`은 성공해도 rollback되는 안전 리허설임을 명시
+- 목적:
+  - `runner:goal`이 실제 파일을 남기는 명령인지 헷갈리지 않게 함
+  - goal 성공 후에는 `runner:continue -- <run-id> --choose B --execute`로 같은 worker 결과를 유지 적용하도록 안내

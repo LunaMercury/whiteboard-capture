@@ -846,3 +846,13 @@ HTML report: ...\report.html
 - 목적:
   - 최신 run의 상태와 다음 선택지를 한 번의 명령으로 확인
   - 모바일/작은 터미널에서 status와 continue를 따로 실행하는 반복을 줄임
+
+## 2026-06-15 runner quick alias 추가
+
+- 변경 내용:
+  - `runner:quick`, `runner:quick:any`, `runner:quick:mock` alias 추가
+  - 기존 `runner:latest:quick*` 동작을 더 짧은 명령으로 노출
+  - `runner:help`, 운영 가이드, doctor, package validation 필수 script 목록 반영
+- 목적:
+  - 최신 run 상태와 다음 선택지를 보는 가장 흔한 명령을 더 짧게 만듦
+  - 실사용 기본 흐름을 `runner:goal` -> `runner:quick` -> 선택 실행으로 단순화

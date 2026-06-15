@@ -813,3 +813,14 @@ HTML report: ...\report.html
 - 목적:
   - report를 열기 전 터미널에서 run의 비용과 실행 품질을 빠르게 판단
   - Final Summary, reports index, status 출력의 정보 밀도를 맞춤
+
+## 2026-06-15 runner status compact 추가
+
+- 변경 내용:
+  - `runner:status --compact` 옵션 추가
+  - `runner:status:compact` alias 추가
+  - `runner:latest:status:compact` alias 추가
+  - `runner:help`, 운영 가이드, doctor, package validation 필수 script 목록 반영
+- 목적:
+  - 긴 worker 상세 출력 없이 run 상태, edits, verification, cost, continue 명령만 빠르게 확인
+  - 모바일/작은 터미널에서도 status 확인을 부담 없이 수행

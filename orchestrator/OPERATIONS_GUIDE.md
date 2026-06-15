@@ -56,6 +56,9 @@ cd "D:\개발\whiteboard capture\orchestrator"
 # 기존 run에서 다음 행동 추천만 확인
 & "C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id>
 
+# 기존 run의 핵심 요약만 한 화면으로 확인
+& "C:\Program Files\nodejs\npm.cmd" run runner:status:compact -- <run-id>
+
 # 추천 옵션을 명시적으로 미리보기
 & "C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id> --choose A
 
@@ -70,6 +73,7 @@ cd "D:\개발\whiteboard capture\orchestrator"
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:any
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:status
+& "C:\Program Files\nodejs\npm.cmd" run runner:latest:status:compact
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:continue
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:b
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:b:execute

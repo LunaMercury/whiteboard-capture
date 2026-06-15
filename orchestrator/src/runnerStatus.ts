@@ -14,8 +14,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function parseArgs(argv: string[]) {
-  const runId = argv.join(" ").trim();
-  return { runId };
+  const positional: string[] = [];
+  let compact = false;
+  for (const arg of argv) {
+    if (arg === "--compact" || arg === "--summary-only") {
+      compact = true;
+      continue;
+    }
+    if (arg.startsWith("--")) {
+      throw new Error(`Unknown option: ${arg}`);
+    }
+    positional.push(arg);
+  }
+  const runId = positional.join(" ").trim();
+  return { compact, runId };
 }
 
 function formatStatusCounts(statusCounts: Record<string, number>) {
@@ -27,9 +39,9 @@ function formatStatusCounts(statusCounts: Record<string, number>) {
 }
 
 async function main() {
-  const { runId } = parseArgs(process.argv.slice(2));
+  const { compact, runId } = parseArgs(process.argv.slice(2));
   if (!runId) {
-    throw new Error("Usage: npm run runner:status -- <run-id>");
+    throw new Error("Usage: npm run runner:status -- <run-id> [--compact]");
   }
 
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -45,6 +57,12 @@ async function main() {
   const verificationRun = results.reduce((sum, result) => sum + result.verificationRun.length, 0);
   const apiUsage = summarizeApiUsage(manifest);
   const apiCost = estimateApiUsageCost(apiUsage);
+
+  if (compact) {
+    console.log(`runner:status: run=${manifest.runId} mode=${manifest.mode} workers=${formatStatusCounts(statusCounts)} edits=${proposedEdits} changed_files=${changedFiles} verification_entries=${verificationRun} cost=${formatEstimatedUsd(apiCost.estimatedUsd)}`);
+    console.log(`next: npm run runner:continue -- ${manifest.runId}`);
+    return;
+  }
 
   console.log(`# Runner Status`);
   console.log("");

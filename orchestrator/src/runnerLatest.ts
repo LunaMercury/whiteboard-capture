@@ -17,11 +17,16 @@ function parseArgs(argv: string[]) {
   let choose: Choice | undefined;
   let execute = false;
   let mode: ModeFilter = "live";
+  let compact = false;
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--status") {
       action = "status";
+      continue;
+    }
+    if (arg === "--compact" || arg === "--summary-only") {
+      compact = true;
       continue;
     }
     if (arg === "--continue") {
@@ -54,7 +59,7 @@ function parseArgs(argv: string[]) {
     }
     throw new Error(`Unknown option: ${arg}`);
   }
-  return { action, choose, execute, mode };
+  return { action, choose, compact, execute, mode };
 }
 
 function findLatestRunId(orchestratorRoot: string, mode: ModeFilter) {
@@ -103,12 +108,12 @@ function runNodeScript(orchestratorRoot: string, script: "runnerStatus.ts" | "ru
 }
 
 async function main() {
-  const { action, choose, execute, mode } = parseArgs(process.argv.slice(2));
+  const { action, choose, compact, execute, mode } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
   const runId = findLatestRunId(orchestratorRoot, mode);
 
   if (action === "status") {
-    const result = runNodeScript(orchestratorRoot, "runnerStatus.ts", [runId]);
+    const result = runNodeScript(orchestratorRoot, "runnerStatus.ts", [runId, ...(compact ? ["--compact"] : [])]);
     process.exit(result.status ?? 1);
   }
 
@@ -131,6 +136,7 @@ async function main() {
   console.log("");
   console.log("Next commands:");
   console.log(`- Status: npm run runner:latest:status`);
+  console.log(`- Compact status: npm run runner:latest:status:compact`);
   console.log(`- Continue options: npm run runner:latest:continue`);
   console.log(`- Option A preview: npm run runner:latest:a`);
   console.log(`- Option B preview: npm run runner:latest:b`);

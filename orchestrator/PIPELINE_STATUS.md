@@ -785,3 +785,13 @@ HTML report: ...\report.html
 - 목적:
   - run id 체인뿐 아니라 여러 실행 결과를 한 화면에서 훑는 경로도 help에서 바로 찾게 함
   - reports mode filter 추가 사항을 실제 사용 명령 안내와 연결
+
+## 2026-06-15 reports index mode shortcut 추가
+
+- 변경 내용:
+  - `runs/index.html` 상단에 `runner:reports`, `runner:reports:live`, `runner:reports:mock` 명령 카드 추가
+  - 현재 선택된 mode filter 카드 강조
+  - 운영 가이드에 reports 인덱스 갱신 흐름 보강
+- 목적:
+  - 브라우저에서 리포트 인덱스를 보다가 live/mock/any 전환 명령을 바로 복사할 수 있게 함
+  - reports 기능을 latest/continue 체인과 같은 수준의 실사용 동선으로 정리

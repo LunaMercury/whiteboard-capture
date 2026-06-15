@@ -144,6 +144,37 @@ function renderRunRows(entries: RunIndexEntry[]) {
   ].join("")).join("\n");
 }
 
+function renderModeCommandCards(mode: ModeFilter) {
+  const items: Array<{ label: string; mode: ModeFilter; command: string; description: string }> = [
+    {
+      label: "All runs",
+      mode: "any",
+      command: "npm run runner:reports",
+      description: "Live and mock runs together.",
+    },
+    {
+      label: "Live only",
+      mode: "live",
+      command: "npm run runner:reports:live",
+      description: "Real API-backed orchestration runs.",
+    },
+    {
+      label: "Mock only",
+      mode: "mock",
+      command: "npm run runner:reports:mock",
+      description: "Dry-run, CI, and test-provider runs.",
+    },
+  ];
+
+  return items.map((item) => [
+    `<article class="mode-card${item.mode === mode ? " active" : ""}">`,
+    `<span>${escapeHtml(item.label)}</span>`,
+    `<code>${escapeHtml(item.command)}</code>`,
+    `<p>${escapeHtml(item.description)}</p>`,
+    `</article>`,
+  ].join("")).join("\n");
+}
+
 function renderIndex(entries: RunIndexEntry[], mode: ModeFilter) {
   const statusCounts = entries.reduce<Record<string, number>>((acc, entry) => {
     acc[entry.status] = (acc[entry.status] ?? 0) + 1;
@@ -195,6 +226,17 @@ function renderIndex(entries: RunIndexEntry[], mode: ModeFilter) {
     .card { padding: 18px; }
     .card span { display: block; color: var(--muted); text-transform: uppercase; font-size: 12px; letter-spacing: 0.08em; }
     .card strong { display: block; margin-top: 8px; font-size: 32px; }
+    .mode-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin: 14px 0 22px; }
+    .mode-card {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 16px;
+      background: rgba(255,255,255,0.52);
+    }
+    .mode-card.active { outline: 2px solid rgba(47, 125, 79, 0.32); background: rgba(232, 244, 235, 0.74); }
+    .mode-card span { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .mode-card code { display: block; margin-top: 8px; color: var(--ink); white-space: nowrap; overflow-x: auto; }
+    .mode-card p { margin: 8px 0 0; font-size: 13px; }
     .table-wrap { overflow: auto; }
     table { width: 100%; border-collapse: collapse; min-width: 1120px; }
     th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
@@ -226,6 +268,9 @@ function renderIndex(entries: RunIndexEntry[], mode: ModeFilter) {
       <article class="card status-failed"><span>failed</span><strong>${statusCounts.failed ?? 0}</strong></article>
       <article class="card"><span>tokens</span><strong>${totalTokens}</strong></article>
       <article class="card"><span>estimated cost</span><strong>${escapeHtml(formatEstimatedUsd(estimatedCostUsd))}</strong></article>
+    </section>
+    <section class="mode-grid" aria-label="report mode shortcuts">
+      ${renderModeCommandCards(mode)}
     </section>
     <section class="table-wrap">
       <table>

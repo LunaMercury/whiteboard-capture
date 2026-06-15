@@ -776,3 +776,12 @@ HTML report: ...\report.html
 - 안전 규칙:
   - 기본 `runner:reports`는 기존처럼 전체(any)를 유지
   - 특정 모드만 보고 싶을 때만 명시적 alias를 사용
+
+## 2026-06-15 runner help reports 안내 추가
+
+- 변경 내용:
+  - `runner:help`에 `Reports` 섹션 추가
+  - `runner:reports`, `runner:reports:live`, `runner:reports:mock` 사용 목적을 표시
+- 목적:
+  - run id 체인뿐 아니라 여러 실행 결과를 한 화면에서 훑는 경로도 help에서 바로 찾게 함
+  - reports mode filter 추가 사항을 실제 사용 명령 안내와 연결

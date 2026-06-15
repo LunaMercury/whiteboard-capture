@@ -795,3 +795,12 @@ HTML report: ...\report.html
 - 목적:
   - 브라우저에서 리포트 인덱스를 보다가 live/mock/any 전환 명령을 바로 복사할 수 있게 함
   - reports 기능을 latest/continue 체인과 같은 수준의 실사용 동선으로 정리
+
+## 2026-06-15 reports terminal next step 출력 보강
+
+- 변경 내용:
+  - `runner:reports` compact 출력에 최신 listed run id 표시
+  - non-compact 출력에 report index 경로, refresh 명령, status/continue 명령, mode 전환 명령 표시
+- 목적:
+  - HTML을 열기 전 터미널만 보고도 다음 행동을 결정할 수 있게 함
+  - reports 인덱스를 latest/continue 체인과 더 자연스럽게 연결

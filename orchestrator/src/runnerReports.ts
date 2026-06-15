@@ -299,6 +299,28 @@ function renderIndex(entries: RunIndexEntry[], mode: ModeFilter) {
 `;
 }
 
+function getModeAlias(mode: ModeFilter) {
+  if (mode === "live") {
+    return "runner:reports:live";
+  }
+  if (mode === "mock") {
+    return "runner:reports:mock";
+  }
+  return "runner:reports";
+}
+
+function printNextSteps(mode: ModeFilter, indexPath: string, latestRunId?: string) {
+  console.log("");
+  console.log("Next:");
+  console.log(`- Open report index: ${indexPath}`);
+  console.log(`- Refresh this view: npm run ${getModeAlias(mode)}`);
+  if (latestRunId) {
+    console.log(`- Inspect latest listed run: npm run runner:status -- ${latestRunId}`);
+    console.log(`- Continue latest listed run: npm run runner:continue -- ${latestRunId}`);
+  }
+  console.log("- Switch view: npm run runner:reports:live | runner:reports:mock | runner:reports");
+}
+
 function main() {
   const { compact, mode } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -307,9 +329,10 @@ function main() {
   const entries = collectRuns(orchestratorRoot, mode);
   const indexPath = path.join(runsRoot, "index.html");
   fs.writeFileSync(indexPath, renderIndex(entries, mode), "utf8");
+  const latestRunId = entries[0]?.runId;
 
   if (compact) {
-    console.log(`runner:reports: mode=${mode} runs=${entries.length} index=${indexPath}`);
+    console.log(`runner:reports: mode=${mode} runs=${entries.length} index=${indexPath} latest=${latestRunId ?? "none"}`);
     return;
   }
 
@@ -317,6 +340,10 @@ function main() {
   console.log(`Mode filter: ${mode}`);
   console.log(`Runs indexed: ${entries.length}`);
   console.log(`Index: ${indexPath}`);
+  if (latestRunId) {
+    console.log(`Latest listed run: ${latestRunId}`);
+  }
+  printNextSteps(mode, indexPath, latestRunId);
 }
 
 main();

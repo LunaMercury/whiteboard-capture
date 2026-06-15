@@ -1280,7 +1280,7 @@ async function main() {
   console.log(`Keep applied edits: ${keepApplied ? "yes" : "no"}`);
   console.log(`Cleanup runs: ${cleanupRuns ? "yes" : "no"}`);
   console.log(`Cleanup dry run: ${cleanupDryRun ? "yes" : "no"}`);
-  console.log(`Max API cost: ${maxCostUsd === undefined ? "none" : formatEstimatedUsd(maxCostUsd)}`);
+  console.log(`Max API cost: ${maxCostUsd === undefined ? "unlimited" : formatEstimatedUsd(maxCostUsd)}`);
   console.log(`Compact output: ${compact ? "yes" : "no"}`);
   console.log("");
 

@@ -174,6 +174,14 @@ function describeRunIntent(workflowArgs: string[]) {
   return "apply requested; runner will require an explicit rollback or keep-applied mode";
 }
 
+function describeCostBudget(workflowArgs: string[]) {
+  const index = workflowArgs.indexOf("--max-cost-usd");
+  if (index < 0) {
+    return "unlimited";
+  }
+  return `$${workflowArgs[index + 1] ?? "missing"}`;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
@@ -184,6 +192,7 @@ async function main() {
   console.log(`Workflow args: ${args.workflowArgs.join(" ") || "none"}`);
   console.log(`Compact output: ${args.compact ? "yes" : "no"}`);
   console.log(`Run intent: ${describeRunIntent(args.workflowArgs)}`);
+  console.log(`Cost budget: ${describeCostBudget(args.workflowArgs)}`);
   console.log("");
 
   const prepareArgs = [...(args.mock ? ["--mock"] : []), ...(args.compact ? ["--compact"] : []), args.request];

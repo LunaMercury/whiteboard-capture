@@ -736,3 +736,12 @@ HTML report: ...\report.html
 - 결정:
   - 기존 `runner:goal` 기본 동작은 변경하지 않음
   - 예산 제한은 명시적인 budget alias에서만 적용
+
+## 2026-06-15 runner full cost budget 표시 추가
+
+- 변경 내용:
+  - `runnerFull` 시작 출력에 `Cost budget` 한 줄 추가
+  - `--max-cost-usd`가 없으면 `unlimited`, 있으면 `$<value>`로 표시
+- 목적:
+  - `runner:goal`은 기본 무제한, `runner:goal:budget`은 예산 제한이라는 차이를 터미널 상단에서 즉시 확인
+  - 비용 관련 착각을 줄임

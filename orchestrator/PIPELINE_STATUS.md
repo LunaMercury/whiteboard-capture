@@ -754,3 +754,12 @@ HTML report: ...\report.html
 - 목적:
   - 터미널 `Final Summary`를 놓쳐도 report에서 바로 다음 명령을 확인
   - status, continue, rehearsal, keep-applied, reject/replan 흐름을 보고서 안에서 연결
+
+## 2026-06-15 reports index continue chain 컬럼 추가
+
+- 변경 내용:
+  - `runner:reports`가 생성하는 `runs/index.html`에 `chain` 컬럼 추가
+  - 각 run 행에서 `runner:status -- <run-id>`와 `runner:continue -- <run-id>` 명령을 바로 확인 가능
+- 목적:
+  - 여러 run을 훑다가 report를 열기 전에도 다음 체인 명령을 복사할 수 있게 함
+  - finalized report의 `Continue Chain` 섹션과 run index를 연결

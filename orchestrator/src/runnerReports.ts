@@ -99,7 +99,7 @@ function collectRuns(orchestratorRoot: string) {
 
 function renderRunRows(entries: RunIndexEntry[]) {
   if (entries.length === 0) {
-    return `<tr><td colspan="9">No runs found.</td></tr>`;
+    return `<tr><td colspan="10">No runs found.</td></tr>`;
   }
 
   return entries.map((entry) => [
@@ -113,6 +113,7 @@ function renderRunRows(entries: RunIndexEntry[]) {
     `<td>${entry.totalTokens}</td>`,
     `<td>${escapeHtml(formatEstimatedUsd(entry.estimatedCostUsd))}</td>`,
     `<td><a href="${escapeHtml(entry.reportMd)}">md</a></td>`,
+    `<td><code>npm run runner:status -- ${escapeHtml(entry.runId)}</code><br /><code>npm run runner:continue -- ${escapeHtml(entry.runId)}</code></td>`,
     `</tr>`,
   ].join("")).join("\n");
 }
@@ -169,7 +170,7 @@ function renderIndex(entries: RunIndexEntry[]) {
     .card span { display: block; color: var(--muted); text-transform: uppercase; font-size: 12px; letter-spacing: 0.08em; }
     .card strong { display: block; margin-top: 8px; font-size: 32px; }
     .table-wrap { overflow: auto; }
-    table { width: 100%; border-collapse: collapse; min-width: 920px; }
+    table { width: 100%; border-collapse: collapse; min-width: 1120px; }
     th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
     th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
     a { color: var(--blue); font-weight: 700; text-decoration: none; }
@@ -213,6 +214,7 @@ function renderIndex(entries: RunIndexEntry[]) {
             <th>tokens</th>
             <th>cost</th>
             <th>report</th>
+            <th>chain</th>
           </tr>
         </thead>
         <tbody>

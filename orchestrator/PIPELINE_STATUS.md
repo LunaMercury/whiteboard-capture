@@ -763,3 +763,16 @@ HTML report: ...\report.html
 - 목적:
   - 여러 run을 훑다가 report를 열기 전에도 다음 체인 명령을 복사할 수 있게 함
   - finalized report의 `Continue Chain` 섹션과 run index를 연결
+
+## 2026-06-15 reports index mode filter 추가
+
+- 변경 내용:
+  - `runner:reports`에 `--mode live|mock|any` 옵션 추가
+  - `runner:reports:any`, `runner:reports:live`, `runner:reports:mock` alias 추가
+  - `runs/index.html` 헤더에 현재 mode filter 표시
+- 목적:
+  - 실제 실행(live) 기록과 mock/CI 리허설 기록을 분리해서 확인
+  - `runner:latest`의 live 기본값과 리포트 인덱스 조회 방식을 맞춤
+- 안전 규칙:
+  - 기본 `runner:reports`는 기존처럼 전체(any)를 유지
+  - 특정 모드만 보고 싶을 때만 명시적 alias를 사용

@@ -233,6 +233,11 @@ cd orchestrator
 "C:\Program Files\nodejs\npm.cmd" run runner:latest:b
 "C:\Program Files\nodejs\npm.cmd" run runner:latest:b:execute
 
+# 여러 run 리포트 인덱스 생성
+"C:\Program Files\nodejs\npm.cmd" run runner:reports
+"C:\Program Files\nodejs\npm.cmd" run runner:reports:live
+"C:\Program Files\nodejs\npm.cmd" run runner:reports:mock
+
 # 명령이 헷갈릴 때
 "C:\Program Files\nodejs\npm.cmd" run runner:help
 ```

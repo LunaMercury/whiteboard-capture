@@ -23,9 +23,32 @@ type RunIndexEntry = {
   reportMd: string;
 };
 
+type ModeFilter = "live" | "mock" | "any";
+
 function parseArgs(argv: string[]) {
   const compact = argv.includes("--compact") || argv.includes("--summary-only");
-  return { compact };
+  let mode: ModeFilter = "any";
+  for (let index = 0; index < argv.length; index += 1) {
+    const item = argv[index];
+    if (item === "--mode") {
+      const next = argv[index + 1];
+      if (next !== "live" && next !== "mock" && next !== "any") {
+        throw new Error("Invalid --mode. Use one of: live, mock, any");
+      }
+      mode = next;
+      index += 1;
+      continue;
+    }
+    if (item === "--live") {
+      mode = "live";
+      continue;
+    }
+    if (item === "--mock") {
+      mode = "mock";
+      continue;
+    }
+  }
+  return { compact, mode };
 }
 
 function escapeHtml(value: string) {
@@ -60,7 +83,7 @@ function determineRunStatus(results: ReturnType<typeof readWorkerResults>): RunI
   return "unknown";
 }
 
-function collectRuns(orchestratorRoot: string) {
+function collectRuns(orchestratorRoot: string, mode: ModeFilter) {
   const runsRoot = path.join(orchestratorRoot, "runs");
   if (!fs.existsSync(runsRoot)) {
     return [];
@@ -75,6 +98,9 @@ function collectRuns(orchestratorRoot: string) {
         const apiUsage = summarizeApiUsage(manifest);
         const apiCost = estimateApiUsageCost(apiUsage);
         const statusCounts = countDisplayStatuses(results);
+        if (mode !== "any" && manifest.mode !== mode) {
+          return undefined;
+        }
         return {
           runId: manifest.runId,
           createdAt: manifest.createdAt,
@@ -118,7 +144,7 @@ function renderRunRows(entries: RunIndexEntry[]) {
   ].join("")).join("\n");
 }
 
-function renderIndex(entries: RunIndexEntry[]) {
+function renderIndex(entries: RunIndexEntry[], mode: ModeFilter) {
   const statusCounts = entries.reduce<Record<string, number>>((acc, entry) => {
     acc[entry.status] = (acc[entry.status] ?? 0) + 1;
     return acc;
@@ -191,7 +217,7 @@ function renderIndex(entries: RunIndexEntry[]) {
     <header>
       <span class="pill">Orchestrator Runs</span>
       <h1>Run Index</h1>
-      <p>Recent orchestration reports collected from <code>orchestrator/runs</code>.</p>
+      <p>Recent orchestration reports collected from <code>orchestrator/runs</code>. Mode filter: <strong>${escapeHtml(mode)}</strong>.</p>
     </header>
     <section class="grid">
       <article class="card"><span>runs</span><strong>${entries.length}</strong></article>
@@ -229,20 +255,21 @@ function renderIndex(entries: RunIndexEntry[]) {
 }
 
 function main() {
-  const { compact } = parseArgs(process.argv.slice(2));
+  const { compact, mode } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
   const runsRoot = path.join(orchestratorRoot, "runs");
   fs.mkdirSync(runsRoot, { recursive: true });
-  const entries = collectRuns(orchestratorRoot);
+  const entries = collectRuns(orchestratorRoot, mode);
   const indexPath = path.join(runsRoot, "index.html");
-  fs.writeFileSync(indexPath, renderIndex(entries), "utf8");
+  fs.writeFileSync(indexPath, renderIndex(entries, mode), "utf8");
 
   if (compact) {
-    console.log(`runner:reports: runs=${entries.length} index=${indexPath}`);
+    console.log(`runner:reports: mode=${mode} runs=${entries.length} index=${indexPath}`);
     return;
   }
 
   console.log("# Runner Reports");
+  console.log(`Mode filter: ${mode}`);
   console.log(`Runs indexed: ${entries.length}`);
   console.log(`Index: ${indexPath}`);
 }

@@ -856,3 +856,12 @@ HTML report: ...\report.html
 - 목적:
   - 최신 run 상태와 다음 선택지를 보는 가장 흔한 명령을 더 짧게 만듦
   - 실사용 기본 흐름을 `runner:goal` -> `runner:quick` -> 선택 실행으로 단순화
+
+## 2026-06-15 README quick flow 반영
+
+- 변경 내용:
+  - README 실사용 alias 섹션에 `runner:quick` 중심 흐름 반영
+  - `runner:continue:compact`, `runner:status:compact`, `runner:latest:quick`, compact latest 명령 예시 추가
+- 목적:
+  - 운영 가이드와 README의 실사용 체인을 일치시킴
+  - 새 사용자가 가장 짧은 확인 흐름을 README에서 바로 찾게 함

@@ -181,7 +181,7 @@ orchestrator/runs/<run-id>/
 
 ### 0. 실사용 기본 alias
 
-대부분의 작업은 아래 4개 alias 중 하나로 시작합니다.
+대부분의 작업은 아래 alias 중 하나로 시작합니다. 가장 짧은 확인 흐름은 `runner:goal`로 리허설한 뒤 `runner:quick`으로 최신 run 상태와 다음 선택지를 보는 것입니다.
 
 ```powershell
 cd orchestrator
@@ -195,7 +195,7 @@ cd orchestrator
 # 목표형 안전 실행: 적용 가능성 검증 후 자동 롤백
 "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
 
-`runner:goal`은 안전 리허설입니다. 성공해도 파일 변경은 롤백되며, 결과가 마음에 들면 `runner:continue -- <run-id> --choose B --execute`로 같은 worker 결과를 실제 적용합니다.
+`runner:goal`은 안전 리허설입니다. 성공해도 파일 변경은 롤백되며, 결과가 마음에 들면 `runner:quick`으로 최신 run을 확인한 뒤 `runner:latest:b:execute`로 같은 worker 결과를 실제 적용합니다.
 
 # 예산 제한이 필요한 안전 실행
 "C:\Program Files\nodejs\npm.cmd" run runner:goal:budget -- --roles frontend "요청 내용"
@@ -215,6 +215,12 @@ cd orchestrator
 # 기존 run에서 다음 행동 추천만 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id>
 
+# 기존 run에서 다음 행동 추천만 짧게 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:continue:compact -- <run-id>
+
+# 기존 run의 핵심 요약만 한 화면으로 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:status:compact -- <run-id>
+
 # 추천 옵션을 명시적으로 미리보기
 "C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id> --choose A
 
@@ -226,10 +232,14 @@ cd orchestrator
 "C:\Program Files\nodejs\npm.cmd" run runner:continue:b:execute -- <run-id>
 
 # 최신 run 기준으로 바로 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:quick
 "C:\Program Files\nodejs\npm.cmd" run runner:latest
+"C:\Program Files\nodejs\npm.cmd" run runner:latest:quick
 "C:\Program Files\nodejs\npm.cmd" run runner:latest:any
 "C:\Program Files\nodejs\npm.cmd" run runner:latest:status
+"C:\Program Files\nodejs\npm.cmd" run runner:latest:status:compact
 "C:\Program Files\nodejs\npm.cmd" run runner:latest:continue
+"C:\Program Files\nodejs\npm.cmd" run runner:latest:continue:compact
 "C:\Program Files\nodejs\npm.cmd" run runner:latest:b
 "C:\Program Files\nodejs\npm.cmd" run runner:latest:b:execute
 

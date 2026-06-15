@@ -1,7 +1,9 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { estimateApiUsageCost, formatEstimatedUsd, summarizeApiUsage } from "./apiUsage.js";
 import { readRunnerManifest, readWorkerResults } from "./packetStore.js";
 import {
+  countDisplayStatuses,
   getBlockedReasons,
   getBlockedRoles,
   getFailedRoles,
@@ -14,6 +16,14 @@ const __dirname = path.dirname(__filename);
 function parseArgs(argv: string[]) {
   const runId = argv.join(" ").trim();
   return { runId };
+}
+
+function formatStatusCounts(statusCounts: Record<string, number>) {
+  const preferred = ["succeeded", "blocked", "failed", "skipped", "pending", "running"];
+  return preferred
+    .filter((status) => statusCounts[status])
+    .map((status) => `${status}=${statusCounts[status]}`)
+    .join(", ") || "none";
 }
 
 async function main() {
@@ -29,12 +39,26 @@ async function main() {
   const failedRoles = getFailedRoles(results);
   const blockedReasons = getBlockedReasons(results);
   const editableResults = results.filter((result) => result.status === "succeeded" && (result.proposedEdits?.length ?? 0) > 0);
+  const statusCounts = countDisplayStatuses(results);
+  const changedFiles = results.reduce((sum, result) => sum + result.changedFiles.length, 0);
+  const proposedEdits = results.reduce((sum, result) => sum + (result.proposedEdits?.length ?? 0), 0);
+  const verificationRun = results.reduce((sum, result) => sum + result.verificationRun.length, 0);
+  const apiUsage = summarizeApiUsage(manifest);
+  const apiCost = estimateApiUsageCost(apiUsage);
 
   console.log(`# Runner Status`);
   console.log("");
   console.log(`Run ID: ${manifest.runId}`);
   console.log(`Request: ${manifest.request}`);
   console.log(`Mode: ${manifest.mode}`);
+  console.log("");
+  console.log("## Summary");
+  console.log(`Workers: ${formatStatusCounts(statusCounts)}`);
+  console.log(`Changed files recorded: ${changedFiles}`);
+  console.log(`Proposed edits: ${proposedEdits}`);
+  console.log(`Verification entries: ${verificationRun}`);
+  console.log(`API usage: calls=${apiUsage.calls}, total_tokens=${apiUsage.totalTokens}, input_tokens=${apiUsage.inputTokens}, output_tokens=${apiUsage.outputTokens}`);
+  console.log(`API cost: estimated_usd=${formatEstimatedUsd(apiCost.estimatedUsd)}, priced_calls=${apiCost.pricedCalls}, unpriced_calls=${apiCost.unpricedCalls}`);
   console.log("");
   console.log(`## Workers`);
 

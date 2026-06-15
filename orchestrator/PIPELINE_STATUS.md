@@ -804,3 +804,12 @@ HTML report: ...\report.html
 - 목적:
   - HTML을 열기 전 터미널만 보고도 다음 행동을 결정할 수 있게 함
   - reports 인덱스를 latest/continue 체인과 더 자연스럽게 연결
+
+## 2026-06-15 runner status summary 보강
+
+- 변경 내용:
+  - `runner:status`에 `Summary` 섹션 추가
+  - worker 상태 집계, changed files, proposed edits, verification entries, API usage/cost 표시
+- 목적:
+  - report를 열기 전 터미널에서 run의 비용과 실행 품질을 빠르게 판단
+  - Final Summary, reports index, status 출력의 정보 밀도를 맞춤

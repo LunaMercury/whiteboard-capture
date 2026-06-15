@@ -106,8 +106,10 @@ function checkPackageScripts(orchestratorRoot: string): CheckResult {
   const packagePath = path.join(orchestratorRoot, "package.json");
   const requiredScripts = [
     "runner:plan",
+    "runner:plan:budget",
     "runner:plan:mock",
     "runner:goal",
+    "runner:goal:budget",
     "runner:goal:mock",
     "runner:rehearse",
     "runner:apply",

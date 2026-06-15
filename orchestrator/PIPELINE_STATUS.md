@@ -724,3 +724,15 @@ HTML report: ...\report.html
   - mock run을 보고 싶을 때는 명시적으로 `runner:latest:any` 또는 `runner:latest:mock` 사용
 - 안전 규칙:
   - 실제 적용 체인에 가까운 latest 기본값은 live만 대상으로 삼음
+
+## 2026-06-15 budget runner alias 추가
+
+- 추가 alias:
+  - `runner:plan:budget`: `--max-cost-usd 0.05`, concurrency 1
+  - `runner:goal:budget`: `--max-cost-usd 0.10`, concurrency 1, rollback rehearsal
+- 목적:
+  - 작은 요청을 비용 상한 안에서 안전하게 실행
+  - 비용이 걱정될 때 기본 `runner:goal` 대신 예산형 명령을 선택 가능
+- 결정:
+  - 기존 `runner:goal` 기본 동작은 변경하지 않음
+  - 예산 제한은 명시적인 budget alias에서만 적용

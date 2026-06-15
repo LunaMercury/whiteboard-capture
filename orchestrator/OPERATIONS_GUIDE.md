@@ -38,6 +38,9 @@ cd "D:\개발\whiteboard capture\orchestrator"
 
 `runner:goal`은 안전 리허설입니다. 성공해도 파일 변경은 롤백되며, 결과가 마음에 들면 `runner:continue -- <run-id> --choose B --execute`로 같은 worker 결과를 실제 적용합니다.
 
+# 예산 제한이 필요한 안전 실행
+& "C:\Program Files\nodejs\npm.cmd" run runner:goal:budget -- --roles frontend "요청 내용"
+
 # 비용 없이 목표형 흐름 점검
 & "C:\Program Files\nodejs\npm.cmd" run runner:goal:mock -- --roles frontend,java "요청 내용"
 

@@ -37,6 +37,7 @@ type ContinueDecision = {
 
 function parseArgs(argv: string[]) {
   let choose: Choice | undefined;
+  let compact = false;
   let execute = false;
   const positional: string[] = [];
 
@@ -55,6 +56,10 @@ function parseArgs(argv: string[]) {
       execute = true;
       continue;
     }
+    if (arg === "--compact" || arg === "--summary-only") {
+      compact = true;
+      continue;
+    }
     if (arg.startsWith("--")) {
       throw new Error(`Unknown option: ${arg}`);
     }
@@ -63,9 +68,9 @@ function parseArgs(argv: string[]) {
 
   const runId = positional.join(" ").trim();
   if (!runId) {
-    throw new Error("Usage: npm run runner:continue -- <run-id> [--choose A|B|C] [--execute]");
+    throw new Error("Usage: npm run runner:continue -- <run-id> [--choose A|B|C] [--execute] [--compact]");
   }
-  return { runId, choose, execute };
+  return { runId, choose, compact, execute };
 }
 
 function formatStatusCounts(statusCounts: Record<string, number>) {
@@ -304,6 +309,18 @@ function printDecision(runId: string, decision: ContinueDecision) {
   }
 }
 
+function printCompactDecision(runId: string, decision: ContinueDecision) {
+  console.log(`runner:continue: status=${decision.status}`);
+  for (const option of decision.options) {
+    const executable = option.command ? "executable" : "manual";
+    console.log(`${option.choice}: ${option.title} (${executable})`);
+    if (option.command) {
+      console.log(`   preview: npm run runner:continue:${option.choice.toLowerCase()} -- ${runId}`);
+      console.log(`   execute: npm run runner:continue:${option.choice.toLowerCase()}:execute -- ${runId}`);
+    }
+  }
+}
+
 function runCommand(orchestratorRoot: string, command: ContinueCommand) {
   const tsxCli = path.join(orchestratorRoot, "node_modules", "tsx", "dist", "cli.mjs");
   const scriptPath = path.join(orchestratorRoot, "src", command.script);
@@ -315,13 +332,26 @@ function runCommand(orchestratorRoot: string, command: ContinueCommand) {
 }
 
 async function main() {
-  const { runId, choose, execute } = parseArgs(process.argv.slice(2));
+  const { runId, choose, compact, execute } = parseArgs(process.argv.slice(2));
   const orchestratorRoot = path.resolve(__dirname, "..");
   const manifest = readRunnerManifest(orchestratorRoot, runId);
   const results = readWorkerResults(manifest);
   const statusCounts = countDisplayStatuses(results);
   const blockedReasons = getBlockedReasons(results);
   const decision = buildContinueDecision(manifest.runId, results);
+
+  if (compact && !choose) {
+    console.log(`# Runner Continue`);
+    console.log(`Run ID: ${manifest.runId}`);
+    console.log(`Mode: ${manifest.mode}`);
+    console.log(`Workers: ${formatStatusCounts(statusCounts)}`);
+    if (blockedReasons.length > 0) {
+      console.log(`Blocked reasons: ${blockedReasons.length}`);
+    }
+    printCompactDecision(manifest.runId, decision);
+    console.log(`Report: ${manifest.reportPath}`);
+    return;
+  }
 
   console.log("# Runner Continue");
   console.log(`Run ID: ${manifest.runId}`);

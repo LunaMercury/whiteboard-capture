@@ -15,6 +15,7 @@ const lines = [
   "When you already have a run id:",
   "- npm run runner:status -- <run-id>",
   "- npm run runner:status:compact -- <run-id>",
+  "- npm run runner:continue:compact -- <run-id>",
   "- npm run runner:continue:a -- <run-id>",
   "- npm run runner:continue:b -- <run-id>",
   "- npm run runner:continue:b:execute -- <run-id>",

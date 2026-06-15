@@ -120,6 +120,7 @@ async function main() {
   if (action === "continue") {
     const result = runNodeScript(orchestratorRoot, "runnerContinue.ts", [
       ...(choose ? ["--choose", choose] : []),
+      ...(compact ? ["--compact"] : []),
       ...(execute ? ["--execute"] : []),
       runId,
     ]);
@@ -138,6 +139,7 @@ async function main() {
   console.log(`- Status: npm run runner:latest:status`);
   console.log(`- Compact status: npm run runner:latest:status:compact`);
   console.log(`- Continue options: npm run runner:latest:continue`);
+  console.log(`- Compact continue options: npm run runner:latest:continue:compact`);
   console.log(`- Option A preview: npm run runner:latest:a`);
   console.log(`- Option B preview: npm run runner:latest:b`);
   console.log(`- Option B execute: npm run runner:latest:b:execute`);

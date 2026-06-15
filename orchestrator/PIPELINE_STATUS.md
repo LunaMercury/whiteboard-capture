@@ -745,3 +745,12 @@ HTML report: ...\report.html
 - 목적:
   - `runner:goal`은 기본 무제한, `runner:goal:budget`은 예산 제한이라는 차이를 터미널 상단에서 즉시 확인
   - 비용 관련 착각을 줄임
+
+## 2026-06-15 finalized report continue chain 추가
+
+- 변경 내용:
+  - finalized `report.md`에 `Continue Chain` 섹션 추가
+  - finalized `report.html`에도 같은 체인 명령 목록 표시
+- 목적:
+  - 터미널 `Final Summary`를 놓쳐도 report에서 바로 다음 명령을 확인
+  - status, continue, rehearsal, keep-applied, reject/replan 흐름을 보고서 안에서 연결

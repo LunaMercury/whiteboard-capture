@@ -104,6 +104,7 @@ function buildFinalSummary(results: WorkerResultPacket[]) {
 }
 
 function renderFinalReport(
+  runId: string,
   request: string,
   mode: string,
   statusCounts: Record<string, number>,
@@ -161,6 +162,15 @@ function renderFinalReport(
       lines.push(`- ${item.key}: calls=${item.calls}, total_tokens=${item.totalTokens}, estimated_cost_usd=${formatEstimatedUsd(item.estimatedUsd)}`);
     }
   }
+
+  lines.push("");
+  lines.push("## Continue Chain");
+  lines.push(`- status: \`npm run runner:status -- ${runId}\``);
+  lines.push(`- inspect options: \`npm run runner:continue -- ${runId}\``);
+  lines.push(`- safe rehearsal: \`npm run runner:continue:a:execute -- ${runId}\``);
+  lines.push(`- preview keep-applied: \`npm run runner:continue:b -- ${runId}\``);
+  lines.push(`- keep applied intentionally: \`npm run runner:continue:b:execute -- ${runId}\``);
+  lines.push(`- reject and replan: \`npm run runner:continue:c -- ${runId}\``);
 
   lines.push("");
   lines.push("## Worker Results");
@@ -396,6 +406,18 @@ function renderHtmlReport(input: {
     ${input.apiUsage.records.length > 0 ? `<section class="section" style="margin-top:16px; overflow:auto;"><table><thead><tr><th>stage</th><th>role</th><th>model</th><th>input</th><th>output</th><th>total</th></tr></thead><tbody>${apiRows}</tbody></table></section>` : ""}
     ${input.apiBreakdown.byStageRole.length > 0 ? `<section class="section" style="margin-top:16px; overflow:auto;"><h3>Cost by stage and role</h3><table><thead><tr><th>stage:role</th><th>calls</th><th>input</th><th>output</th><th>total</th><th>estimated cost</th></tr></thead><tbody>${apiBreakdownRows}</tbody></table></section>` : ""}
 
+    <h2>Continue Chain</h2>
+    <section class="section">
+      <ul>
+        <li><code>npm run runner:status -- ${escapeHtml(input.runId)}</code></li>
+        <li><code>npm run runner:continue -- ${escapeHtml(input.runId)}</code></li>
+        <li><code>npm run runner:continue:a:execute -- ${escapeHtml(input.runId)}</code></li>
+        <li><code>npm run runner:continue:b -- ${escapeHtml(input.runId)}</code></li>
+        <li><code>npm run runner:continue:b:execute -- ${escapeHtml(input.runId)}</code></li>
+        <li><code>npm run runner:continue:c -- ${escapeHtml(input.runId)}</code></li>
+      </ul>
+    </section>
+
     <h2>Workers</h2>
     <section class="workers">${workerCards}</section>
 
@@ -448,6 +470,7 @@ async function main() {
   summary.workerResultCount = results.length;
 
   const report = renderFinalReport(
+    manifest.runId,
     summary.request,
     manifest.mode,
     statusCounts,

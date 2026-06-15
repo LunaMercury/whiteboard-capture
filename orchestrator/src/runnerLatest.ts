@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 type Choice = "A" | "B" | "C";
 type ModeFilter = "live" | "mock" | "any";
 
-type Action = "print" | "status" | "continue";
+type Action = "print" | "status" | "continue" | "quick";
 
 function parseArgs(argv: string[]) {
   let action: Action = "print";
@@ -23,6 +23,10 @@ function parseArgs(argv: string[]) {
     const arg = argv[index];
     if (arg === "--status") {
       action = "status";
+      continue;
+    }
+    if (arg === "--quick") {
+      action = "quick";
       continue;
     }
     if (arg === "--compact" || arg === "--summary-only") {
@@ -117,6 +121,19 @@ async function main() {
     process.exit(result.status ?? 1);
   }
 
+  if (action === "quick") {
+    console.log("# Runner Latest Quick");
+    console.log(`Run ID: ${runId}`);
+    console.log("");
+    const statusResult = runNodeScript(orchestratorRoot, "runnerStatus.ts", [runId, "--compact"]);
+    if (statusResult.status !== 0) {
+      process.exit(statusResult.status ?? 1);
+    }
+    console.log("");
+    const continueResult = runNodeScript(orchestratorRoot, "runnerContinue.ts", ["--compact", runId]);
+    process.exit(continueResult.status ?? 1);
+  }
+
   if (action === "continue") {
     const result = runNodeScript(orchestratorRoot, "runnerContinue.ts", [
       ...(choose ? ["--choose", choose] : []),
@@ -140,6 +157,7 @@ async function main() {
   console.log(`- Compact status: npm run runner:latest:status:compact`);
   console.log(`- Continue options: npm run runner:latest:continue`);
   console.log(`- Compact continue options: npm run runner:latest:continue:compact`);
+  console.log(`- Quick status + continue: npm run runner:latest:quick`);
   console.log(`- Option A preview: npm run runner:latest:a`);
   console.log(`- Option B preview: npm run runner:latest:b`);
   console.log(`- Option B execute: npm run runner:latest:b:execute`);

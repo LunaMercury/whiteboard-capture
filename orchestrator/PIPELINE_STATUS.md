@@ -835,3 +835,14 @@ HTML report: ...\report.html
 - 목적:
   - 긴 옵션 설명 없이 A/B/C 선택지와 실행 가능 여부를 빠르게 확인
   - status compact와 continue compact를 연결해 작은 터미널에서도 run 판단을 쉽게 함
+
+## 2026-06-15 runner latest quick 추가
+
+- 변경 내용:
+  - `runner:latest --quick` 액션 추가
+  - `runner:latest:quick`, `runner:latest:quick:any`, `runner:latest:quick:mock` alias 추가
+  - quick 실행 시 최신 run의 status compact와 continue compact를 연속 출력
+  - `runner:help`, 운영 가이드, doctor, package validation 필수 script 목록 반영
+- 목적:
+  - 최신 run의 상태와 다음 선택지를 한 번의 명령으로 확인
+  - 모바일/작은 터미널에서 status와 continue를 따로 실행하는 반복을 줄임

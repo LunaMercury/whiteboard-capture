@@ -186,6 +186,11 @@ orchestrator/runs/<run-id>/
 ```powershell
 cd orchestrator
 
+# 가장 짧은 실사용 체인
+"C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
+"C:\Program Files\nodejs\npm.cmd" run runner:quick
+"C:\Program Files\nodejs\npm.cmd" run runner:latest:b:execute
+
 # 계획과 worker 제안만 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:plan -- --roles frontend,java "요청 내용"
 

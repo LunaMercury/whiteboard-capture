@@ -13,16 +13,19 @@
 
 ## 가장 많이 쓰는 명령
 
-먼저 아래 4개 alias만 기억하면 됩니다. 긴 원본 명령은 그대로 남겨두되, 실사용은 이 alias를 기본으로 합니다.
+먼저 아래 핵심 alias만 기억하면 됩니다. 기본 흐름은 `runner:goal`로 안전 리허설을 만들고, `runner:quick`으로 상태와 다음 선택지를 확인한 뒤, 의도적으로 유지할 때만 `runner:latest:b:execute`를 실행하는 것입니다.
 
 | alias | 언제 사용하나 | 파일 변경 |
 | --- | --- | --- |
 | `runner:plan` | 계획과 worker 제안만 확인 | 없음 |
 | `runner:plan:mock` | 비용 없이 plan/worker 흐름만 점검 | 없음 |
+| `runner:goal` | 적용 가능성을 검증하고 자동 롤백 | 검증 후 롤백 |
+| `runner:quick` | 최신 live run의 상태와 다음 선택지 확인 | 없음 |
 | `runner:rehearse` | 실제 적용 가능성을 검증하고 자동 롤백 | 검증 후 롤백 |
 | `runner:apply` | 검증된 작업을 실제로 남김 | 변경 유지 |
 | `runner:reuse-apply` | 기존 worker 결과를 재사용해 apply만 재시도 | 검증 후 롤백 |
 | `runner:continue` | 기존 run 상태를 읽고 다음 명령 추천 | 없음 |
+| `runner:latest:b:execute` | 최신 live run의 제안 변경을 실제로 유지 | 변경 유지 |
 
 ```powershell
 cd "D:\개발\whiteboard capture\orchestrator"
@@ -36,7 +39,7 @@ cd "D:\개발\whiteboard capture\orchestrator"
 # 목표형 안전 실행: 적용 가능성 검증 후 자동 롤백
 & "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
 
-`runner:goal`은 안전 리허설입니다. 성공해도 파일 변경은 롤백되며, 결과가 마음에 들면 `runner:continue -- <run-id> --choose B --execute`로 같은 worker 결과를 실제 적용합니다.
+`runner:goal`은 안전 리허설입니다. 성공해도 파일 변경은 롤백되며, 결과가 마음에 들면 `runner:quick`으로 최신 run을 확인한 뒤 `runner:latest:b:execute`로 같은 worker 결과를 실제 적용합니다.
 
 # 예산 제한이 필요한 안전 실행
 & "C:\Program Files\nodejs\npm.cmd" run runner:goal:budget -- --roles frontend "요청 내용"

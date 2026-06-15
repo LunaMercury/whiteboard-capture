@@ -865,3 +865,12 @@ HTML report: ...\report.html
 - 목적:
   - 운영 가이드와 README의 실사용 체인을 일치시킴
   - 새 사용자가 가장 짧은 확인 흐름을 README에서 바로 찾게 함
+
+## 2026-06-15 quick 중심 운영 문서 정리
+
+- 변경 내용:
+  - 운영 가이드 핵심 alias 표에 `runner:goal`, `runner:quick`, `runner:latest:b:execute` 반영
+  - README 실사용 alias 섹션에 가장 짧은 3단계 체인 추가
+- 목적:
+  - 실사용 기본 흐름을 문서 첫 화면에서 바로 이해하게 함
+  - 안전 리허설, 빠른 확인, 의도적 적용의 순서를 명확히 고정

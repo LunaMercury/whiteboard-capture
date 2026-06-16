@@ -160,8 +160,10 @@ async function main() {
   console.log(`- Compact continue options: npm run runner:latest:continue:compact`);
   console.log(`- Quick status + continue: npm run runner:latest:quick`);
   console.log(`- Option A preview: npm run runner:latest:a`);
-  console.log(`- Option B preview: npm run runner:latest:b`);
-  console.log(`- Option B execute: npm run runner:latest:b:execute`);
+  console.log(`- Accept preview: npm run runner:accept:preview`);
+  console.log(`- Accept latest proposed edits: npm run runner:accept`);
+  console.log(`- Option B preview alias: npm run runner:latest:b`);
+  console.log(`- Option B execute alias: npm run runner:latest:b:execute`);
   console.log(`- Include mock runs: npm run runner:latest:any`);
   console.log(`- Explicit status: npm run runner:status -- ${manifest.runId}`);
   console.log(`- Explicit continue: npm run runner:continue -- ${manifest.runId}`);

@@ -938,3 +938,12 @@ HTML report: ...\report.html
 - 목적:
   - `runner:goal` -> `runner:quick` -> `runner:accept` 흐름으로 실사용 명령을 더 직관적으로 만듭니다.
   - 기존 `runner:latest:b:execute`는 유지해 하위 호환성을 보장합니다.
+
+## 2026-06-16 runner latest accept 안내 정리
+
+- 변경 내용:
+  - `runner:latest`의 Next commands에 `runner:accept:preview`와 `runner:accept`를 우선 표시했습니다.
+  - 기존 `runner:latest:b`, `runner:latest:b:execute`는 호환 alias로 표시했습니다.
+- 목적:
+  - help/README/운영 가이드와 latest 상세 출력의 기본 체인을 일치시킵니다.
+  - 최신 run 확인 후 실제 유지로 넘어가는 명령을 더 직관적으로 보여 줍니다.

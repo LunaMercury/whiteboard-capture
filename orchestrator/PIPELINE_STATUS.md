@@ -1033,8 +1033,19 @@ HTML report: ...\report.html
 - 추가 명령: `runner:workflow:quality-smoke`
 - 목적: `runner:workflow` 안에서 apply 이후 품질 게이트가 실패를 제대로 차단하고, `--rollback-after-verify`가 적용 파일을 되돌리는지 비용 없이 검증합니다.
 - 동작 방식:
-  - test worker/apply provider가 `web/src/components/WorkflowQualityGateSmoke.tsx` 임시 파일을 생성합니다.
-  - 파일에는 placeholder, JSX inline style, 주석 처리된 JSX 코드가 들어 있어 품질 게이트가 반드시 실패해야 합니다.
+  - test worker/apply provider가 `web/src/components/WorkflowQualityGateSmoke.md` 임시 파일을 생성합니다.
+  - 파일에는 placeholder 이메일이 들어 있어 역할별 검증은 통과하고 post-apply 품질 게이트에서 반드시 실패해야 합니다.
   - workflow가 실패 상태로 종료되고 rollback이 성공해야 smoke 테스트가 통과합니다.
 - `ci:dry-run`에 포함하여 타입 체크, doctor, 품질 게이트 단독 smoke, workflow 품질 smoke, mock full flow를 함께 확인합니다.
 
+
+## 2026-06-17 runner preflight 추가
+
+- 추가 명령: `runner:preflight`, `runner:preflight:compact`
+- 목적: live OpenAI worker/apply 실행 전에 API 키, 모델, reasoning 옵션, 비용 예산, concurrency, git clean 상태, 핵심 alias 존재 여부를 비용 없이 확인합니다.
+- 특징:
+  - OpenAI API를 호출하지 않으므로 API cost는 `$0.0000`입니다.
+  - `OPENAI_API_KEY`가 없으면 live 실행 전 단계에서 실패로 알려줍니다.
+  - dirty worktree는 기본 warning이며, `--strict`를 붙이면 실패로 다룰 수 있습니다.
+  - 마지막에 `runner:goal -> runner:quick -> runner:accept` 기본 체인을 다시 안내합니다.
+- README, 운영 가이드, help, doctor, package validation 필수 script 목록에 반영했습니다.

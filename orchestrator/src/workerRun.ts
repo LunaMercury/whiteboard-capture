@@ -357,7 +357,7 @@ function isWorkflowQualityGateSmoke(task: WorkerTaskPacket) {
 
 function createTestWorkerResult(task: WorkerTaskPacket): WorkerResultPacket {
   const editPath = isWorkflowQualityGateSmoke(task)
-    ? "web/src/components/WorkflowQualityGateSmoke.tsx"
+    ? "web/src/components/WorkflowQualityGateSmoke.md"
     : testEditPathForRole(task.role);
   return {
     role: task.role,

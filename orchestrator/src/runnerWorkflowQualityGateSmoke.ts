@@ -10,7 +10,7 @@ function main() {
   const orchestratorRoot = path.resolve(__dirname, "..");
   const repoRoot = path.resolve(orchestratorRoot, "..");
   const tsxCli = path.join(orchestratorRoot, "node_modules", "tsx", "dist", "cli.mjs");
-  const probePath = path.join(repoRoot, "web", "src", "components", "WorkflowQualityGateSmoke.tsx");
+  const probePath = path.join(repoRoot, "web", "src", "components", "WorkflowQualityGateSmoke.md");
 
   const result = spawnSync(
     process.execPath,
@@ -34,6 +34,7 @@ function main() {
     {
       cwd: orchestratorRoot,
       encoding: "utf8",
+      timeout: 3 * 60 * 1000,
       windowsHide: true,
     },
   );
@@ -61,6 +62,9 @@ function main() {
   console.log(`Probe removed: ${probeRemoved ? "yes" : "no"}`);
   if (runId) {
     console.log(`Cleaned run: ${runId}`);
+  }
+  if (result.error) {
+    console.log(`Workflow error: ${result.error.message}`);
   }
 
   if (!passed) {

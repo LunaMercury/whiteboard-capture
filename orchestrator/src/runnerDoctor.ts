@@ -144,6 +144,8 @@ function checkPackageScripts(orchestratorRoot: string): CheckResult {
     "runner:workflow",
     "runner:workflow:reuse",
     "runner:doctor",
+    "runner:preflight",
+    "runner:preflight:compact",
     "runner:help",
     "runner:quality",
     "runner:quality:smoke",

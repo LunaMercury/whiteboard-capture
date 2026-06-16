@@ -374,9 +374,10 @@ function runTestApply(packet: ApplyPacket): ApplyExecution {
           ? ""
           : shouldFailQualityGate
             ? [
-                "export function WorkflowQualityGateSmoke() {",
-                "  return <div style={{ color: 'red' }}>{/* <span>dead code</span> */}whiteboard@service.example</div>;",
-                "}",
+                "# Workflow quality gate smoke",
+                "",
+                "This temporary file intentionally contains whiteboard@service.example.",
+                "The workflow quality smoke should pass role verification, then fail the post-apply quality gate.",
                 "",
               ].join("\n")
             : [

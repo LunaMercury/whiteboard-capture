@@ -35,6 +35,8 @@
     "runner:full:mock": "tsx src/runnerFull.ts --mock",
     "runner:cleanup": "tsx src/runnerCleanup.ts",
     "runner:doctor": "tsx src/runnerDoctor.ts",
+    "runner:preflight": "tsx src/runnerPreflight.ts",
+    "runner:preflight:compact": "tsx src/runnerPreflight.ts --compact",
     "runner:help": "tsx src/runnerHelp.ts",
     "runner:quality": "tsx src/runnerQualityGate.ts",
     "runner:quality:smoke": "tsx src/runnerQualityGateSmoke.ts",

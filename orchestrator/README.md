@@ -187,6 +187,7 @@ orchestrator/runs/<run-id>/
 cd orchestrator
 
 # 가장 짧은 실사용 체인
+"C:\Program Files\nodejs\npm.cmd" run runner:preflight:compact
 "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
 "C:\Program Files\nodejs\npm.cmd" run runner:quick
 "C:\Program Files\nodejs\npm.cmd" run runner:accept
@@ -267,6 +268,9 @@ cd orchestrator
 
 # 명령이 헷갈릴 때
 "C:\Program Files\nodejs\npm.cmd" run runner:help
+
+# live 실행 전 API 키, 모델, 예산, git 상태를 비용 없이 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:preflight:compact
 ```
 
 ### 1. 일반 오케스트레이션 보기

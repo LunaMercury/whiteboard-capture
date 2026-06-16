@@ -92,6 +92,8 @@ const requiredScripts = [
   "runner:workflow:rehearse",
   "runner:workflow:reuse",
   "runner:doctor",
+  "runner:preflight",
+  "runner:preflight:compact",
   "runner:help",
   "runner:quality",
   "runner:quality:smoke",

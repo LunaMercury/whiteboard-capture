@@ -21,6 +21,7 @@
 | --- | --- | --- |
 | `runner:plan` | 계획과 worker 제안만 확인 | 없음 |
 | `runner:plan:mock` | 비용 없이 plan/worker 흐름만 점검 | 없음 |
+| `runner:preflight` | live 실행 전 API 키, 모델, 예산, git 상태 확인 | 없음 |
 | `runner:goal` | 적용 가능성을 검증하고 자동 롤백 | 검증 후 롤백 |
 | `runner:quick` | 최신 live run의 상태와 다음 선택지 확인 | 없음 |
 | `runner:rehearse` | 실제 적용 가능성을 검증하고 자동 롤백 | 검증 후 롤백 |
@@ -37,6 +38,9 @@ cd "D:\개발\whiteboard capture\orchestrator"
 
 # 계획과 worker 결과만 확인
 & "C:\Program Files\nodejs\npm.cmd" run runner:plan -- --roles frontend,java "요청 내용"
+
+# live 실행 전 계기판 확인
+& "C:\Program Files\nodejs\npm.cmd" run runner:preflight:compact
 
 # 비용 없이 plan/worker 흐름만 점검
 & "C:\Program Files\nodejs\npm.cmd" run runner:plan:mock -- --roles frontend,java "요청 내용"

@@ -974,3 +974,12 @@ HTML report: ...\report.html
 - 목적:
   - post-apply 품질 게이트가 비용 없이 실제로 나쁜 패턴을 막는지 검증합니다.
   - 파이프라인 자체 안전장치가 고장났는지 빠르게 확인할 수 있게 합니다.
+
+## 2026-06-16 최종 보고서 품질 게이트 섹션 추가
+
+- 변경 내용:
+  - `runnerFinalize.ts`가 `meta/quality-gate.json`을 읽어 report.md와 report.html에 Quality Gate 섹션을 추가합니다.
+  - 품질 게이트 상태, 검사 파일 수, error/warning 수, finding 목록을 최종 보고서에 남깁니다.
+- 목적:
+  - 터미널 Final Summary를 놓쳐도 보고서에서 품질 게이트 결과를 확인할 수 있게 합니다.
+  - CLI 단독 사용 시에도 커밋 전 품질 실패 사유를 추적하기 쉽게 만듭니다.

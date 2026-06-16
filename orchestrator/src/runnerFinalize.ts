@@ -31,6 +31,19 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+type QualityGateReport = {
+  status: "passed" | "failed";
+  checkedFiles: string[];
+  errorCount: number;
+  warnCount: number;
+  findings: Array<{
+    severity: "error" | "warn";
+    file: string;
+    rule: string;
+    message: string;
+  }>;
+};
+
 function parseArgs(argv: string[]) {
   const compact = argv.includes("--compact") || argv.includes("--summary-only");
   const runId = argv.filter((item) => item !== "--compact" && item !== "--summary-only").join(" ").trim();
@@ -38,6 +51,14 @@ function parseArgs(argv: string[]) {
     throw new Error("Usage: npm run runner:finalize -- <run-id> [--compact]");
   }
   return { runId, compact };
+}
+
+function readQualityGateReport(manifest: ReturnType<typeof readRunnerManifest>): QualityGateReport | undefined {
+  const reportPath = path.join(manifest.runDir, "meta", "quality-gate.json");
+  if (!fs.existsSync(reportPath)) {
+    return undefined;
+  }
+  return JSON.parse(fs.readFileSync(reportPath, "utf8")) as QualityGateReport;
 }
 
 function buildReleaseBlockers(results: WorkerResultPacket[]) {
@@ -116,6 +137,7 @@ function renderFinalReport(
   apiUsage: ApiUsageSummary,
   apiCost: ApiUsageCostSummary,
   apiBreakdown: ApiUsageBreakdown,
+  qualityGate: QualityGateReport | undefined,
 ) {
   const lines = [
     "# Finalized Runner Report",
@@ -142,6 +164,23 @@ function renderFinalReport(
   lines.push(`- unpriced_calls: ${apiCost.unpricedCalls}`);
   if (apiCost.unpricedModels.length > 0) {
     lines.push(`- unpriced_models: ${apiCost.unpricedModels.join(", ")}`);
+  }
+
+  lines.push("");
+  lines.push("## Quality Gate");
+  if (!qualityGate) {
+    lines.push("- status: not run");
+  } else {
+    lines.push(`- status: ${qualityGate.status}`);
+    lines.push(`- checked_files: ${qualityGate.checkedFiles.length}`);
+    lines.push(`- errors: ${qualityGate.errorCount}`);
+    lines.push(`- warnings: ${qualityGate.warnCount}`);
+    if (qualityGate.findings.length > 0) {
+      lines.push("- findings:");
+      for (const finding of qualityGate.findings) {
+        lines.push(`  - ${finding.severity} ${finding.file} [${finding.rule}]: ${finding.message}`);
+      }
+    }
   }
 
   lines.push("");
@@ -287,6 +326,7 @@ function renderHtmlReport(input: {
   apiUsage: ApiUsageSummary;
   apiCost: ApiUsageCostSummary;
   apiBreakdown: ApiUsageBreakdown;
+  qualityGate?: QualityGateReport;
 }) {
   const statusCards = renderStatusCards(input.statusCounts) || "<p>No worker status collected.</p>";
   const workerCards = input.results.map(renderWorkerCard).join("");
@@ -298,6 +338,15 @@ function renderHtmlReport(input: {
     .join("");
   const workerStageCost = input.apiBreakdown.byStage.find((item) => item.key === "worker")?.estimatedUsd ?? 0;
   const applyStageCost = input.apiBreakdown.byStage.find((item) => item.key === "apply")?.estimatedUsd ?? 0;
+  const qualityGateItems = input.qualityGate
+    ? [
+        `status: ${input.qualityGate.status}`,
+        `checked files: ${input.qualityGate.checkedFiles.length}`,
+        `errors: ${input.qualityGate.errorCount}`,
+        `warnings: ${input.qualityGate.warnCount}`,
+        ...input.qualityGate.findings.map((finding) => `${finding.severity} ${finding.file} [${finding.rule}]: ${finding.message}`),
+      ]
+    : ["status: not run"];
 
   return `<!doctype html>
 <html lang="ko">
@@ -424,6 +473,9 @@ function renderHtmlReport(input: {
     <h2>Blocked Reasons</h2>
     <section class="section"><ul>${renderList(input.blockedReasons)}</ul></section>
 
+    <h2>Quality Gate</h2>
+    <section class="section"><ul>${renderList(qualityGateItems)}</ul></section>
+
     <h2>Release Blockers</h2>
     <section class="section"><ul>${renderList(input.releaseBlockers)}</ul></section>
 
@@ -459,6 +511,7 @@ async function main() {
   const apiUsage = summarizeApiUsage(manifest);
   const apiCost = estimateApiUsageCost(apiUsage);
   const apiBreakdown = summarizeApiUsageBreakdown(apiUsage);
+  const qualityGate = readQualityGateReport(manifest);
 
   summary.verifierReport = {
     summary: `Finalized worker collection. ${finalSummary}`,
@@ -482,6 +535,7 @@ async function main() {
     apiUsage,
     apiCost,
     apiBreakdown,
+    qualityGate,
   );
   const htmlReportPath = path.join(manifest.runDir, "report.html");
   const htmlReport = renderHtmlReport({
@@ -498,6 +552,7 @@ async function main() {
     apiUsage,
     apiCost,
     apiBreakdown,
+    qualityGate,
   });
 
   writeRunnerManifest(orchestratorRoot, manifest);

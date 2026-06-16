@@ -1001,3 +1001,11 @@ HTML report: ...\report.html
 - 목적:
   - 여러 run을 훑을 때 품질 게이트 통과/실패 여부를 바로 확인합니다.
   - quick/status/report의 품질 상태 표시를 reports 인덱스와 일치시킵니다.
+
+## 2026-06-16 ci dry-run 품질 게이트 smoke 연결
+
+- 변경 내용:
+  - `ci:dry-run`에 `runner:quality:smoke`를 추가했습니다.
+- 목적:
+  - 오케스트레이터 기본 CI 점검에서 품질 게이트 자체가 나쁜 패턴을 차단하는지 함께 확인합니다.
+  - 타입 체크, doctor, quality smoke, mock full flow가 한 번에 실행되도록 합니다.

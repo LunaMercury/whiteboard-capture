@@ -222,6 +222,7 @@ cd "D:\개발\whiteboard capture\orchestrator"
 - 상세 로그는 `runs/<run-id>/report.md`와 `report.html`에서 확인
 - 간단한 plan 흐름 확인은 `runner:plan:mock` 사용
 - 전체 mock 파이프라인 확인은 `runner:full:mock` 또는 `ci:dry-run` 사용
+- `ci:dry-run`은 타입 체크, doctor, 품질 게이트 smoke, mock full flow를 순서대로 실행
 
 피해야 할 절감 방식:
 

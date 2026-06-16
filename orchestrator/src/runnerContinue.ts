@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readRunnerManifest, readWorkerResults } from "./packetStore.js";
@@ -34,6 +35,8 @@ type ContinueDecision = {
   intro: string[];
   options: ContinueOption[];
 };
+
+type RunnerManifest = ReturnType<typeof readRunnerManifest>;
 
 function parseArgs(argv: string[]) {
   let choose: Choice | undefined;
@@ -171,11 +174,49 @@ function keepAppliedCommand(runId: string, roles: WorkerTaskPacket["role"][]): C
   };
 }
 
-function buildContinueDecision(runId: string, results: WorkerResultPacket[]): ContinueDecision {
+function hasSuccessfulRollbackRehearsal(manifest: RunnerManifest) {
+  const rollbackSummaryPath = path.join(manifest.runDir, "meta", "rollback-summary.json");
+  if (!fs.existsSync(rollbackSummaryPath)) {
+    return false;
+  }
+
+  try {
+    const rollbackSummary = JSON.parse(fs.readFileSync(rollbackSummaryPath, "utf8")) as {
+      rollback?: {
+        restoreStatus?: number | null;
+        cleanStatus?: number | null;
+        finalWorktreeClean?: boolean;
+      };
+    };
+    return rollbackSummary.rollback?.restoreStatus === 0
+      && rollbackSummary.rollback?.cleanStatus === 0
+      && rollbackSummary.rollback?.finalWorktreeClean === true;
+  } catch {
+    return false;
+  }
+}
+
+function hasPassedQualityGate(manifest: RunnerManifest) {
+  const qualityGatePath = path.join(manifest.runDir, "meta", "quality-gate.json");
+  if (!fs.existsSync(qualityGatePath)) {
+    return false;
+  }
+
+  try {
+    const qualityGate = JSON.parse(fs.readFileSync(qualityGatePath, "utf8")) as { status?: string };
+    return qualityGate.status === "passed";
+  } catch {
+    return false;
+  }
+}
+
+function buildContinueDecision(manifest: RunnerManifest, results: WorkerResultPacket[]): ContinueDecision {
+  const runId = manifest.runId;
   const blockedRoles = getBlockedRoles(results);
   const failedRoles = getFailedRoles(results);
   const editableSucceededRoles = getEditableSucceededRoles(results);
   const reviewOnlyRoles = getReviewOnlyRoles(results);
+  const safeRehearsalPassed = hasSuccessfulRollbackRehearsal(manifest) && hasPassedQualityGate(manifest);
 
   if (blockedRoles.length > 0) {
     const approvalFlags = buildApprovalFlags(results, blockedRoles);
@@ -231,20 +272,30 @@ function buildContinueDecision(runId: string, results: WorkerResultPacket[]): Co
 
   if (editableSucceededRoles.length > 0) {
     return {
-      status: "ready for apply rehearsal",
-      intro: ["Worker proposed edits are available. Reuse them to avoid another worker call."],
+      status: safeRehearsalPassed ? "ready for accept" : "ready for apply rehearsal",
+      intro: [
+        safeRehearsalPassed
+          ? "A safe rehearsal passed with rollback and quality gate. You can keep the same proposed edits intentionally."
+          : "Worker proposed edits are available. Run a safe rehearsal first before accepting them.",
+      ],
       options: [
         {
           choice: "A",
           title: "Safe rehearsal with rollback",
           command: reuseApplyCommand(runId, editableSucceededRoles),
         },
-        {
-          choice: "B",
-          title: "Keep the same proposed edits intentionally",
-          description: "This applies files to the worktree. Use only after the rehearsal/report looks right.",
-          command: keepAppliedCommand(runId, editableSucceededRoles),
-        },
+        safeRehearsalPassed
+          ? {
+              choice: "B",
+              title: "Keep the same proposed edits intentionally",
+              description: "This applies files to the worktree using the already rehearsed worker result.",
+              command: keepAppliedCommand(runId, editableSucceededRoles),
+            }
+          : {
+              choice: "B",
+              title: "Locked until safe rehearsal passes",
+              description: "Run Option A first. Direct apply is still available through runner:apply when you intentionally want to bypass the rehearsal chain.",
+            },
         {
           choice: "C",
           title: "Start a new request instead of approving this run",
@@ -341,7 +392,7 @@ async function main() {
   const results = readWorkerResults(manifest);
   const statusCounts = countDisplayStatuses(results);
   const blockedReasons = getBlockedReasons(results);
-  const decision = buildContinueDecision(manifest.runId, results);
+  const decision = buildContinueDecision(manifest, results);
 
   if (compact && !choose) {
     console.log(`# Runner Continue`);

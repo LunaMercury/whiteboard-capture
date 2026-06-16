@@ -1059,3 +1059,13 @@ HTML report: ...\report.html
   - `java openai openai 1 요청`처럼 옵션 값만 request로 들어온 패턴을 감지하면 `npm run ... -- --compact ...` 예시를 안내합니다.
   - smoke 테스트를 `ci:dry-run`에 포함했습니다.
 - API 비용: 없음. 로컬 인자 파싱 검증만 수행합니다.
+
+## 2026-06-17 runner accept guard 추가
+
+- 추가 명령: `runner:accept-guard:smoke`
+- 목적: plan-only run에서 `runner:accept` 또는 Option B execute가 바로 keep-applied로 이어지는 것을 방지합니다.
+- 변경 내용:
+  - `runner:continue`는 rollback rehearsal와 quality gate가 모두 통과한 run에서만 Option B keep-applied를 executable로 표시합니다.
+  - 아직 리허설을 통과하지 않은 proposed edits는 Option A safe rehearsal을 먼저 실행하도록 안내합니다.
+  - smoke 테스트는 mock/test provider로 plan-only frontend edit를 만든 뒤 Option B가 잠기는지 확인합니다.
+- API 비용: 없음. mock/test provider와 로컬 판단만 사용합니다.

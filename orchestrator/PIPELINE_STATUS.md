@@ -874,3 +874,12 @@ HTML report: ...\report.html
 - 목적:
   - 실사용 기본 흐름을 문서 첫 화면에서 바로 이해하게 함
   - 안전 리허설, 빠른 확인, 의도적 적용의 순서를 명확히 고정
+
+## 2026-06-16 runner help primary chain 정렬
+
+- 변경 내용:
+  - `runner:help` Primary chain을 `runner:goal` -> `runner:quick` -> `runner:latest:b` -> `runner:latest:b:execute` 순서로 정리
+  - 상세 status 확인은 선택 단계로 이동
+- 목적:
+  - README와 운영 가이드의 quick 중심 흐름과 help 출력 순서를 일치시킴
+  - 사용자가 가장 짧은 기본 체인을 먼저 보게 함

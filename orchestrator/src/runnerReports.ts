@@ -347,7 +347,7 @@ function main() {
   const latestRunId = entries[0]?.runId;
 
   if (compact) {
-    console.log(`runner:reports: mode=${mode} runs=${entries.length} index=${indexPath} latest=${latestRunId ?? "none"}`);
+    console.log(`runner:reports: mode=${mode} runs=${entries.length} index=${indexPath} latest=${latestRunId ?? "none"} quick=${getQuickAlias(mode)}`);
     return;
   }
 

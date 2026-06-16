@@ -902,3 +902,11 @@ HTML report: ...\report.html
 - 목적:
   - 여러 run을 훑은 뒤 최신 run 판단으로 바로 넘어가는 동선을 단축
   - reports 대시보드와 quick 대시보드의 역할을 연결
+
+## 2026-06-16 reports compact quick 출력 추가
+
+- 변경 내용:
+  - `runner:reports --compact` 출력에 `quick=<alias>` 필드 추가
+- 목적:
+  - compact 로그에서도 reports 이후 이어갈 quick 명령을 바로 확인
+  - 자동화/작은 터미널에서 최신 run 판단 흐름을 더 짧게 연결

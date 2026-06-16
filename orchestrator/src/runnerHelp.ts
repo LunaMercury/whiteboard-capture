@@ -7,9 +7,9 @@ const lines = [
   "2. npm run runner:quick",
   "   Read-only. Shows compact status and compact continue options for the latest live run.",
   "   Use runner:quick:mock for mock runs or runner:quick:any for the newest run regardless of mode.",
-  "3. npm run runner:latest:b",
+  "3. npm run runner:accept:preview",
   "   Preview keeping the latest proposed edits.",
-  "4. npm run runner:latest:b:execute",
+  "4. npm run runner:accept",
   "   Keep the latest proposed edits intentionally.",
   "5. npm run runner:latest:status",
   "   Optional detailed status view. Use runner:latest:status:compact for one-screen output.",
@@ -43,7 +43,8 @@ const lines = [
   "- runner:quick is read-only; it only helps you choose the next command.",
   "- runner:goal:budget stops when estimated API cost exceeds $0.10.",
   "- runner:plan:budget stops when estimated API cost exceeds $0.05.",
-  "- Option B execute keeps edits. Use it only after reviewing the report.",
+  "- runner:accept keeps edits. Use it only after reviewing the report.",
+  "- runner:accept is an alias for the latest live run's Option B execute path.",
   "- Option C is preview-only because it means reject/replan.",
 ];
 

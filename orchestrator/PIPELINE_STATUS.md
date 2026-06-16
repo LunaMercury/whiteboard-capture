@@ -928,3 +928,13 @@ HTML report: ...\report.html
 - 목적:
   - `report.md`와 `report.html`을 함께 보여 주어 터미널에서 상세 보고서로 이동하는 동선을 줄입니다.
   - 모바일/간단 터미널 환경에서도 다음 확인 위치를 더 명확히 만듭니다.
+
+## 2026-06-16 runner accept alias 추가
+
+- 변경 내용:
+  - `runner:accept`를 최신 live run의 Option B execute alias로 추가했습니다.
+  - `runner:accept:preview`를 최신 live run의 Option B preview alias로 추가했습니다.
+  - `runner:help`, README, 운영 가이드, doctor/package validation 필수 스크립트 목록에 새 alias를 반영했습니다.
+- 목적:
+  - `runner:goal` -> `runner:quick` -> `runner:accept` 흐름으로 실사용 명령을 더 직관적으로 만듭니다.
+  - 기존 `runner:latest:b:execute`는 유지해 하위 호환성을 보장합니다.

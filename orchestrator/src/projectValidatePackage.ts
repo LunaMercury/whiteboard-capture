@@ -100,6 +100,8 @@ const requiredScripts = [
   "runner:quick",
   "runner:quick:any",
   "runner:quick:mock",
+  "runner:accept",
+  "runner:accept:preview",
   "project:package",
   "project:rehearse-package",
   "project:validate-package",

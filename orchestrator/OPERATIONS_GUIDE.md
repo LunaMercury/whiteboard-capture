@@ -1,4 +1,4 @@
-# Orchestrator Operations Guide
+﻿# Orchestrator Operations Guide
 
 이 문서는 오케스트레이터를 실제 작업에 사용할 때 어떤 명령과 옵션을 선택해야 하는지 정리한 운영형 사용 설명서입니다.
 
@@ -14,7 +14,7 @@
 
 ## 가장 많이 쓰는 명령
 
-먼저 아래 핵심 alias만 기억하면 됩니다. 기본 흐름은 `runner:goal`로 안전 리허설을 만들고, `runner:quick`으로 상태와 다음 선택지를 확인한 뒤, 의도적으로 유지할 때만 `runner:latest:b:execute`를 실행하는 것입니다.
+먼저 아래 핵심 alias만 기억하면 됩니다. 기본 흐름은 `runner:goal`로 안전 리허설을 만들고, `runner:quick`으로 상태와 다음 선택지를 확인한 뒤, 의도적으로 유지할 때만 `runner:accept`를 실행하는 것입니다.
 
 | alias | 언제 사용하나 | 파일 변경 |
 | --- | --- | --- |
@@ -26,7 +26,7 @@
 | `runner:apply` | 검증된 작업을 실제로 남김 | 변경 유지 |
 | `runner:reuse-apply` | 기존 worker 결과를 재사용해 apply만 재시도 | 검증 후 롤백 |
 | `runner:continue` | 기존 run 상태를 읽고 다음 명령 추천 | 없음 |
-| `runner:latest:b:execute` | 최신 live run의 제안 변경을 실제로 유지 | 변경 유지 |
+| `runner:accept` | 최신 live run의 제안 변경을 실제로 유지 | 변경 유지 |
 
 ```powershell
 cd "D:\개발\whiteboard capture\orchestrator"
@@ -40,7 +40,7 @@ cd "D:\개발\whiteboard capture\orchestrator"
 # 목표형 안전 실행: 적용 가능성 검증 후 자동 롤백
 & "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
 
-`runner:goal`은 안전 리허설입니다. 성공해도 파일 변경은 롤백되며, 결과가 마음에 들면 `runner:quick`으로 최신 run을 확인한 뒤 `runner:latest:b:execute`로 같은 worker 결과를 실제 적용합니다.
+`runner:goal`은 안전 리허설입니다. 성공해도 파일 변경은 롤백되며, 결과가 마음에 들면 `runner:quick`으로 최신 run을 확인한 뒤 `runner:accept`로 같은 worker 결과를 실제 적용합니다.
 
 # 예산 제한이 필요한 안전 실행
 & "C:\Program Files\nodejs\npm.cmd" run runner:goal:budget -- --roles frontend "요청 내용"
@@ -88,7 +88,8 @@ cd "D:\개발\whiteboard capture\orchestrator"
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:continue
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:continue:compact
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:b
-& "C:\Program Files\nodejs\npm.cmd" run runner:latest:b:execute
+& "C:\Program Files\nodejs\npm.cmd" run runner:accept:preview
+& "C:\Program Files\nodejs\npm.cmd" run runner:accept
 
 # 여러 run 리포트 인덱스 생성
 & "C:\Program Files\nodejs\npm.cmd" run runner:reports

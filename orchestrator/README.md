@@ -1,4 +1,4 @@
-# Whiteboard Capture Orchestrator
+﻿# Whiteboard Capture Orchestrator
 
 현재 파이프라인 완료 상태와 실사용 명령은 [PIPELINE_STATUS.md](./PIPELINE_STATUS.md)를 참고합니다.
 
@@ -189,7 +189,7 @@ cd orchestrator
 # 가장 짧은 실사용 체인
 "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
 "C:\Program Files\nodejs\npm.cmd" run runner:quick
-"C:\Program Files\nodejs\npm.cmd" run runner:latest:b:execute
+"C:\Program Files\nodejs\npm.cmd" run runner:accept
 
 # 계획과 worker 제안만 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:plan -- --roles frontend,java "요청 내용"
@@ -200,7 +200,7 @@ cd orchestrator
 # 목표형 안전 실행: 적용 가능성 검증 후 자동 롤백
 "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
 
-`runner:goal`은 안전 리허설입니다. 성공해도 파일 변경은 롤백되며, 결과가 마음에 들면 `runner:quick`으로 최신 run을 확인한 뒤 `runner:latest:b:execute`로 같은 worker 결과를 실제 적용합니다.
+`runner:goal`은 안전 리허설입니다. 성공해도 파일 변경은 롤백되며, 결과가 마음에 들면 `runner:quick`으로 최신 run을 확인한 뒤 `runner:accept`로 같은 worker 결과를 실제 적용합니다.
 
 # 예산 제한이 필요한 안전 실행
 "C:\Program Files\nodejs\npm.cmd" run runner:goal:budget -- --roles frontend "요청 내용"
@@ -248,7 +248,8 @@ cd orchestrator
 "C:\Program Files\nodejs\npm.cmd" run runner:latest:continue
 "C:\Program Files\nodejs\npm.cmd" run runner:latest:continue:compact
 "C:\Program Files\nodejs\npm.cmd" run runner:latest:b
-"C:\Program Files\nodejs\npm.cmd" run runner:latest:b:execute
+"C:\Program Files\nodejs\npm.cmd" run runner:accept:preview
+"C:\Program Files\nodejs\npm.cmd" run runner:accept
 
 # 여러 run 리포트 인덱스 생성
 "C:\Program Files\nodejs\npm.cmd" run runner:reports

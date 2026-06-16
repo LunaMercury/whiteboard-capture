@@ -45,6 +45,8 @@
     "runner:quick": "tsx src/runnerLatest.ts --quick",
     "runner:quick:any": "tsx src/runnerLatest.ts --quick --mode any",
     "runner:quick:mock": "tsx src/runnerLatest.ts --quick --mode mock",
+    "runner:accept": "tsx src/runnerLatest.ts --choose B --execute",
+    "runner:accept:preview": "tsx src/runnerLatest.ts --choose B",
     "runner:latest": "tsx src/runnerLatest.ts",
     "runner:latest:any": "tsx src/runnerLatest.ts --mode any",
     "runner:latest:mock": "tsx src/runnerLatest.ts --mode mock",

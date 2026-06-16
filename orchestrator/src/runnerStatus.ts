@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { estimateApiUsageCost, formatEstimatedUsd, summarizeApiUsage } from "./apiUsage.js";
@@ -38,6 +39,20 @@ function formatStatusCounts(statusCounts: Record<string, number>) {
     .join(", ") || "none";
 }
 
+function readQualityGateStatus(manifest: ReturnType<typeof readRunnerManifest>) {
+  const reportPath = path.join(manifest.runDir, "meta", "quality-gate.json");
+  if (!fs.existsSync(reportPath)) {
+    return "not_run";
+  }
+  try {
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8")) as { status?: string; errorCount?: number; warnCount?: number };
+    const suffix = `errors=${report.errorCount ?? 0},warnings=${report.warnCount ?? 0}`;
+    return `${report.status ?? "unknown"}(${suffix})`;
+  } catch {
+    return "unreadable";
+  }
+}
+
 async function main() {
   const { compact, runId } = parseArgs(process.argv.slice(2));
   if (!runId) {
@@ -57,9 +72,10 @@ async function main() {
   const verificationRun = results.reduce((sum, result) => sum + result.verificationRun.length, 0);
   const apiUsage = summarizeApiUsage(manifest);
   const apiCost = estimateApiUsageCost(apiUsage);
+  const qualityGateStatus = readQualityGateStatus(manifest);
 
   if (compact) {
-    console.log(`runner:status: run=${manifest.runId} mode=${manifest.mode} workers=${formatStatusCounts(statusCounts)} edits=${proposedEdits} changed_files=${changedFiles} verification_entries=${verificationRun} cost=${formatEstimatedUsd(apiCost.estimatedUsd)}`);
+    console.log(`runner:status: run=${manifest.runId} mode=${manifest.mode} workers=${formatStatusCounts(statusCounts)} edits=${proposedEdits} changed_files=${changedFiles} verification_entries=${verificationRun} quality=${qualityGateStatus} cost=${formatEstimatedUsd(apiCost.estimatedUsd)}`);
     console.log(`next: npm run runner:continue -- ${manifest.runId}`);
     return;
   }
@@ -75,6 +91,7 @@ async function main() {
   console.log(`Changed files recorded: ${changedFiles}`);
   console.log(`Proposed edits: ${proposedEdits}`);
   console.log(`Verification entries: ${verificationRun}`);
+  console.log(`Quality gate: ${qualityGateStatus}`);
   console.log(`API usage: calls=${apiUsage.calls}, total_tokens=${apiUsage.totalTokens}, input_tokens=${apiUsage.inputTokens}, output_tokens=${apiUsage.outputTokens}`);
   console.log(`API cost: estimated_usd=${formatEstimatedUsd(apiCost.estimatedUsd)}, priced_calls=${apiCost.pricedCalls}, unpriced_calls=${apiCost.unpricedCalls}`);
   console.log("");

@@ -983,3 +983,12 @@ HTML report: ...\report.html
 - 목적:
   - 터미널 Final Summary를 놓쳐도 보고서에서 품질 게이트 결과를 확인할 수 있게 합니다.
   - CLI 단독 사용 시에도 커밋 전 품질 실패 사유를 추적하기 쉽게 만듭니다.
+
+## 2026-06-16 runner status 품질 게이트 상태 출력 추가
+
+- 변경 내용:
+  - `runner:status`와 `runner:status --compact`가 `meta/quality-gate.json`을 읽어 Quality gate 상태를 출력합니다.
+  - `runner:quick`은 내부적으로 compact status를 호출하므로 최신 run 확인 시 quality 상태도 함께 보입니다.
+- 목적:
+  - report를 열기 전에도 품질 게이트 통과/실패 여부를 한 줄로 확인할 수 있게 합니다.
+  - CLI 단독 사용자가 accept 이후 커밋 가능 상태인지 더 빠르게 판단하게 합니다.

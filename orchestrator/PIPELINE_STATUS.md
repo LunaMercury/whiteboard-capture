@@ -892,3 +892,13 @@ HTML report: ...\report.html
 - 목적:
   - quick을 apply/rehearse 명령과 혼동하지 않게 함
   - 실제 사용 전 안전한 확인 명령이라는 성격을 명확히 함
+
+## 2026-06-16 reports quick 연결 추가
+
+- 변경 내용:
+  - `runner:reports` non-compact 출력에 모드별 quick 명령 안내 추가
+  - `runs/index.html` mode command card에 quick 명령 추가
+  - 운영 가이드 reports 설명에 `runner:quick*` 연결 안내 추가
+- 목적:
+  - 여러 run을 훑은 뒤 최신 run 판단으로 바로 넘어가는 동선을 단축
+  - reports 대시보드와 quick 대시보드의 역할을 연결

@@ -93,7 +93,7 @@ cd "D:\개발\whiteboard capture\orchestrator"
 & "C:\Program Files\nodejs\npm.cmd" run runner:reports:live
 & "C:\Program Files\nodejs\npm.cmd" run runner:reports:mock
 
-`runner:reports`는 `orchestrator/runs/index.html`을 갱신합니다. 실작업 기록만 보고 싶으면 `runner:reports:live`, CI/mock 리허설만 보고 싶으면 `runner:reports:mock`을 사용합니다.
+`runner:reports`는 `orchestrator/runs/index.html`을 갱신합니다. 실작업 기록만 보고 싶으면 `runner:reports:live`, CI/mock 리허설만 보고 싶으면 `runner:reports:mock`을 사용합니다. 목록을 훑은 뒤 최신 항목만 빠르게 판단하려면 `runner:quick`, `runner:quick:any`, `runner:quick:mock`을 사용합니다.
 
 # 명령이 헷갈릴 때
 & "C:\Program Files\nodejs\npm.cmd" run runner:help

@@ -145,23 +145,26 @@ function renderRunRows(entries: RunIndexEntry[]) {
 }
 
 function renderModeCommandCards(mode: ModeFilter) {
-  const items: Array<{ label: string; mode: ModeFilter; command: string; description: string }> = [
+  const items: Array<{ label: string; mode: ModeFilter; command: string; quickCommand: string; description: string }> = [
     {
       label: "All runs",
       mode: "any",
       command: "npm run runner:reports",
+      quickCommand: "npm run runner:quick:any",
       description: "Live and mock runs together.",
     },
     {
       label: "Live only",
       mode: "live",
       command: "npm run runner:reports:live",
+      quickCommand: "npm run runner:quick",
       description: "Real API-backed orchestration runs.",
     },
     {
       label: "Mock only",
       mode: "mock",
       command: "npm run runner:reports:mock",
+      quickCommand: "npm run runner:quick:mock",
       description: "Dry-run, CI, and test-provider runs.",
     },
   ];
@@ -170,6 +173,7 @@ function renderModeCommandCards(mode: ModeFilter) {
     `<article class="mode-card${item.mode === mode ? " active" : ""}">`,
     `<span>${escapeHtml(item.label)}</span>`,
     `<code>${escapeHtml(item.command)}</code>`,
+    `<code>${escapeHtml(item.quickCommand)}</code>`,
     `<p>${escapeHtml(item.description)}</p>`,
     `</article>`,
   ].join("")).join("\n");
@@ -309,11 +313,22 @@ function getModeAlias(mode: ModeFilter) {
   return "runner:reports";
 }
 
+function getQuickAlias(mode: ModeFilter) {
+  if (mode === "live") {
+    return "runner:quick";
+  }
+  if (mode === "mock") {
+    return "runner:quick:mock";
+  }
+  return "runner:quick:any";
+}
+
 function printNextSteps(mode: ModeFilter, indexPath: string, latestRunId?: string) {
   console.log("");
   console.log("Next:");
   console.log(`- Open report index: ${indexPath}`);
   console.log(`- Refresh this view: npm run ${getModeAlias(mode)}`);
+  console.log(`- Quick latest ${mode} view: npm run ${getQuickAlias(mode)}`);
   if (latestRunId) {
     console.log(`- Inspect latest listed run: npm run runner:status -- ${latestRunId}`);
     console.log(`- Continue latest listed run: npm run runner:continue -- ${latestRunId}`);

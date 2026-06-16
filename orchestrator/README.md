@@ -223,6 +223,9 @@ cd orchestrator
 # 품질 게이트가 나쁜 패턴을 실제로 차단하는지 비용 없이 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:quality:smoke
 
+# workflow가 품질 게이트 실패를 차단하고 롤백하는지 비용 없이 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:workflow:quality-smoke
+
 # 기존 run에서 다음 행동 추천만 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id>
 

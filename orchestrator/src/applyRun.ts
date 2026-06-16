@@ -355,6 +355,7 @@ function normalizeApplyExecutionQuestions(execution: ApplyExecution, approveOpen
 
 function runTestApply(packet: ApplyPacket): ApplyExecution {
   const shouldReturnQuestion = packet.goal.includes("apply-question-guard");
+  const shouldFailQualityGate = packet.goal.includes("workflow-quality-gate-smoke");
   return {
     status: "succeeded",
     summary: `[TEST] Applied ${packet.role} rollback pipeline test edits.`,
@@ -371,13 +372,20 @@ function runTestApply(packet: ApplyPacket): ApplyExecution {
       content:
         edit.action === "delete"
           ? ""
-          : [
-              "orchestrator rollback test",
-              `role=${packet.role}`,
-              `run_id=${packet.runId}`,
-              "This file should be removed by --rollback-after-verify.",
-              "",
-            ].join("\n"),
+          : shouldFailQualityGate
+            ? [
+                "export function WorkflowQualityGateSmoke() {",
+                "  return <div style={{ color: 'red' }}>{/* <span>dead code</span> */}whiteboard@service.example</div>;",
+                "}",
+                "",
+              ].join("\n")
+            : [
+                "orchestrator rollback test",
+                `role=${packet.role}`,
+                `run_id=${packet.runId}`,
+                "This file should be removed by --rollback-after-verify.",
+                "",
+              ].join("\n"),
     })),
   };
 }

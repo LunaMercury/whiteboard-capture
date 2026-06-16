@@ -351,13 +351,21 @@ function testEditPathForRole(role: WorkerTaskPacket["role"]) {
   return paths[role];
 }
 
+function isWorkflowQualityGateSmoke(task: WorkerTaskPacket) {
+  return task.goal.includes("workflow-quality-gate-smoke");
+}
+
 function createTestWorkerResult(task: WorkerTaskPacket): WorkerResultPacket {
-  const editPath = testEditPathForRole(task.role);
+  const editPath = isWorkflowQualityGateSmoke(task)
+    ? "web/src/components/WorkflowQualityGateSmoke.tsx"
+    : testEditPathForRole(task.role);
   return {
     role: task.role,
     status: "succeeded",
     changedFiles: [],
-    summary: `[TEST] ${task.role} rollback pipeline test proposed one safe temporary edit.`,
+    summary: isWorkflowQualityGateSmoke(task)
+      ? `[TEST] ${task.role} workflow quality gate smoke proposed one intentionally unsafe temporary edit.`
+      : `[TEST] ${task.role} rollback pipeline test proposed one safe temporary edit.`,
     contractsChanged: [],
     verificationRun: [],
     risks: [
@@ -368,11 +376,18 @@ function createTestWorkerResult(task: WorkerTaskPacket): WorkerResultPacket {
       {
         path: editPath,
         action: "create",
-        summary: "Create a tiny temporary file so rollback-after-verify can prove it removes applied edits.",
-        instructions: [
-          "Create this file with a short deterministic test message.",
-          "Do not modify any other files.",
-        ],
+        summary: isWorkflowQualityGateSmoke(task)
+          ? "Create a temporary source file containing patterns that the quality gate must reject."
+          : "Create a tiny temporary file so rollback-after-verify can prove it removes applied edits.",
+        instructions: isWorkflowQualityGateSmoke(task)
+          ? [
+              "Create this file with the deterministic quality-gate smoke content.",
+              "Do not modify any other files.",
+            ]
+          : [
+              "Create this file with a short deterministic test message.",
+              "Do not modify any other files.",
+            ],
       },
     ],
   };

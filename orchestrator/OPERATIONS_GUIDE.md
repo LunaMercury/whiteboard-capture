@@ -30,6 +30,7 @@
 | `runner:accept` | 최신 live run의 제안 변경을 실제로 유지 | 변경 유지 |
 | `runner:quality` | 적용된 변경의 기본 품질 게이트 확인 | 없음 |
 | `runner:quality:smoke` | 품질 게이트가 나쁜 패턴을 차단하는지 자체 점검 | 없음 |
+| `runner:workflow:quality-smoke` | workflow가 품질 실패를 차단하고 롤백하는지 자체 점검 | 없음 |
 
 ```powershell
 cd "D:\개발\whiteboard capture\orchestrator"
@@ -223,6 +224,7 @@ cd "D:\개발\whiteboard capture\orchestrator"
 - 간단한 plan 흐름 확인은 `runner:plan:mock` 사용
 - 전체 mock 파이프라인 확인은 `runner:full:mock` 또는 `ci:dry-run` 사용
 - `ci:dry-run`은 타입 체크, doctor, 품질 게이트 smoke, mock full flow를 순서대로 실행
+- `runner:workflow:quality-smoke`는 workflow 내부 apply 이후 품질 실패가 exit=1로 차단되고 rollback되는지 확인
 - run 산출물이 많이 쌓였는지 확인하려면 `runner:cleanup -- --dry-run --keep-last 3 --keep-days 0`으로 먼저 삭제 예정 목록을 확인
 
 피해야 할 절감 방식:

@@ -1,4 +1,4 @@
-# Orchestrator Pipeline Status
+﻿# Orchestrator Pipeline Status
 
 마지막 확인일: 2026-06-07
 
@@ -1027,3 +1027,14 @@ HTML report: ...\report.html
 - 목적:
   - `runner:quick`을 본 뒤 최신 live run을 실제 반영할 때 가장 짧은 명령을 바로 확인하게 합니다.
   - run-id 명시 명령과 최신 live shortcut의 차이를 함께 보여 줍니다.
+
+## 2026-06-16 workflow quality gate smoke 추가
+
+- 추가 명령: `runner:workflow:quality-smoke`
+- 목적: `runner:workflow` 안에서 apply 이후 품질 게이트가 실패를 제대로 차단하고, `--rollback-after-verify`가 적용 파일을 되돌리는지 비용 없이 검증합니다.
+- 동작 방식:
+  - test worker/apply provider가 `web/src/components/WorkflowQualityGateSmoke.tsx` 임시 파일을 생성합니다.
+  - 파일에는 placeholder, JSX inline style, 주석 처리된 JSX 코드가 들어 있어 품질 게이트가 반드시 실패해야 합니다.
+  - workflow가 실패 상태로 종료되고 rollback이 성공해야 smoke 테스트가 통과합니다.
+- `ci:dry-run`에 포함하여 타입 체크, doctor, 품질 게이트 단독 smoke, workflow 품질 smoke, mock full flow를 함께 확인합니다.
+

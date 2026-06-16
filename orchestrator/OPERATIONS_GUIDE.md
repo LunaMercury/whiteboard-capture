@@ -223,6 +223,7 @@ cd "D:\개발\whiteboard capture\orchestrator"
 - 간단한 plan 흐름 확인은 `runner:plan:mock` 사용
 - 전체 mock 파이프라인 확인은 `runner:full:mock` 또는 `ci:dry-run` 사용
 - `ci:dry-run`은 타입 체크, doctor, 품질 게이트 smoke, mock full flow를 순서대로 실행
+- run 산출물이 많이 쌓였는지 확인하려면 `runner:cleanup -- --dry-run --keep-last 3 --keep-days 0`으로 먼저 삭제 예정 목록을 확인
 
 피해야 할 절감 방식:
 

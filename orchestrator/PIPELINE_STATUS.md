@@ -1009,3 +1009,13 @@ HTML report: ...\report.html
 - 목적:
   - 오케스트레이터 기본 CI 점검에서 품질 게이트 자체가 나쁜 패턴을 차단하는지 함께 확인합니다.
   - 타입 체크, doctor, quality smoke, mock full flow가 한 번에 실행되도록 합니다.
+
+## 2026-06-16 cleanup dry-run 운영 안내 추가
+
+- 변경 내용:
+  - 운영 가이드에 `runner:cleanup -- --dry-run --keep-last 3 --keep-days 0` 예시를 추가했습니다.
+- 확인 결과:
+  - cleanup dry-run은 최근 3개 run을 보존하고 오래된 미추적 run을 삭제 예정으로 표시했습니다.
+  - 추적된 과거 run은 기본적으로 보존되는 것을 확인했습니다.
+- 목적:
+  - `ci:dry-run` 또는 리허설 후 run 산출물이 쌓일 때 실제 삭제 전 영향 범위를 먼저 확인하게 합니다.

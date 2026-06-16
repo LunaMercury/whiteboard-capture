@@ -317,6 +317,9 @@ function printCompactDecision(runId: string, decision: ContinueDecision) {
     if (option.command) {
       console.log(`   preview: npm run runner:continue:${option.choice.toLowerCase()} -- ${runId}`);
       console.log(`   execute: npm run runner:continue:${option.choice.toLowerCase()}:execute -- ${runId}`);
+      if (option.choice === "B") {
+        console.log("   latest live shortcut: npm run runner:accept");
+      }
     }
   }
 }

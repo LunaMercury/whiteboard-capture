@@ -1019,3 +1019,11 @@ HTML report: ...\report.html
   - 추적된 과거 run은 기본적으로 보존되는 것을 확인했습니다.
 - 목적:
   - `ci:dry-run` 또는 리허설 후 run 산출물이 쌓일 때 실제 삭제 전 영향 범위를 먼저 확인하게 합니다.
+
+## 2026-06-16 quick continue accept shortcut 안내 추가
+
+- 변경 내용:
+  - compact continue 출력의 B 옵션에 `latest live shortcut: npm run runner:accept` 안내를 추가했습니다.
+- 목적:
+  - `runner:quick`을 본 뒤 최신 live run을 실제 반영할 때 가장 짧은 명령을 바로 확인하게 합니다.
+  - run-id 명시 명령과 최신 live shortcut의 차이를 함께 보여 줍니다.

@@ -220,6 +220,9 @@ cd orchestrator
 # 적용된 변경의 로컬 품질 게이트만 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:quality -- <run-id> --roles frontend
 
+# 품질 게이트가 나쁜 패턴을 실제로 차단하는지 비용 없이 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:quality:smoke
+
 # 기존 run에서 다음 행동 추천만 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id>
 

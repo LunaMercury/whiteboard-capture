@@ -29,6 +29,7 @@
 | `runner:continue` | 기존 run 상태를 읽고 다음 명령 추천 | 없음 |
 | `runner:accept` | 최신 live run의 제안 변경을 실제로 유지 | 변경 유지 |
 | `runner:quality` | 적용된 변경의 기본 품질 게이트 확인 | 없음 |
+| `runner:quality:smoke` | 품질 게이트가 나쁜 패턴을 차단하는지 자체 점검 | 없음 |
 
 ```powershell
 cd "D:\개발\whiteboard capture\orchestrator"

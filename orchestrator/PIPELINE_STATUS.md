@@ -963,3 +963,14 @@ HTML report: ...\report.html
 - 목적:
   - 빌드는 통과하지만 임시값/죽은 코드/스파게티가 남는 변경을 커밋 전에 차단합니다.
   - 기본은 diff 기반 로컬 규칙 검사로 두어 API 비용 없이 동작하게 합니다.
+
+## 2026-06-16 품질 게이트 smoke 테스트 추가
+
+- 변경 내용:
+  - `runner:quality:smoke` 명령을 추가했습니다.
+  - smoke 테스트는 의도적으로 placeholder, JSX inline style, 주석 처리 JSX 코드를 포함한 임시 파일/run을 만들고 `runner:quality`가 실패로 차단하는지 확인합니다.
+  - 실행 후 임시 파일과 임시 run 디렉터리를 자동 삭제합니다.
+  - doctor, package validation, help, README, 운영 가이드에 smoke 명령을 반영했습니다.
+- 목적:
+  - post-apply 품질 게이트가 비용 없이 실제로 나쁜 패턴을 막는지 검증합니다.
+  - 파이프라인 자체 안전장치가 고장났는지 빠르게 확인할 수 있게 합니다.

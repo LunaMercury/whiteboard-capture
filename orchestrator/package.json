@@ -37,6 +37,7 @@
     "runner:doctor": "tsx src/runnerDoctor.ts",
     "runner:help": "tsx src/runnerHelp.ts",
     "runner:quality": "tsx src/runnerQualityGate.ts",
+    "runner:quality:smoke": "tsx src/runnerQualityGateSmoke.ts",
     "runner:recover": "tsx src/runnerRecover.ts",
     "runner:finalize": "tsx src/runnerFinalize.ts",
     "runner:reports": "tsx src/runnerReports.ts",

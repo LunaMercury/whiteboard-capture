@@ -146,6 +146,7 @@ function checkPackageScripts(orchestratorRoot: string): CheckResult {
     "runner:doctor",
     "runner:help",
     "runner:quality",
+    "runner:quality:smoke",
     "runner:reports",
     "runner:reports:any",
     "runner:reports:live",

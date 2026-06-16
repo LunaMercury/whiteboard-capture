@@ -28,6 +28,7 @@ const lines = [
   "- npm run runner:plan:budget -- --roles frontend \"request\"",
   "- npm run runner:goal:mock -- --roles frontend,java \"request\"",
   "- npm run runner:plan:mock -- --roles frontend,java \"request\"",
+  "- npm run runner:quality:smoke",
   "- npm run ci:dry-run",
   "",
   "Reports:",

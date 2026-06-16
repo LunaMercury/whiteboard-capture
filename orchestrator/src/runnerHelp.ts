@@ -6,6 +6,7 @@ const lines = [
   "   Safe rehearsal. Applies, verifies, rolls back, then reports.",
   "2. npm run runner:quick",
   "   Read-only. Shows compact status and compact continue options for the latest live run.",
+  "   Use runner:quick:mock for mock runs or runner:quick:any for the newest run regardless of mode.",
   "3. npm run runner:latest:b",
   "   Preview keeping the latest proposed edits.",
   "4. npm run runner:latest:b:execute",

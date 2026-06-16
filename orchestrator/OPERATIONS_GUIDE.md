@@ -78,6 +78,8 @@ cd "D:\개발\whiteboard capture\orchestrator"
 
 # 최신 run 기준으로 바로 확인
 & "C:\Program Files\nodejs\npm.cmd" run runner:quick
+& "C:\Program Files\nodejs\npm.cmd" run runner:quick:any
+& "C:\Program Files\nodejs\npm.cmd" run runner:quick:mock
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:quick
 & "C:\Program Files\nodejs\npm.cmd" run runner:latest:any

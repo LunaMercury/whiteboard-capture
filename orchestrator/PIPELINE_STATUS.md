@@ -910,3 +910,12 @@ HTML report: ...\report.html
 - 목적:
   - compact 로그에서도 reports 이후 이어갈 quick 명령을 바로 확인
   - 자동화/작은 터미널에서 최신 run 판단 흐름을 더 짧게 연결
+
+## 2026-06-16 quick mode variant 문서 보강
+
+- 변경 내용:
+  - `runner:help`에 `runner:quick:any`, `runner:quick:mock` 사용 상황 추가
+  - 운영 가이드와 README 최신 run 확인 블록에 quick mode variant 명령 추가
+- 목적:
+  - live 기본 quick 외에 mock/any 확인 경로를 명확히 노출
+  - reports mode filter와 quick mode filter의 사용법을 문서에서 일치시킴

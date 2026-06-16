@@ -19,6 +19,7 @@ type RunIndexEntry = {
   proposedEdits: number;
   totalTokens: number;
   estimatedCostUsd: number;
+  quality: string;
   reportHtml: string;
   reportMd: string;
 };
@@ -83,6 +84,19 @@ function determineRunStatus(results: ReturnType<typeof readWorkerResults>): RunI
   return "unknown";
 }
 
+function readQualityGateStatus(runDir: string) {
+  const reportPath = path.join(runDir, "meta", "quality-gate.json");
+  if (!fs.existsSync(reportPath)) {
+    return "not_run";
+  }
+  try {
+    const report = JSON.parse(fs.readFileSync(reportPath, "utf8")) as { status?: string; errorCount?: number; warnCount?: number };
+    return `${report.status ?? "unknown"} e${report.errorCount ?? 0}/w${report.warnCount ?? 0}`;
+  } catch {
+    return "unreadable";
+  }
+}
+
 function collectRuns(orchestratorRoot: string, mode: ModeFilter) {
   const runsRoot = path.join(orchestratorRoot, "runs");
   if (!fs.existsSync(runsRoot)) {
@@ -112,6 +126,7 @@ function collectRuns(orchestratorRoot: string, mode: ModeFilter) {
           proposedEdits: results.reduce((sum, result) => sum + (result.proposedEdits?.length ?? 0), 0),
           totalTokens: apiUsage.totalTokens,
           estimatedCostUsd: apiCost.estimatedUsd,
+          quality: readQualityGateStatus(manifest.runDir),
           reportHtml: `${entry.name}/report.html`,
           reportMd: `${entry.name}/report.md`,
         };
@@ -125,7 +140,7 @@ function collectRuns(orchestratorRoot: string, mode: ModeFilter) {
 
 function renderRunRows(entries: RunIndexEntry[]) {
   if (entries.length === 0) {
-    return `<tr><td colspan="10">No runs found.</td></tr>`;
+    return `<tr><td colspan="11">No runs found.</td></tr>`;
   }
 
   return entries.map((entry) => [
@@ -136,6 +151,7 @@ function renderRunRows(entries: RunIndexEntry[]) {
     `<td>${escapeHtml(entry.request)}</td>`,
     `<td>${escapeHtml(entry.workers)}</td>`,
     `<td>${entry.proposedEdits}</td>`,
+    `<td>${escapeHtml(entry.quality)}</td>`,
     `<td>${entry.totalTokens}</td>`,
     `<td>${escapeHtml(formatEstimatedUsd(entry.estimatedCostUsd))}</td>`,
     `<td><a href="${escapeHtml(entry.reportMd)}">md</a></td>`,
@@ -286,6 +302,7 @@ function renderIndex(entries: RunIndexEntry[], mode: ModeFilter) {
             <th>request</th>
             <th>workers</th>
             <th>edits</th>
+            <th>quality</th>
             <th>tokens</th>
             <th>cost</th>
             <th>report</th>
@@ -345,9 +362,10 @@ function main() {
   const indexPath = path.join(runsRoot, "index.html");
   fs.writeFileSync(indexPath, renderIndex(entries, mode), "utf8");
   const latestRunId = entries[0]?.runId;
+  const latestQuality = entries[0]?.quality;
 
   if (compact) {
-    console.log(`runner:reports: mode=${mode} runs=${entries.length} index=${indexPath} latest=${latestRunId ?? "none"} quick=${getQuickAlias(mode)}`);
+    console.log(`runner:reports: mode=${mode} runs=${entries.length} index=${indexPath} latest=${latestRunId ?? "none"} quality=${latestQuality ?? "none"} quick=${getQuickAlias(mode)}`);
     return;
   }
 

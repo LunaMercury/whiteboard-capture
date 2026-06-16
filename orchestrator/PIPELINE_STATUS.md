@@ -992,3 +992,12 @@ HTML report: ...\report.html
 - 목적:
   - report를 열기 전에도 품질 게이트 통과/실패 여부를 한 줄로 확인할 수 있게 합니다.
   - CLI 단독 사용자가 accept 이후 커밋 가능 상태인지 더 빠르게 판단하게 합니다.
+
+## 2026-06-16 reports 인덱스 품질 게이트 상태 추가
+
+- 변경 내용:
+  - `runs/index.html` 테이블에 quality 컬럼을 추가했습니다.
+  - `runner:reports --compact` 출력에 최신 run의 quality 상태를 추가했습니다.
+- 목적:
+  - 여러 run을 훑을 때 품질 게이트 통과/실패 여부를 바로 확인합니다.
+  - quick/status/report의 품질 상태 표시를 reports 인덱스와 일치시킵니다.

@@ -16,6 +16,23 @@ function getQueryStringParams(search: string): Record<string, string> {
   return obj;
 }
 
+function ServiceStatusPanel() {
+  return (
+    <section className={styles.serviceStatusPanel} aria-label="서비스 안내 및 문의">
+      <div className={styles.serviceStatusPanel__badge}>Beta</div>
+      <div className={styles.serviceStatusPanel__body}>
+        <strong>Whiteboard Capture는 현재 베타(Beta) 버전</strong>입니다.
+        <br />
+        데이터 안정성과 서비스 시간에 간헐적 차이가 있을 수 있습니다.
+        <br />
+        <span className={styles.serviceStatusPanel__emphasis}>로그인이나 사진 복사에 문제가 있으신가요?</span>
+        <br />
+        <span>관리자에게 문의해 주세요.</span>
+      </div>
+    </section>
+  );
+}
+
 export default function Login({ onLogin }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -92,6 +109,7 @@ export default function Login({ onLogin }: LoginProps) {
           <h1 className={styles.title}>Whiteboard Capture</h1>
           <p className={styles.subtitle}>촬영한 칠판 사진을 바로 복사해보세요.</p>
         </div>
+        <ServiceStatusPanel />
         <div className={styles.form}>
           {/* 네이버 로그인 버튼 (공식 가이드 스타일; https://developers.naver.com/docs/login/api/#%EB%A1%9C%EA%B7%B8%EC%9D%B8-%EB%B2%84%ED%8A%BC) */}
           <button
@@ -140,16 +158,10 @@ export default function Login({ onLogin }: LoginProps) {
           <button className={styles.primaryButton} onClick={handleLogin} disabled={isSubmitting}>
             {isSubmitting ? '로그인 중...' : '이메일로 로그인'}
           </button>
-          {/* 안내 문구(로그인에 문제가 있으신가요? ... 관리자에게 문의해 주세요.) */}
-          <p className={styles.loginDelayNotice}>베타 기간에는 일부 로그인이 지연될 수 있습니다.</p>
-          <p className={styles.login__helpMessage} aria-label="로그인에 문제가 있으신가요? 도움이 필요하시면 관리자에게 문의해 주세요.">
-            로그인에 문제가 있으신가요? 도움이 필요하시면 관리자에게 문의해 주세요.
-          </p>
           {error && (
             <div style={{ color: '#e53e3e', marginTop: '0.5rem', fontSize: '0.95em', textAlign: 'center' }}>{error}</div>
           )}
         </div>
-        <p className={styles.betaNotice}>이 서비스는 현재 <b>Beta</b> 버전입니다. 안정성 및 데이터 보관에 유의해 주세요.</p>
       </div>
     </div>
   );

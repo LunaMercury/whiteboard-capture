@@ -41,6 +41,7 @@ const lines = [
   "Safety notes:",
   "- runner:goal is a rollback rehearsal; it does not keep edits.",
   "- runner:quick is read-only; it only helps you choose the next command.",
+  "- runner:quality runs a local post-apply quality gate for changed files.",
   "- runner:goal:budget stops when estimated API cost exceeds $0.10.",
   "- runner:plan:budget stops when estimated API cost exceeds $0.05.",
   "- runner:accept keeps edits. Use it only after reviewing the report.",

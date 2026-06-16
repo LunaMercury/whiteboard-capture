@@ -9,6 +9,7 @@
 - 실제 파일을 바꾸는 실행은 항상 `--apply`가 필요합니다.
 - 테스트 적용은 `--rollback-after-verify`, 실제 적용은 `--keep-applied`를 사용합니다.
 - `runner:quick`은 읽기 전용입니다. 상태와 다음 선택지만 보여주며 파일을 적용하거나 롤백하지 않습니다.
+- apply 이후에는 로컬 `runner:quality` 게이트가 실행되어 임시값, 주석 처리된 코드, JSX inline style 같은 품질 문제를 차단합니다.
 - 계약 변경이나 미해결 질문은 기본적으로 차단합니다.
 - `blocked`는 실패가 아니라 안전 게이트가 작동한 상태입니다. 내용을 확인한 뒤 명시적으로 승인하거나 요청을 보완합니다.
 
@@ -27,6 +28,7 @@
 | `runner:reuse-apply` | 기존 worker 결과를 재사용해 apply만 재시도 | 검증 후 롤백 |
 | `runner:continue` | 기존 run 상태를 읽고 다음 명령 추천 | 없음 |
 | `runner:accept` | 최신 live run의 제안 변경을 실제로 유지 | 변경 유지 |
+| `runner:quality` | 적용된 변경의 기본 품질 게이트 확인 | 없음 |
 
 ```powershell
 cd "D:\개발\whiteboard capture\orchestrator"

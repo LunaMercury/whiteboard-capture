@@ -947,3 +947,19 @@ HTML report: ...\report.html
 - 목적:
   - help/README/운영 가이드와 latest 상세 출력의 기본 체인을 일치시킵니다.
   - 최신 run 확인 후 실제 유지로 넘어가는 명령을 더 직관적으로 보여 줍니다.
+
+## 2026-06-16 post-apply 품질 게이트 추가
+
+- 변경 내용:
+  - `runner:quality` 명령을 추가했습니다.
+  - `runner:workflow`가 apply/verify 이후 post-apply 품질 게이트를 자동 실행하도록 연결했습니다.
+  - 품질 실패 시 해당 worker result를 failed로 표시하고 Final Summary에 `Quality gate` 상태를 출력합니다.
+  - doctor와 package validation 필수 스크립트 목록에 `runner:quality`를 추가했습니다.
+- 검사 항목:
+  - placeholder 도메인/이메일(`example.com`, `service.example`, `your.release.url` 등)
+  - 새로 추가된 JSX inline style
+  - 새로 추가된 주석 처리 JSX/CSS 코드
+  - 새로 추가된 source emoji 및 TODO/FIXME/HACK 경고
+- 목적:
+  - 빌드는 통과하지만 임시값/죽은 코드/스파게티가 남는 변경을 커밋 전에 차단합니다.
+  - 기본은 diff 기반 로컬 규칙 검사로 두어 API 비용 없이 동작하게 합니다.

@@ -93,6 +93,7 @@ const requiredScripts = [
   "runner:workflow:reuse",
   "runner:doctor",
   "runner:help",
+  "runner:quality",
   "runner:reports",
   "runner:reports:any",
   "runner:reports:live",

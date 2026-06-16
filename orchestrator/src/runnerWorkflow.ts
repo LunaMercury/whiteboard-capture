@@ -49,6 +49,11 @@ type Args = {
   applyReasoning?: string;
 };
 
+type QualityGateSummary = {
+  status: "not run" | "passed" | "failed";
+  reportPath?: string;
+};
+
 const primaryVerificationByRole: Record<WorkerTaskPacket["role"], string> = {
   frontend: ".skills/verify-web.ps1",
   rust: ".skills/verify-fast.ps1",
@@ -599,6 +604,22 @@ function updateWorkerResultWithApplyReviewFailure(
   });
 }
 
+function updateWorkerResultWithQualityGateFailure(
+  manifest: ReturnType<typeof readRunnerManifest>,
+  role: WorkerTaskPacket["role"],
+  failureMessage: string,
+) {
+  const existing = readWorkerResult(manifest, role);
+  const risks = Array.from(new Set([...existing.risks, `Quality gate failed: ${failureMessage}`]));
+
+  writeWorkerResult(manifest, {
+    ...existing,
+    status: "failed",
+    summary: `${existing.summary} Quality gate failed after apply.`,
+    risks,
+  });
+}
+
 function prepareWorkerResultForReuse(
   manifest: ReturnType<typeof readRunnerManifest>,
   role: WorkerTaskPacket["role"],
@@ -1104,6 +1125,7 @@ function printFinalTerminalSummary(
     };
   },
   cleanupStatus: number | null,
+  qualityGate: QualityGateSummary,
 ) {
   const targetRoleSet = new Set(targetRoles);
   const results = readWorkerResults(manifest).filter((result) => targetRoleSet.has(result.role));
@@ -1154,6 +1176,7 @@ function printFinalTerminalSummary(
     console.log(`API cost warning: missing price for ${apiCost.unpricedModels.join(", ")}`);
   }
   console.log(`Verification: ${verificationStatus}${verificationRun.length > 0 ? ` (${verificationRun.join(", ")})` : ""}`);
+  console.log(`Quality gate: ${qualityGate.status}${qualityGate.reportPath ? ` (${qualityGate.reportPath})` : ""}`);
   console.log(`Rollback: ${rollbackStatus}`);
   console.log(`Cleanup: ${cleanupStatus === null ? "not run" : cleanupStatus === 0 ? "succeeded" : `failed(${cleanupStatus})`}`);
   if (blockedReasons.length > 0) {
@@ -1319,6 +1342,7 @@ async function main() {
   const appliedRoles = new Set<WorkerTaskPacket["role"]>();
   let rollbackCompleted = false;
   let cleanupStatus: number | null = null;
+  let qualityGate: QualityGateSummary = { status: "not run" };
 
   function performRollback() {
     if (!rollbackAfterVerify || rollbackCompleted) {
@@ -1676,6 +1700,33 @@ async function main() {
     }
   }
 
+  if (applyEdits && appliedRoles.size > 0) {
+    console.log("## Running post-apply quality gate");
+    const qualityArgs = [
+      runId,
+      "--roles",
+      [...appliedRoles].join(","),
+    ];
+    const quality = runNodeScript(path.join("src", "runnerQualityGate.ts"), qualityArgs, orchestratorRoot);
+    printWorkflowChild(quality, "quality gate", compact);
+    const qualityReportPath = path.join(manifest.runDir, "meta", "quality-gate.json");
+    qualityGate = {
+      status: quality.status === 0 ? "passed" : "failed",
+      reportPath: qualityReportPath,
+    };
+    if (quality.status !== 0) {
+      workflowExitCode = workflowExitCode || quality.status || 1;
+      const failureMessage =
+        quality.stderr?.trim() ||
+        quality.stdout?.trim() ||
+        `quality gate exited with code ${quality.status ?? "unknown"}`;
+      for (const role of appliedRoles) {
+        updateWorkerResultWithQualityGateFailure(manifest, role, failureMessage);
+      }
+    }
+    console.log("");
+  }
+
   } catch (error) {
     workflowExitCode = workflowExitCode || 1;
     console.error(error instanceof Error ? error.message : error);
@@ -1732,6 +1783,7 @@ async function main() {
     appliedRoles,
     rollbackSummary,
     cleanupStatus,
+    qualityGate,
   );
 
   if (workflowExitCode !== 0) {

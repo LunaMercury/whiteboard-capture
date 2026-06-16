@@ -217,6 +217,9 @@ cd orchestrator
 # 기존 run의 worker 결과를 재사용해 apply만 다시 시도
 "C:\Program Files\nodejs\npm.cmd" run runner:reuse-apply -- <run-id> --roles mobile
 
+# 적용된 변경의 로컬 품질 게이트만 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:quality -- <run-id> --roles frontend
+
 # 기존 run에서 다음 행동 추천만 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id>
 

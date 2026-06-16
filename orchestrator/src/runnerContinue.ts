@@ -350,6 +350,7 @@ async function main() {
     }
     printCompactDecision(manifest.runId, decision);
     console.log(`Report: ${manifest.reportPath}`);
+    console.log(`HTML report: ${path.join(manifest.runDir, "report.html")}`);
     return;
   }
 

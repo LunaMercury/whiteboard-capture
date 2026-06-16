@@ -919,3 +919,12 @@ HTML report: ...\report.html
 - 목적:
   - live 기본 quick 외에 mock/any 확인 경로를 명확히 노출
   - reports mode filter와 quick mode filter의 사용법을 문서에서 일치시킴
+
+## 2026-06-16 runner continue compact HTML report 안내 추가
+
+- 변경 내용:
+  - `runner:continue --compact` 출력에 HTML report 경로를 추가했습니다.
+  - `runner:quick`에서도 최신 run의 브라우저용 보고서 위치를 바로 확인할 수 있게 했습니다.
+- 목적:
+  - `report.md`와 `report.html`을 함께 보여 주어 터미널에서 상세 보고서로 이동하는 동선을 줄입니다.
+  - 모바일/간단 터미널 환경에서도 다음 확인 위치를 더 명확히 만듭니다.

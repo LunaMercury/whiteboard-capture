@@ -883,3 +883,12 @@ HTML report: ...\report.html
 - 목적:
   - README와 운영 가이드의 quick 중심 흐름과 help 출력 순서를 일치시킴
   - 사용자가 가장 짧은 기본 체인을 먼저 보게 함
+
+## 2026-06-16 runner quick read-only 안내 추가
+
+- 변경 내용:
+  - `runner:quick` 출력에 read-only 안내 추가
+  - `runner:help`와 운영 가이드에 quick이 파일을 적용/검증/롤백/유지하지 않는다는 설명 추가
+- 목적:
+  - quick을 apply/rehearse 명령과 혼동하지 않게 함
+  - 실제 사용 전 안전한 확인 명령이라는 성격을 명확히 함

@@ -124,6 +124,7 @@ async function main() {
   if (action === "quick") {
     console.log("# Runner Latest Quick");
     console.log(`Run ID: ${runId}`);
+    console.log("Read-only: this command does not apply, verify, rollback, or keep files.");
     console.log("");
     const statusResult = runNodeScript(orchestratorRoot, "runnerStatus.ts", [runId, "--compact"]);
     if (statusResult.status !== 0) {

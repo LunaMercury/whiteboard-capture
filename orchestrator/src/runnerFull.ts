@@ -78,6 +78,12 @@ function parseArgs(argv: string[]): Args {
       continue;
     }
 
+    if (item.startsWith("--")) {
+      throw new Error(
+        `Unknown runner:full option: ${item}. If you are passing npm script options, use: npm run runner:full -- --compact --roles frontend "request"`,
+      );
+    }
+
     requestParts.push(item);
   }
 
@@ -85,6 +91,25 @@ function parseArgs(argv: string[]): Args {
   if (!request) {
     throw new Error(
       "Usage: npm run runner:full -- [--mock] [--roles frontend,java] [--concurrency 2] [--max-cost-usd 0.10] [--worker-provider openai|manual|claude|test] [--apply-provider openai|manual|test] [--worker-model model] [--apply-model model] [--worker-reasoning minimal|low|medium|high|none] [--apply-reasoning minimal|low|medium|high|none] [--apply] [--approve-contract-changes] [--approve-open-questions] [--rollback-after-verify|--keep-applied] \"request\"",
+    );
+  }
+
+  const roleWords = new Set(["frontend", "rust", "java", "mobile", "frontend,java", "frontend,java,rust,mobile"]);
+  const providerWords = new Set(["openai", "claude", "manual", "test"]);
+  const looksLikeStrippedNpmOptions =
+    workflowArgs.length === 0
+    && requestParts.length >= 3
+    && roleWords.has(requestParts[0])
+    && requestParts.slice(1, 4).some((part) => providerWords.has(part) || /^\d+$/.test(part));
+  if (looksLikeStrippedNpmOptions) {
+    throw new Error(
+      [
+        "runner:full received values that look like npm stripped your options before they reached the runner.",
+        `Received request: ${request}`,
+        "Use the npm option separator `--` before runner options.",
+        "Example:",
+        '  npm run runner:full -- --compact --roles java --worker-provider openai --apply-provider openai --concurrency 1 "네이버 로그인 기능을 만들어줘"',
+      ].join("\n"),
     );
   }
 

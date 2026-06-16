@@ -1049,3 +1049,13 @@ HTML report: ...\report.html
   - dirty worktree는 기본 warning이며, `--strict`를 붙이면 실패로 다룰 수 있습니다.
   - 마지막에 `runner:goal -> runner:quick -> runner:accept` 기본 체인을 다시 안내합니다.
 - README, 운영 가이드, help, doctor, package validation 필수 script 목록에 반영했습니다.
+
+## 2026-06-17 runner argument guard 추가
+
+- 추가 명령: `runner:argument-guard:smoke`
+- 목적: `npm run runner:full --compact --roles ...`처럼 npm 옵션 구분자 `--`를 빼먹어 runner 옵션이 사라지는 실수를 API 호출 전에 차단합니다.
+- 변경 내용:
+  - `runnerFull`이 알 수 없는 `--flag`를 요청 텍스트로 넘기지 않고 명확한 사용법 오류를 출력합니다.
+  - `java openai openai 1 요청`처럼 옵션 값만 request로 들어온 패턴을 감지하면 `npm run ... -- --compact ...` 예시를 안내합니다.
+  - smoke 테스트를 `ci:dry-run`에 포함했습니다.
+- API 비용: 없음. 로컬 인자 파싱 검증만 수행합니다.

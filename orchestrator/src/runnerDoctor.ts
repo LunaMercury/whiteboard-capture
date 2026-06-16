@@ -146,6 +146,7 @@ function checkPackageScripts(orchestratorRoot: string): CheckResult {
     "runner:doctor",
     "runner:preflight",
     "runner:preflight:compact",
+    "runner:argument-guard:smoke",
     "runner:help",
     "runner:quality",
     "runner:quality:smoke",

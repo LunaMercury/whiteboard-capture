@@ -22,6 +22,7 @@
 | `runner:plan` | 계획과 worker 제안만 확인 | 없음 |
 | `runner:plan:mock` | 비용 없이 plan/worker 흐름만 점검 | 없음 |
 | `runner:preflight` | live 실행 전 API 키, 모델, 예산, git 상태 확인 | 없음 |
+| `runner:argument-guard:smoke` | npm 옵션 구분자 누락 감지 가드 자체 점검 | 없음 |
 | `runner:goal` | 적용 가능성을 검증하고 자동 롤백 | 검증 후 롤백 |
 | `runner:quick` | 최신 live run의 상태와 다음 선택지 확인 | 없음 |
 | `runner:rehearse` | 실제 적용 가능성을 검증하고 자동 롤백 | 검증 후 롤백 |
@@ -41,6 +42,9 @@ cd "D:\개발\whiteboard capture\orchestrator"
 
 # live 실행 전 계기판 확인
 & "C:\Program Files\nodejs\npm.cmd" run runner:preflight:compact
+
+# npm `--` 누락 같은 인자 전달 실수가 차단되는지 확인
+& "C:\Program Files\nodejs\npm.cmd" run runner:argument-guard:smoke
 
 # 비용 없이 plan/worker 흐름만 점검
 & "C:\Program Files\nodejs\npm.cmd" run runner:plan:mock -- --roles frontend,java "요청 내용"

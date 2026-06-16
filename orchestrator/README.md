@@ -271,6 +271,9 @@ cd orchestrator
 
 # live 실행 전 API 키, 모델, 예산, git 상태를 비용 없이 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:preflight:compact
+
+# npm 옵션 구분자 누락 같은 인자 전달 실수를 비용 없이 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:argument-guard:smoke
 ```
 
 ### 1. 일반 오케스트레이션 보기

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "ci:dry-run": "tsc -p tsconfig.json --noEmit && npm run runner:doctor -- --compact && npm run runner:quality:smoke && npm run runner:workflow:quality-smoke && npm run runner:full:mock -- --compact --roles frontend,java,rust,mobile --worker-provider test --concurrency 2 \"auth flow check\"",
+    "ci:dry-run": "tsc -p tsconfig.json --noEmit && npm run runner:doctor -- --compact && npm run runner:argument-guard:smoke && npm run runner:quality:smoke && npm run runner:workflow:quality-smoke && npm run runner:full:mock -- --compact --roles frontend,java,rust,mobile --worker-provider test --concurrency 2 \"auth flow check\"",
     "demo": "tsx src/index.ts",
     "demo:mock": "tsx src/index.ts --mock",
     "runner:prepare": "tsx src/prepareRunner.ts",
@@ -37,6 +37,7 @@
     "runner:doctor": "tsx src/runnerDoctor.ts",
     "runner:preflight": "tsx src/runnerPreflight.ts",
     "runner:preflight:compact": "tsx src/runnerPreflight.ts --compact",
+    "runner:argument-guard:smoke": "tsx src/runnerArgumentGuardSmoke.ts",
     "runner:help": "tsx src/runnerHelp.ts",
     "runner:quality": "tsx src/runnerQualityGate.ts",
     "runner:quality:smoke": "tsx src/runnerQualityGateSmoke.ts",

@@ -1095,3 +1095,12 @@ HTML report: ...\report.html
   - mock/test provider 기반으로 worker/apply API 비용 없이 실행합니다.
   - 역할별 검증과 rollback을 거치므로 `ci:dry-run`에는 넣지 않고 선택형 안전 점검으로 둡니다.
   - 실행 후 임시 run과 test file을 정리합니다.
+
+## 2026-06-17 runner readiness strict alias 추가
+
+- 추가 명령: `runner:readiness:strict`
+- 목적: 중요한 live 실행 전 warning도 실패로 처리해 더 엄격한 사전 점검을 수행합니다.
+- 사용 구분:
+  - 평상시: `runner:readiness:compact`
+  - 중요한 적용 전: `runner:readiness:strict`
+- API 비용: 없음. 기존 readiness와 동일하게 로컬 점검만 수행합니다.

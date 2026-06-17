@@ -188,6 +188,9 @@ cd orchestrator
 
 # 가장 짧은 실사용 체인
 "C:\Program Files\nodejs\npm.cmd" run runner:readiness:compact
+
+# 중요한 live 실행 전 warning까지 실패로 처리
+"C:\Program Files\nodejs\npm.cmd" run runner:readiness:strict
 "C:\Program Files\nodejs\npm.cmd" run runner:preflight:compact
 "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
 "C:\Program Files\nodejs\npm.cmd" run runner:quick

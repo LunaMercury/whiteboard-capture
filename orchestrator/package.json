@@ -39,6 +39,7 @@
     "runner:preflight:compact": "tsx src/runnerPreflight.ts --compact",
     "runner:readiness": "tsx src/runnerReadiness.ts",
     "runner:readiness:compact": "tsx src/runnerReadiness.ts --compact",
+    "runner:readiness:strict": "tsx src/runnerReadiness.ts --compact --strict",
     "runner:argument-guard:smoke": "tsx src/runnerArgumentGuardSmoke.ts",
     "runner:accept-guard:smoke": "tsx src/runnerAcceptGuardSmoke.ts",
     "runner:accept-unlock:smoke": "tsx src/runnerAcceptUnlockSmoke.ts",

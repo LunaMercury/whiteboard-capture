@@ -148,6 +148,7 @@ function checkPackageScripts(orchestratorRoot: string): CheckResult {
     "runner:preflight:compact",
     "runner:readiness",
     "runner:readiness:compact",
+    "runner:readiness:strict",
     "runner:argument-guard:smoke",
     "runner:accept-guard:smoke",
     "runner:accept-unlock:smoke",

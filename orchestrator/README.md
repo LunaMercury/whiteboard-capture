@@ -187,6 +187,7 @@ orchestrator/runs/<run-id>/
 cd orchestrator
 
 # 가장 짧은 실사용 체인
+"C:\Program Files\nodejs\npm.cmd" run runner:readiness:compact
 "C:\Program Files\nodejs\npm.cmd" run runner:preflight:compact
 "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
 "C:\Program Files\nodejs\npm.cmd" run runner:quick
@@ -271,6 +272,9 @@ cd orchestrator
 
 # live 실행 전 API 키, 모델, 예산, git 상태를 비용 없이 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:preflight:compact
+
+# live 실행 준비도와 핵심 안전 가드를 한 번에 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:readiness:compact
 
 # npm 옵션 구분자 누락 같은 인자 전달 실수를 비용 없이 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:argument-guard:smoke

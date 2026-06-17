@@ -94,6 +94,8 @@ const requiredScripts = [
   "runner:doctor",
   "runner:preflight",
   "runner:preflight:compact",
+  "runner:readiness",
+  "runner:readiness:compact",
   "runner:argument-guard:smoke",
   "runner:accept-guard:smoke",
   "runner:help",

@@ -1069,3 +1069,17 @@ HTML report: ...\report.html
   - 아직 리허설을 통과하지 않은 proposed edits는 Option A safe rehearsal을 먼저 실행하도록 안내합니다.
   - smoke 테스트는 mock/test provider로 plan-only frontend edit를 만든 뒤 Option B가 잠기는지 확인합니다.
 - API 비용: 없음. mock/test provider와 로컬 판단만 사용합니다.
+
+## 2026-06-17 runner readiness 추가
+
+- 추가 명령: `runner:readiness`, `runner:readiness:compact`
+- 목적: live 실행 전 준비도와 핵심 안전 가드를 한 번에 확인합니다.
+- 포함 항목:
+  - `runner:preflight --compact`
+  - `runner:doctor --compact`
+  - `runner:argument-guard:smoke`
+  - `runner:accept-guard:smoke`
+- 특징:
+  - OpenAI API를 호출하지 않아 API cost는 `$0.0000`입니다.
+  - 기본 모드는 git dirty 같은 warning을 허용하고, `--strict`를 붙이면 warning도 실패로 다룹니다.
+  - 빠른 운영 점검용이며, 전체 CI 수준의 검증은 기존 `ci:dry-run`을 사용합니다.

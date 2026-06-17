@@ -37,6 +37,8 @@
     "runner:doctor": "tsx src/runnerDoctor.ts",
     "runner:preflight": "tsx src/runnerPreflight.ts",
     "runner:preflight:compact": "tsx src/runnerPreflight.ts --compact",
+    "runner:readiness": "tsx src/runnerReadiness.ts",
+    "runner:readiness:compact": "tsx src/runnerReadiness.ts --compact",
     "runner:argument-guard:smoke": "tsx src/runnerArgumentGuardSmoke.ts",
     "runner:accept-guard:smoke": "tsx src/runnerAcceptGuardSmoke.ts",
     "runner:help": "tsx src/runnerHelp.ts",

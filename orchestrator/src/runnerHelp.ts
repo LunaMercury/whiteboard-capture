@@ -30,6 +30,7 @@ const lines = [
   "- npm run runner:preflight:compact",
   "- npm run runner:argument-guard:smoke",
   "- npm run runner:accept-guard:smoke",
+  "- npm run runner:accept-unlock:smoke",
   "- npm run runner:goal:budget -- --roles frontend \"request\"",
   "- npm run runner:plan:budget -- --roles frontend \"request\"",
   "- npm run runner:goal:mock -- --roles frontend,java \"request\"",
@@ -56,6 +57,7 @@ const lines = [
   "- runner:plan:budget stops when estimated API cost exceeds $0.05.",
   "- runner:accept keeps edits. Use it only after reviewing the report.",
   "- runner:accept is locked until the latest run has passed a rollback rehearsal and quality gate.",
+  "- runner:accept-unlock:smoke confirms a successful rehearsal unlocks Option B without keeping files.",
   "- runner:accept is an alias for the latest live run's Option B execute path.",
   "- Option C is preview-only because it means reject/replan.",
 ];

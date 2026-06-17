@@ -281,6 +281,9 @@ cd orchestrator
 
 # plan-only run에서 accept가 잠기는지 비용 없이 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:accept-guard:smoke
+
+# 성공한 리허설 뒤 accept가 열리는지 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:accept-unlock:smoke
 ```
 
 ### 1. 일반 오케스트레이션 보기

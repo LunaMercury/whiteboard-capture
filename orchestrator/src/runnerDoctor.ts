@@ -150,6 +150,7 @@ function checkPackageScripts(orchestratorRoot: string): CheckResult {
     "runner:readiness:compact",
     "runner:argument-guard:smoke",
     "runner:accept-guard:smoke",
+    "runner:accept-unlock:smoke",
     "runner:help",
     "runner:quality",
     "runner:quality:smoke",

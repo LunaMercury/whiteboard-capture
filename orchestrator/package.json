@@ -41,6 +41,7 @@
     "runner:readiness:compact": "tsx src/runnerReadiness.ts --compact",
     "runner:argument-guard:smoke": "tsx src/runnerArgumentGuardSmoke.ts",
     "runner:accept-guard:smoke": "tsx src/runnerAcceptGuardSmoke.ts",
+    "runner:accept-unlock:smoke": "tsx src/runnerAcceptUnlockSmoke.ts",
     "runner:help": "tsx src/runnerHelp.ts",
     "runner:quality": "tsx src/runnerQualityGate.ts",
     "runner:quality:smoke": "tsx src/runnerQualityGateSmoke.ts",

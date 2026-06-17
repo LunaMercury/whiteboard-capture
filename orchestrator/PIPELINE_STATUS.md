@@ -1083,3 +1083,15 @@ HTML report: ...\report.html
   - OpenAI API를 호출하지 않아 API cost는 `$0.0000`입니다.
   - 기본 모드는 git dirty 같은 warning을 허용하고, `--strict`를 붙이면 warning도 실패로 다룹니다.
   - 빠른 운영 점검용이며, 전체 CI 수준의 검증은 기존 `ci:dry-run`을 사용합니다.
+
+## 2026-06-17 runner accept unlock smoke 추가
+
+- 추가 명령: `runner:accept-unlock:smoke`
+- 목적: 성공한 rollback rehearsal와 quality gate 이후에는 Option B keep-applied가 다시 executable로 열리는지 확인합니다.
+- 보완 관계:
+  - `runner:accept-guard:smoke`: plan-only run에서 accept가 잠기는지 확인
+  - `runner:accept-unlock:smoke`: rehearsal 성공 run에서 accept가 열리는지 확인
+- 특징:
+  - mock/test provider 기반으로 worker/apply API 비용 없이 실행합니다.
+  - 역할별 검증과 rollback을 거치므로 `ci:dry-run`에는 넣지 않고 선택형 안전 점검으로 둡니다.
+  - 실행 후 임시 run과 test file을 정리합니다.

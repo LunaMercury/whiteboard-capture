@@ -1,212 +1,129 @@
-# Orchestrator Runner Workflow
+﻿# Orchestrator Runner Workflow
 
 이 문서는 Whiteboard Capture 오케스트레이터의 표준 실행 흐름을 정리합니다.
 
 ## 핵심 원칙
 
-- 기본 실행은 dry-run입니다. `--apply`를 붙이지 않으면 저장소 파일을 수정하지 않습니다.
-- worker 단계는 실제 파일 수정 단계가 아닙니다. worker는 `proposedEdits`만 작성합니다.
-- 실제 파일 수정과 검증 결과 기록은 apply/verification 단계에서만 수행합니다.
-- 실제 적용은 `--apply`를 명시한 경우에만 실행됩니다.
-- `--apply`는 기본적으로 깨끗한 git worktree에서만 실행됩니다.
-- dependency/build manifest 변경은 apply review 단계에서 차단됩니다.
-- `--verify-all`은 dry-run에서는 실제 전체 검증을 실행하지 않습니다.
-- `--verify-all`은 `--apply` 또는 `--skip-workers`처럼 적용된 결과를 검증하는 상황에서만 전체 검증을 실행합니다.
+- 기본 실행은 파일을 바꾸지 않습니다.
+- 실제 파일 변경은 `--apply`가 있을 때만 발생합니다.
+- 안전 리허설은 `--rollback-after-verify`로 적용, 검증, 롤백까지 수행합니다.
+- 실제 적용은 성공한 리허설 이후 `runner:accept` 또는 `--keep-applied`로 명시합니다.
+- 계약 변경, 미해결 질문, 차단 경로, dependency/build manifest 변경은 apply review에서 기본 차단합니다.
+- post-apply 품질 게이트는 placeholder, 죽은 코드, inline style, TODO/HACK 같은 위험 신호를 검사합니다.
+- 중요한 live 작업 전에는 `runner:readiness:strict`를 먼저 실행합니다.
 
-## 1. 전체 계획과 worker dry-run을 한 번에 실행
-
-가장 기본적인 안전 실행입니다. 계획을 만들고 worker 결과를 수집하지만 파일은 수정하지 않습니다.
+## 가장 짧은 실사용 흐름
 
 ```powershell
-cd orchestrator
-& "C:\Program Files\nodejs\npm.cmd" run runner:full -- "네이버 로그인 구현해줘"
+cd "D:\개발\whiteboard capture\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
+& "C:\Program Files\nodejs\npm.cmd" run runner:quick
+& "C:\Program Files\nodejs\npm.cmd" run runner:accept
 ```
 
-특정 역할만 실행할 수 있습니다.
+의미:
+
+1. `runner:goal`: worker/apply/verify/quality/rollback 리허설
+2. `runner:quick`: 최신 run 상태와 A/B/C 선택지 확인
+3. `runner:accept`: 같은 worker 결과를 실제 keep-applied로 유지
+
+## 중요한 작업 흐름
+
+인증, 보안, 배포, 환경변수, 데이터 삭제 정책처럼 영향이 큰 작업은 사전 점검을 먼저 실행합니다.
 
 ```powershell
-cd orchestrator
-& "C:\Program Files\nodejs\npm.cmd" run runner:full -- --roles java,frontend "네이버 로그인 구현해줘"
+cd "D:\개발\whiteboard capture\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" run runner:readiness:strict
+& "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend,java,rust,mobile "요청 내용"
+& "C:\Program Files\nodejs\npm.cmd" run runner:quick
+& "C:\Program Files\nodejs\npm.cmd" run runner:accept
 ```
 
-mock 모드에서는 실제 모델 호출 없이 흐름만 확인합니다.
+## 계획만 확인
+
+방향성만 보고 싶거나 큰 작업을 쪼개기 전에는 `runner:plan`을 사용합니다.
 
 ```powershell
-cd orchestrator
-& "C:\Program Files\nodejs\npm.cmd" run runner:full:mock -- --roles frontend,java --worker-provider manual "네이버 로그인 구현해줘"
+cd "D:\개발\whiteboard capture\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" run runner:plan -- --roles frontend,java,rust,mobile "요청 내용"
 ```
 
-## 2. 기존 run에서 특정 역할만 적용
+`runner:plan`은 파일을 적용하지 않습니다. 제안이 마음에 들면 `runner:goal`로 안전 리허설을 다시 실행합니다.
 
-dry-run 결과를 확인한 뒤 특정 역할만 실제 적용합니다.
+비용 없이 흐름만 확인하려면 mock/test provider를 사용합니다.
 
 ```powershell
-cd orchestrator
-& "C:\Program Files\nodejs\npm.cmd" run runner:workflow -- <run-id> --roles java --apply
+& "C:\Program Files\nodejs\npm.cmd" run runner:plan:mock -- --roles frontend,java "요청 내용"
 ```
 
-이 명령은 다음 순서로 동작합니다.
+## 기존 run 이어가기
 
-1. worker 실행 또는 기존 결과 갱신
-2. apply review gate 실행
-3. apply 준비
-4. 실제 파일 수정
-5. 역할별 검증 실행
-6. 결과 수집
-
-## 3. 전체 검증까지 포함한 적용
-
-역할별 검증 후 전체 프로젝트 검증까지 실행하려면 `--verify-all`을 추가합니다.
+특정 run의 다음 선택지를 다시 보고 싶으면 `runner:continue`를 사용합니다.
 
 ```powershell
-cd orchestrator
-& "C:\Program Files\nodejs\npm.cmd" run runner:workflow -- <run-id> --roles java --apply --verify-all
+& "C:\Program Files\nodejs\npm.cmd" run runner:continue -- <run-id>
 ```
 
-주의: `verify-all`은 web, Rust, Java, Android, orchestrator 검증을 모두 실행하므로 오래 걸릴 수 있습니다.
-
-## 4. apply review만 실행
-
-worker가 만든 `proposedEdits`가 적용 가능한지 먼저 확인합니다.
+짧은 출력:
 
 ```powershell
-cd orchestrator
-& "C:\Program Files\nodejs\npm.cmd" run runner:review -- <run-id> java
+& "C:\Program Files\nodejs\npm.cmd" run runner:continue:compact -- <run-id>
 ```
 
-review gate는 다음을 검사합니다.
+선택지:
 
-- 제안 파일이 allowed paths 안에 있는지
-- blocked paths를 건드리지 않는지
-- 계약 변경을 숨기지 않았는지
-- required verification이 존재하는지
-- dependency/build manifest 변경이 포함되어 있는지
-- 신규 dependency 사용을 암묵적으로 제안하지 않는지
+- Option A: 안전 리허설, rollback
+- Option B: 같은 proposed edits를 실제 유지
+- Option C: 현재 run 폐기, 새 요청 추천
 
-## 5. 이미 적용된 결과만 다시 검증
-
-worker/apply를 다시 실행하지 않고 기존 result packet 기준으로 검증만 다시 돌릴 수 있습니다.
+실행 예:
 
 ```powershell
-cd orchestrator
-& "C:\Program Files\nodejs\npm.cmd" run runner:workflow -- <run-id> --roles java --skip-workers --verify-all
+& "C:\Program Files\nodejs\npm.cmd" run runner:continue:a:execute -- <run-id>
+& "C:\Program Files\nodejs\npm.cmd" run runner:continue:b:execute -- <run-id>
 ```
 
-## 6. 위험 옵션
+## 결과 재사용
 
-### `--allow-dirty`
-
-기본적으로 `--apply`는 git worktree가 깨끗해야 실행됩니다.
-
-테스트 목적으로 현재 변경 위에 apply해야 할 때만 사용합니다.
+worker 결과가 이미 있고 apply 또는 verification만 다시 시도하면 되는 경우 `--reuse-worker-results`를 사용합니다.
 
 ```powershell
-cd orchestrator
-& "C:\Program Files\nodejs\npm.cmd" run runner:workflow -- <run-id> --roles java --apply --allow-dirty
+& "C:\Program Files\nodejs\npm.cmd" run runner:workflow -- <run-id> --compact --roles mobile --reuse-worker-results --apply-provider openai --apply --rollback-after-verify --concurrency 1 --continue-on-error
 ```
 
-이 옵션은 사용자의 기존 변경과 worker 적용 결과가 섞일 수 있으므로 신중히 사용합니다.
+재사용 가드:
 
-### `--apply-review`
+- 같은 run id
+- 같은 Git HEAD
+- 같은 worktree 상태
+- 안전한 proposed edit 경로
+- 계약 변경/미해결 질문은 명시 승인 필요
 
-review mode worker의 proposed edits도 적용 대상으로 허용합니다.
+## 전체 검증
 
-기본적으로 review worker는 apply하지 않습니다.
-
-## 7. OpenAI rate limit 재시도
-
-OpenAI worker/apply 실행 중 429 rate limit이 발생하면 runner가 자동으로 대기 후 재시도합니다.
-
-조정 가능한 환경변수:
-
-```text
-OPENAI_MAX_RETRIES=6
-OPENAI_RETRY_BASE_MS=3000
-OPENAI_RETRY_MAX_MS=60000
-```
-
-TPM 한도가 낮은 계정에서는 전체 역할을 한 번에 실행하기보다 `--roles java`처럼 작은 범위부터 실행하는 것이 안전합니다.
-
-worker를 제한 병렬로 실행하려면 `--concurrency`를 사용합니다.
+역할별 검증만으로 부족할 때는 `--verify-all`을 사용합니다.
 
 ```powershell
-& "C:\Program Files\nodejs\npm.cmd" run runner:full -- --roles frontend,java,rust,mobile --concurrency 2 "네이버 로그인 구현해줘"
+& "C:\Program Files\nodejs\npm.cmd" run runner:workflow -- <run-id> --roles java --apply --rollback-after-verify --verify-all
 ```
 
-권장값:
+주의:
 
-- `--concurrency 1`: 가장 안전합니다.
-- `--concurrency 2`: 속도와 TPM 안정성 사이의 권장 타협점입니다.
-- `--concurrency 3` 이상: API 한도가 충분할 때만 사용합니다.
+- `verify-all`은 Web, Rust, Java, Android, orchestrator 검증을 모두 실행하므로 오래 걸릴 수 있습니다.
+- OpenAI API 비용은 없지만 로컬 빌드 시간이 필요합니다.
 
-주의: apply와 verification은 파일 충돌을 막기 위해 worker 이후 순차적으로 처리합니다.
+## 실패 상태 읽기
 
-## 8. 권장 작업 순서
+- `succeeded`: 선택한 흐름이 성공했습니다.
+- `blocked`: 안전 게이트가 중단했습니다. 질문/계약 변경을 검토해야 합니다.
+- `failed`: worker, apply, verification, quality gate, rollback, cleanup 중 하나가 실패했습니다.
 
-큰 작업은 다음 순서로 진행합니다.
+마지막 `Final Summary`와 `report.html`을 먼저 확인합니다.
 
-```powershell
-# 1. 안전한 전체 dry-run
-& "C:\Program Files\nodejs\npm.cmd" run runner:full -- "네이버 로그인 구현해줘"
+## 권장 운영 습관
 
-# 2. report/result 확인
-# orchestrator/runs/<run-id>/report.md
-# orchestrator/runs/<run-id>/results/*.result.json
-
-# 3. 특정 역할 review
-& "C:\Program Files\nodejs\npm.cmd" run runner:review -- <run-id> java
-
-# 4. 특정 역할만 apply
-& "C:\Program Files\nodejs\npm.cmd" run runner:workflow -- <run-id> --roles java --apply
-
-# 5. 필요 시 전체 검증
-& "C:\Program Files\nodejs\npm.cmd" run runner:workflow -- <run-id> --roles java --skip-workers --verify-all
-```
-
-작은 작업은 바로 `--apply`를 사용할 수 있습니다.
-
-```powershell
-& "C:\Program Files\nodejs\npm.cmd" run runner:full -- --roles frontend --apply "버튼 문구만 수정해줘"
-```
-
-## 9. 산출물 위치
-
-각 run은 아래 위치에 저장됩니다.
-
-```text
-orchestrator/runs/<run-id>/
-  report.md
-  tasks/
-  results/
-  workers/
-  applies/
-  meta/
-```
-
-중요 파일:
-
-- `report.md`: 최종 요약
-- `tasks/*.task.json`: worker 입력 패킷
-- `results/*.result.json`: worker 결과 패킷
-- `workers/*.prompt.md`: worker 프롬프트
-- `applies/*.review.md`: apply review 결과
-- `applies/*.apply.md`: apply 프롬프트
-- `meta/manifest.json`: run 메타데이터
-
-## 10. 최종 상태 해석
-
-최종 요약은 실패 원인을 다음처럼 구분합니다.
-
-- `succeeded`: 요청한 worker/apply/verification 흐름이 성공함
-- `blocked`: apply review가 계약 변경, 미해결 질문 등 안전 사유로 적용 전에 차단함
-- `failed`: worker 실행, apply 실행, 검증, 롤백 또는 cleanup이 실제로 실패함
-
-`blocked`는 의도된 안전 동작이지만 자동화가 적용 성공으로 오해하지 않도록 프로세스 종료 코드는 `1`을 유지합니다.
-
-차단된 역할과 미해결 질문은 상태 조회 명령으로 확인할 수 있습니다.
-
-```powershell
-& "C:\Program Files\nodejs\npm.cmd" run runner:status -- <run-id>
-```
-
-상태 조회가 제안하는 승인 재실행 명령은 질문과 계약을 실제로 검토한 뒤에만 사용합니다.
+- 작업 전 `git status --short`를 확인합니다.
+- 중요한 작업 전 `runner:readiness:strict`를 실행합니다.
+- 먼저 `runner:goal`로 rollback 리허설을 통과시킵니다.
+- 결과가 마음에 들 때만 `runner:accept`를 사용합니다.
+- 적용 후 diff를 확인하고 의미 있는 단위로 커밋합니다.

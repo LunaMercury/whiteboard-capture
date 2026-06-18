@@ -1175,3 +1175,17 @@ HTML report: ...\report.html
 - API 비용: 없음. `worker-provider test`와 로컬 smoke 중심으로 실행했습니다.
 - 의미:
   - npm 인자 실수 차단, accept 안전 잠금, 품질 게이트, rollback, mock worker orchestration의 기본 안전망이 함께 동작함을 확인했습니다.
+
+## 2026-06-18 보일러 패키징 리허설 재확인
+
+- 실행 명령: `npm run project:rehearse-package`
+- 대상: `D:\개발\boilerplate-test\orchestrator-package-rehearsal-*`
+- 결과: 통과
+- 확인 범위:
+  - `project:package` 실제 write 성공
+  - `project:validate-package` 성공
+  - 금지 경로(`.env`, `.env.local`, `orchestrator/PIPELINE_STATUS.md`, `orchestrator/.git`) 미포함 확인
+  - 임시 리허설 대상 폴더 자동 삭제 확인
+- 참고:
+  - Codex 샌드박스 기본 쓰기 범위 밖인 `D:\개발\boilerplate-test`에 쓰기 때문에, Codex 내부 실행 시에는 권한 승인이 필요합니다.
+  - 원본 프로젝트에 `project:validate-package`를 직접 실행하면 `.env`와 `orchestrator/PIPELINE_STATUS.md` 때문에 실패하는 것이 정상이며, 새 안내 메시지로 올바른 사용법을 표시합니다.

@@ -143,6 +143,12 @@ function exists(targetProjectRoot: string, relativePath: string) {
   return fs.existsSync(path.join(targetProjectRoot, relativePath));
 }
 
+function looksLikeSourceProject(targetProjectRoot: string) {
+  return exists(targetProjectRoot, path.join("orchestrator", "PIPELINE_STATUS.md"))
+    || exists(targetProjectRoot, ".env")
+    || exists(targetProjectRoot, ".env.local");
+}
+
 function readPackageJson(targetProjectRoot: string) {
   const packageJsonPath = path.join(targetProjectRoot, "orchestrator", "package.json");
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as {
@@ -208,6 +214,14 @@ function main() {
     console.log("Validation failed:");
     for (const failure of failures) {
       console.log(`- ${failure}`);
+    }
+    if (looksLikeSourceProject(targetProjectRoot)) {
+      console.log("");
+      console.log("Hint:");
+      console.log("- This target looks like the source project, not a packaged boilerplate copy.");
+      console.log("- project:validate-package is intended for a target created by project:package.");
+      console.log("- To rehearse packaging safely, run: npm run project:rehearse-package");
+      console.log("- To validate a copied target, run: npm run project:validate-package -- --target \"<packaged project root>\"");
     }
     process.exit(1);
   }

@@ -1,8 +1,10 @@
-# System Architecture
+﻿# System Architecture
 
 ## 개요
 
 {{PROJECT_NAME}}는 Java Spring Boot 기반 core backend, Rust 기반 hot path backend, React web, Android mobile을 기본 구조로 사용합니다.
+
+새 프로젝트가 이 구조와 다르면 이 문서와 `orchestrator/config/project.yaml`을 먼저 수정합니다.
 
 ## 역할 분리
 
@@ -16,6 +18,10 @@
 - JWT claim과 서명 정책.
 - API base URL과 WebSocket URL.
 - CORS/origin 정책.
-- 캐시 키, TTL, fallback 정책.
+- 캐시 TTL과 fallback 정책.
+- 데이터 보관/삭제 정책.
 - 검증 스크립트와 릴리즈 차단 기준.
 
+## 배포 메모
+
+Kubernetes, ArgoCD, Helm/Kustomize 템플릿은 실제 배포 구조와 secret 주입 방식이 정해진 뒤 추가합니다.

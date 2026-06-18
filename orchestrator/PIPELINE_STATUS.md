@@ -1104,3 +1104,19 @@ HTML report: ...\report.html
   - 평상시: `runner:readiness:compact`
   - 중요한 적용 전: `runner:readiness:strict`
 - API 비용: 없음. 기존 readiness와 동일하게 로컬 점검만 수행합니다.
+
+## 2026-06-18 ci dry-run 통합 점검 통과
+
+- 실행 명령: `npm run ci:dry-run`
+- 결과: 통과
+- 확인 범위:
+  - TypeScript compile check
+  - `runner:doctor -- --compact`
+  - `runner:argument-guard:smoke`
+  - `runner:accept-guard:smoke`
+  - `runner:quality:smoke`
+  - `runner:workflow:quality-smoke`
+  - `runner:full:mock -- --compact --roles frontend,java,rust,mobile --worker-provider test --concurrency 2 "auth flow check"`
+- API 비용: 없음. `worker-provider test`와 로컬 smoke 중심으로 실행했습니다.
+- 의미:
+  - npm 인자 실수 차단, accept 안전 잠금, 품질 게이트, rollback, mock worker orchestration의 기본 안전망이 함께 동작함을 확인했습니다.

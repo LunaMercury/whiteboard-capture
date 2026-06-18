@@ -1209,3 +1209,18 @@ HTML report: ...\report.html
   - `runner:help`
   - README / 운영 가이드
 - API 비용: 없음. 로컬 파일 검사와 smoke fixture만 사용합니다.
+
+## 2026-06-18 readiness 문서 인코딩 게이트 연결
+
+- 변경 내용:
+  - `runner:readiness`와 `runner:readiness:compact`가 `runner:docs-encoding`을 함께 실행하도록 연결했습니다.
+  - 보일러플레이트 마이그레이션 체크리스트에 `runner:docs-encoding -- --compact` 확인 단계를 추가했습니다.
+  - README에 readiness가 문서 인코딩 게이트를 포함한다는 안내를 추가했습니다.
+- 확인 결과:
+  - `npx tsc -p tsconfig.json --noEmit` 통과
+  - `runner:readiness:compact`에서 `docs encoding: OK` 확인
+  - `runner:docs-encoding -- --compact` 통과
+  - `project:rehearse-package` 통과
+- 참고:
+  - 작업 중에는 readiness의 git clean 항목이 warning으로 표시되는 것이 정상입니다.
+  - clean worktree 상태의 `ci:dry-run`에서는 문서 인코딩 게이트까지 포함해 통과한 이력이 있습니다.

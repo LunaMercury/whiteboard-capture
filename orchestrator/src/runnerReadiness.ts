@@ -61,6 +61,12 @@ function main() {
       required: strict,
     },
     {
+      name: "docs encoding",
+      script: "runnerDocsEncodingGate.ts",
+      args: ["--compact"],
+      required: true,
+    },
+    {
       name: "argument guard",
       script: "runnerArgumentGuardSmoke.ts",
       args: [],

@@ -50,6 +50,7 @@ cd "D:\개발\<new-project>\orchestrator"
 & "C:\Program Files\nodejs\npm.cmd" install
 & "C:\Program Files\nodejs\npm.cmd" run project:init -- --name "<project name>" --goal "<project goal>" --force
 & "C:\Program Files\nodejs\npm.cmd" run runner:readiness:strict
+& "C:\Program Files\nodejs\npm.cmd" run runner:docs-encoding -- --compact
 & "C:\Program Files\nodejs\npm.cmd" run ci:dry-run
 ```
 
@@ -69,6 +70,7 @@ cd "D:\개발\<new-project>\orchestrator"
 ## 6. 완료 기준
 
 - [ ] `npm run runner:readiness:strict`가 통과합니다.
+- [ ] `npm run runner:docs-encoding -- --compact`가 통과합니다.
 - [ ] `npm run ci:dry-run`이 통과합니다.
 - [ ] `.skills/verify-all.ps1`이 새 프로젝트 환경에서 통과합니다.
 - [ ] 최소 1개 구현 role에서 `runner:goal` 리허설이 성공하고 rollback됩니다.
@@ -133,6 +135,8 @@ cd "D:\개발\boilerplate-test\sample-project-1\orchestrator"
 - [ ] `runner:workflow:quality-smoke`
 - [ ] `runner:accept-guard:smoke`
 - [ ] `runner:accept-unlock:smoke`
+- [ ] `runner:docs-encoding`
+- [ ] `runner:docs-encoding:smoke`
 - [ ] `project:package`
 - [ ] `project:rehearse-package`
 - [ ] `project:validate-package`
@@ -143,6 +147,7 @@ cd "D:\개발\boilerplate-test\sample-project-1\orchestrator"
 - [ ] 복사본에서 `npm install`이 성공합니다.
 - [ ] `npm audit` 결과에 치명적인 취약점이 없습니다.
 - [ ] 복사본에서 `npm run runner:readiness:strict`가 성공합니다.
+- [ ] 복사본에서 `npm run runner:docs-encoding -- --compact`가 성공합니다.
 - [ ] 복사본에서 `npm run ci:dry-run`이 성공합니다.
 - [ ] `ci:dry-run`의 `API cost`가 `$0.0000`입니다.
 - [ ] `ci:dry-run`의 `Status`가 `succeeded`입니다.

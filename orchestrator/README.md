@@ -11,6 +11,7 @@
 3. 결과가 마음에 들면 `runner:accept`로 같은 worker 결과를 실제 적용합니다.
 
 중요한 작업은 먼저 `runner:readiness:strict`로 로컬 준비도와 안전 가드를 확인하는 것을 권장합니다.
+`runner:readiness`는 문서 인코딩 게이트도 함께 실행하므로, 깨진 Markdown이나 BOM 누락 문서가 있으면 live 작업 전에 먼저 차단됩니다.
 
 ## 현재 구조
 

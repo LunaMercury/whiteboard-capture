@@ -286,7 +286,7 @@ function main() {
   console.log("3. npm run project:init -- --name \"<project name>\" --goal \"<goal>\" --force");
   console.log("4. Review BOILERPLATE_MIGRATION_CHECKLIST.md first.");
   console.log("5. Review AGENTS.md, security_guidelines.md, orchestrator/config/*.yaml, and .skills/*.ps1");
-  console.log("6. Run npm run runner:doctor -- --compact in the target orchestrator.");
+  console.log("6. Run npm run runner:readiness:strict in the target orchestrator.");
   console.log("   A git worktree warning is expected until the target project is initialized with git.");
   console.log("7. Run npm run project:validate-package -- --target \"<project root>\" from the source orchestrator.");
   console.log("8. Run npm run ci:dry-run, then the target project's .skills/verify-all.ps1.");

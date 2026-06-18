@@ -105,6 +105,8 @@ cd "D:\개발\boilerplate-test\sample-project-1\orchestrator"
 
 복사 직후 확인:
 
+- [ ] 루트 `.gitignore`가 생성되었습니다.
+- [ ] 루트 `초기설정.txt`가 생성되었습니다.
 - [ ] `orchestrator/package.json`이 생성되었습니다.
 - [ ] `orchestrator/package-lock.json`이 생성되었습니다.
 - [ ] `orchestrator/src/`가 생성되었습니다.
@@ -156,6 +158,7 @@ cd "D:\개발\boilerplate-test\sample-project-1\orchestrator"
 
 ## 10. 새 프로젝트에서 반드시 바꿀 것
 
+- [ ] 루트 `초기설정.txt`를 읽고 초기 실행 순서를 확인
 - [ ] 루트 `AGENTS.md`의 프로젝트 목적과 우선순위
 - [ ] 루트 `agent_role.md`의 역할 설명
 - [ ] 루트 `security_guidelines.md`의 보안 정책

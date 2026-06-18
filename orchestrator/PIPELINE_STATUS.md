@@ -1245,3 +1245,20 @@ HTML report: ...\report.html
 - 의미:
   - 오케스트레이터는 독립 보일러 repository로 분리 가능한 수준까지 리허설이 완료되었습니다.
   - ArgoCD/Kubernetes 템플릿은 여전히 실제 배포 구조 확정 이후 추가하는 것이 안전합니다.
+
+## 2026-06-18 보일러 초기 설정 파일과 gitignore 템플릿 추가
+
+- 추가 파일:
+  - `orchestrator/templates/project-root/.gitignore`
+  - `orchestrator/templates/project-root/초기설정.txt`
+- 목적:
+  - `project:package`로 새 프로젝트를 만들 때 루트 `.gitignore`를 자동 생성해 `node_modules`, `runs`, `dist`, `.env` 등이 커밋되지 않게 합니다.
+  - 새 프로젝트 초기 설정 순서를 `초기설정.txt`에 남겨 `project:package`, `npm install`, `git init`, `runner:readiness:strict`, `ci:dry-run` 흐름을 잊지 않게 합니다.
+- 연결 범위:
+  - `project:package`가 project-root 템플릿을 새 프로젝트 루트에 렌더링합니다.
+  - `project:validate-package`가 `.gitignore`와 `초기설정.txt` 존재 여부를 필수로 확인합니다.
+  - `BOILERPLATE_MIGRATION_CHECKLIST.md`가 복사 직후 확인 항목에 두 파일을 포함합니다.
+- 검증:
+  - TypeScript compile check 통과
+  - `runner:docs-encoding -- --compact` 통과
+  - `project:rehearse-package` 통과

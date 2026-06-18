@@ -6,6 +6,8 @@ type Args = {
 };
 
 const requiredFiles = [
+  ".gitignore",
+  "초기설정.txt",
   "AGENTS.md",
   "agent_role.md",
   "security_guidelines.md",

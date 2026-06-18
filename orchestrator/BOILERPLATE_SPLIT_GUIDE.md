@@ -13,6 +13,12 @@
 - `project:package`, `project:validate-package`, 복사본 `ci:dry-run` 리허설 완료
 - 보일러플레이트 분리는 가능하지만, ArgoCD/Kubernetes 템플릿은 실제 배포 구조가 정해진 뒤 추가하는 편이 안전함
 
+분리 판단은 아래처럼 둡니다.
+
+- 지금 바로 다른 프로젝트에 적용: 가능
+- 독립 보일러 repository로 분리: 가능
+- 클라우드/ArgoCD까지 포함한 완성형 플랫폼 템플릿화: 아직 보류
+
 따라서 지금 분리 기준은 아래처럼 잡습니다.
 
 ```text
@@ -123,9 +129,27 @@
 - [x] 보일러 패키지 실제 write 리허설 성공
 - [x] 패키지 복사본 `npm install` 성공
 - [x] 패키지 복사본 `npm run ci:dry-run` 성공
+- [x] 문서 인코딩 게이트와 smoke 테스트 성공
+- [x] `runner:readiness:strict`에 문서 인코딩 게이트 연결
 - [ ] 새 repository 이름과 목적 확정
 - [ ] 공통 정책과 Whiteboard 전용 정책 분리 범위 최종 확정
 - [ ] ArgoCD/Kubernetes 템플릿을 지금 넣을지, 나중에 넣을지 결정
+
+## 분리 준비 완료 기준
+
+아래 세 조건이 모두 참이면 독립 보일러 repository를 만들어도 됩니다.
+
+1. `runner:readiness:strict`가 통과합니다.
+2. `ci:dry-run`이 통과합니다.
+3. `project:rehearse-package`가 통과합니다.
+
+이 세 조건은 각각 다른 위험을 확인합니다.
+
+- `runner:readiness:strict`: 현재 프로젝트의 로컬 실행 준비도와 안전 가드
+- `ci:dry-run`: 오케스트레이터 자체 파이프라인과 smoke 테스트
+- `project:rehearse-package`: 새 프로젝트로 복사 가능한 패키징 구조
+
+위 조건을 통과해도 새 프로젝트의 실제 제품 정책은 자동으로 완성되지 않습니다. 새 프로젝트에서는 `BOILERPLATE_MIGRATION_CHECKLIST.md`를 기준으로 정책 문서, role 경로, 검증 스크립트, 보안 계약을 다시 확정해야 합니다.
 
 ## 분리 절차
 

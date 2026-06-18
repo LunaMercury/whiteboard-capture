@@ -131,6 +131,9 @@
 - [x] 패키지 복사본 `npm run ci:dry-run` 성공
 - [x] 문서 인코딩 게이트와 smoke 테스트 성공
 - [x] `runner:readiness:strict`에 문서 인코딩 게이트 연결
+- [x] 독립 복사본에서 `git init` 후 초기 커밋 성공
+- [x] 독립 복사본에서 `runner:readiness:strict` 성공
+- [x] 독립 복사본에서 `ci:dry-run` 성공
 - [ ] 새 repository 이름과 목적 확정
 - [ ] 공통 정책과 Whiteboard 전용 정책 분리 범위 최종 확정
 - [ ] ArgoCD/Kubernetes 템플릿을 지금 넣을지, 나중에 넣을지 결정

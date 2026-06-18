@@ -1224,3 +1224,24 @@ HTML report: ...\report.html
 - 참고:
   - 작업 중에는 readiness의 git clean 항목이 warning으로 표시되는 것이 정상입니다.
   - clean worktree 상태의 `ci:dry-run`에서는 문서 인코딩 게이트까지 포함해 통과한 이력이 있습니다.
+
+## 2026-06-18 독립 보일러 리허설 통과
+
+- 대상: `D:\개발\boilerplate-test\orchestrator-boilerplate-rehearsal`
+- 실행 흐름:
+  - 원본 orchestrator에서 `project:package -- --target ... --force` 실행
+  - 원본 orchestrator에서 `project:validate-package -- --target ...` 실행
+  - 복사본 orchestrator에서 `npm install` 실행
+  - 복사본 루트에서 `git init` 및 초기 커밋 생성
+  - 복사본 orchestrator에서 `runner:readiness:strict` 실행
+  - 복사본 orchestrator에서 `ci:dry-run` 실행
+- 결과:
+  - 금지 파일(`.env`, `.env.local`, `orchestrator/PIPELINE_STATUS.md`, `orchestrator/.git`) 미포함 확인
+  - `npm install` 성공, 취약점 0개
+  - `runner:readiness:strict` 통과
+  - `ci:dry-run` 통과
+  - API 비용 `$0.0000`
+  - smoke 테스트 후 남은 임시 `web/` 산출물은 삭제했고 최종 Git 상태는 clean
+- 의미:
+  - 오케스트레이터는 독립 보일러 repository로 분리 가능한 수준까지 리허설이 완료되었습니다.
+  - ArgoCD/Kubernetes 템플릿은 여전히 실제 배포 구조 확정 이후 추가하는 것이 안전합니다.

@@ -1,10 +1,12 @@
 ﻿# Orchestrator Pipeline Status
 
-마지막 확인일: 2026-06-07
+마지막 확인일: 2026-06-18
 
 ## 현재 상태
 
-Whiteboard Capture 오케스트레이터는 실사용 가능한 안전 실행 파이프라인을 갖춘 상태입니다.
+Whiteboard Capture 오케스트레이터는 **실사용 가능한 안전 실행 파이프라인**을 갖춘 상태입니다.
+
+현재 완성도는 실사용 기준 약 **95%**입니다. 일반적인 앱/웹 기능 작업은 `runner:goal -> runner:quick -> runner:accept` 흐름으로 사용할 수 있고, 중요한 작업은 `runner:readiness:strict`로 사전 점검한 뒤 진행하는 것을 권장합니다.
 
 ```text
 사용자 요청
@@ -21,6 +23,59 @@ Whiteboard Capture 오케스트레이터는 실사용 가능한 안전 실행 �
 ```
 
 아직 독립 보일러 프로젝트로 분리한 것은 아니지만, 다른 프로젝트로 옮기기 위한 템플릿과 패키징 명령은 준비되어 있습니다.
+
+## 실사용 판정
+
+| 영역 | 상태 | 근거 |
+| --- | --- | --- |
+| 계획/역할 분배 | 완료 | category/template 기반 manager, worker task packet, verifier review 동작 |
+| worker 실행 | 완료 | OpenAI/test provider, concurrency, rate-limit retry, result packet 수집 |
+| apply 안전성 | 완료 | apply review, blocked path, contracts/questions approval gate |
+| 검증/롤백 | 완료 | 역할별 `.skills/verify-*`, `--rollback-after-verify`, rollback summary |
+| 실제 적용 | 완료 | `runner:accept` / keep-applied 흐름, accept 잠금/해제 smoke |
+| 품질 게이트 | 완료 | post-apply `runner:quality`, workflow quality smoke, report/status/reports 표시 |
+| 비용 관리 | 완료 | compact output, worker result reuse, cost summary/breakdown, budget alias |
+| 운영 UX | 완료 | `runner:goal`, `runner:quick`, `runner:accept`, latest/continue/status/reports alias |
+| 로컬 안전 점검 | 완료 | `runner:preflight`, `runner:readiness`, `runner:readiness:strict`, `ci:dry-run` |
+| 보일러 재사용 | 준비 완료 | `project:package`, `project:validate-package`, 복사 리허설 성공 |
+| 클라우드/ArgoCD | 보류 | 실제 배포 구조와 도메인/Secret 주입 정책 확정 후 추가 |
+
+## 권장 기본 흐름
+
+작은 기능:
+
+```powershell
+cd "D:\개발\whiteboard capture\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend "요청 내용"
+& "C:\Program Files\nodejs\npm.cmd" run runner:quick
+& "C:\Program Files\nodejs\npm.cmd" run runner:accept
+```
+
+중요 기능:
+
+```powershell
+cd "D:\개발\whiteboard capture\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" run runner:readiness:strict
+& "C:\Program Files\nodejs\npm.cmd" run runner:goal -- --roles frontend,java "요청 내용"
+& "C:\Program Files\nodejs\npm.cmd" run runner:quick
+& "C:\Program Files\nodejs\npm.cmd" run runner:accept
+```
+
+큰 방향 검토:
+
+```powershell
+cd "D:\개발\whiteboard capture\orchestrator"
+& "C:\Program Files\nodejs\npm.cmd" run runner:plan -- --roles frontend,java,rust,mobile "요청 내용"
+```
+
+## 아직 남은 작업
+
+남은 작업은 파이프라인 실사용을 막는 핵심 결함이라기보다, 배포/재사용/운영 편의 개선입니다.
+
+- 클라우드/ArgoCD/Kubernetes 템플릿: 실제 운영 구조 확정 후 추가
+- 독립 보일러 repository 분리: 현재 프로젝트에서 조금 더 실사용 후 분리 권장
+- 프로젝트별 정책 팩 분리: Whiteboard 전용 정책과 공통 정책을 더 명확히 나누기
+- 장기 비용 최적화: 모델별 기본값, worker prompt compacting, report retention 정책 추가 조정
 
 ## 최근 리허설 기록
 

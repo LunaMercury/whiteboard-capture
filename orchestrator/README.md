@@ -2,17 +2,15 @@
 
 현재 파이프라인 완료 상태와 실사용 명령은 [PIPELINE_STATUS.md](./PIPELINE_STATUS.md)를 참고합니다.
 
-이 디렉토리는 Whiteboard Capture 프로젝트용 오케스트레이션 실험 공간입니다.
+이 디렉토리는 Whiteboard Capture 프로젝트용 에이전트 오케스트레이션 파이프라인입니다.
 
-현재 목표는 다음 흐름을 만드는 것입니다.
+현재 기본 실사용 흐름은 다음과 같습니다.
 
-1. `master`가 사용자 요청을 받음
-2. 요청을 카테고리별 정책으로 분류함
-3. `frontend / rust / java / mobile` worker용 작업 패킷을 만듦
-4. `verifier`가 계획과 패킷을 검토함
-5. 이후 실제 CLI worker가 작업을 수행하고 결과를 반환함
+1. `runner:goal`로 안전 리허설을 실행합니다.
+2. `runner:quick`으로 최신 run의 상태와 다음 선택지를 확인합니다.
+3. 결과가 마음에 들면 `runner:accept`로 같은 worker 결과를 실제 적용합니다.
 
-지금은 이 중에서 `master -> plan -> task packet -> verifier -> file-based runner bundle`까지 완료된 상태입니다.
+중요한 작업은 먼저 `runner:readiness:strict`로 로컬 준비도와 안전 가드를 확인하는 것을 권장합니다.
 
 ## 현재 구조
 
@@ -176,6 +174,24 @@ orchestrator/runs/<run-id>/
   - 사람이 읽는 전체 오케스트레이션 보고서
 - `meta/manifest.json`
   - run 메타데이터
+
+## 파이프라인 완성도
+
+현재 오케스트레이터는 실사용 가능한 안전 실행 파이프라인 상태입니다.
+
+- manager 계획 및 역할별 worker packet 생성
+- OpenAI/test worker provider
+- apply review 안전 게이트
+- 계약 변경/미해결 질문 차단
+- 안전 리허설 후 자동 롤백
+- 성공한 리허설 이후에만 accept 허용
+- 역할별 `.skills/verify-*` 검증 연결
+- post-apply 품질 게이트
+- 비용 요약 및 report/html report 생성
+- `runner:goal -> runner:quick -> runner:accept` 실사용 alias
+- 보일러플레이트 패키징/검증 명령
+
+상세 상태와 최근 검증 기록은 [PIPELINE_STATUS.md](./PIPELINE_STATUS.md)를 참고합니다.
 
 ## 현재 사용 가능한 명령
 
@@ -366,59 +382,14 @@ cd orchestrator
 "C:\Program Files\nodejs\npm.cmd" run runner:collect -- <run-id>
 ```
 
-## CLI Worker Runner 상태
+## 남은 작업
 
-현재 `worker:run`은 다음까지 구현되어 있습니다.
+남은 작업은 파이프라인 실사용을 막는 핵심 결함이 아니라, 배포와 재사용 편의 개선입니다.
 
-1. `task.json` 읽기
-2. `prompt.md` 생성
-3. `claude` CLI를 JSON schema 기반으로 호출
-4. 성공 시 `result.json` 갱신
-5. 실패 시에도 `result.json`에 실패 내용 기록
-
-즉, 완전한 자동 실행기라기보다는 **실제 실행 가능한 초안** 상태입니다.
-
-## 현재까지 완료된 것
-
-- LangGraph master/planner 구조
-- 카테고리 정책 엔진
-- 템플릿 레지스트리
-- YAML 기반 applied templates 출력
-- specialist plan 생성
-- verifier 단계 추가
-- worker task/result packet 스키마
-- file-based runner bundle
-- CLI worker prompt 생성기
-- CLI worker 실행 초안
-
-## 아직 미완성인 것
-
-아래는 아직 완성되지 않았습니다.
-
-1. `master가 worker를 자동으로 순차/병렬 실행`
-2. `worker 결과를 다시 graph에 주입해 최종 보고서를 자동 재생성`
-3. `provider 다중 지원`
-   - 현재는 실질적으로 `claude` 중심
-4. `worker별 git worktree 분리`
-5. `충돌 해결 및 merge 전략`
-6. `verifier의 룰 기반 정적 검사 강화`
-
-## 권장 다음 단계
-
-가장 자연스러운 다음 단계는 아래입니다.
-
-1. `runner:execute` 추가
-   - master가 worker들을 순서대로 또는 병렬로 자동 실행
-
-2. `result reinjection`
-   - worker 결과를 다시 verifier와 merge 단계에 넣어 최종 보고서를 갱신
-
-3. `verifier rules`
-   - 중복 touched areas
-   - blocked path 침범
-   - verification 누락
-   - 계약 충돌
-   자동 감지
+1. 클라우드/ArgoCD/Kubernetes 템플릿 추가
+2. 독립 보일러 repository 분리
+3. 프로젝트별 정책 팩 분리
+4. 장기 비용 최적화와 report retention 정책 조정
 
 ## 관련 파일
 

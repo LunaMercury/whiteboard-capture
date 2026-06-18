@@ -11,12 +11,13 @@
 - `runner:goal -> runner:quick -> runner:accept` 실사용 흐름 검증 완료
 - `runner:readiness:strict`, `ci:dry-run`, accept guard, quality gate 검증 완료
 - `project:package`, `project:validate-package`, 복사본 `ci:dry-run` 리허설 완료
+- 로컬 독립 보일러 원본 `D:\개발\agent-orchestrator-boilerplate` 생성 및 검증 완료
 - 보일러플레이트 분리는 가능하지만, ArgoCD/Kubernetes 템플릿은 실제 배포 구조가 정해진 뒤 추가하는 편이 안전함
 
 분리 판단은 아래처럼 둡니다.
 
 - 지금 바로 다른 프로젝트에 적용: 가능
-- 독립 보일러 repository로 분리: 가능
+- 독립 보일러 repository로 분리: 로컬 원본 생성 완료, 원격 repository push는 보류
 - 클라우드/ArgoCD까지 포함한 완성형 플랫폼 템플릿화: 아직 보류
 
 따라서 지금 분리 기준은 아래처럼 잡습니다.
@@ -134,8 +135,10 @@
 - [x] 독립 복사본에서 `git init` 후 초기 커밋 성공
 - [x] 독립 복사본에서 `runner:readiness:strict` 성공
 - [x] 독립 복사본에서 `ci:dry-run` 성공
-- [ ] 새 repository 이름과 목적 확정
-- [ ] 공통 정책과 Whiteboard 전용 정책 분리 범위 최종 확정
+- [x] 로컬 보일러 원본 `D:\개발\agent-orchestrator-boilerplate` 생성
+- [x] 로컬 보일러 원본에서 `npm install`, Git 초기화, `runner:readiness:strict`, `ci:dry-run` 성공
+- [x] 새 repository 이름과 목적 확정
+- [x] 공통 정책과 Whiteboard 전용 정책 분리 범위 최종 확정
 - [ ] ArgoCD/Kubernetes 템플릿을 지금 넣을지, 나중에 넣을지 결정
 
 ## 분리 준비 완료 기준

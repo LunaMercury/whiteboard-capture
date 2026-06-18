@@ -1262,3 +1262,20 @@ HTML report: ...\report.html
   - TypeScript compile check 통과
   - `runner:docs-encoding -- --compact` 통과
   - `project:rehearse-package` 통과
+
+## 2026-06-18 로컬 보일러 원본 생성 완료
+
+- 대상: `D:\개발\agent-orchestrator-boilerplate`
+- 운영 방식:
+  - 당분간 원격 repository에 push하지 않고 로컬 보일러 원본으로 사용합니다.
+  - 새 프로젝트를 만들 때 이 보일러의 `orchestrator`에서 `project:package`를 실행합니다.
+  - 실제 새 프로젝트를 GitHub/GitLab 등에 올리는 시점에 원격 repository를 연결합니다.
+- 완료 항목:
+  - `project:package`로 독립 보일러 원본 생성
+  - `npm install` 성공
+  - Git 초기화 및 초기 커밋 성공
+  - `runner:readiness:strict` 성공
+  - `ci:dry-run` 성공
+- 결론:
+  - Whiteboard 프로젝트 내부 오케스트레이터와 별도로 재사용 가능한 로컬 보일러 원본이 준비되었습니다.
+  - 이후 새 프로젝트 시작 시에는 `D:\개발\agent-orchestrator-boilerplate\orchestrator`에서 `project:package`를 실행하는 흐름을 사용합니다.

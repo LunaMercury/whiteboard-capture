@@ -1,4 +1,4 @@
-# 고속 백엔드 파이프라인 컨텍스트 (Backend Fast Context)
+﻿# 고속 백엔드 파이프라인 컨텍스트 (Backend Fast Context)
 
 *   **스택**: Rust, Tokio, Axum (또는 Actix-web), SQLx (비동기 DB 연결), Tungstenite (WebSocket).
 *   **역할**: 가장 빠른 속도가 요구되는 'Hot Path' (이미지 수신 및 웹소켓 알림) 전담.

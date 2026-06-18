@@ -1,4 +1,4 @@
-# AI 에이전트 역할 및 코딩 스타일 (Agent Role & Coding Style)
+﻿# AI 에이전트 역할 및 코딩 스타일 (Agent Role & Coding Style)
 
 ## 1. AI 에이전트의 역할
 *   **Harness Engineer**: AI는 단순히 코드를 짜는 것을 넘어, `.skills` 디렉토리에 실행, 빌드, 테스트 스크립트를 정의하고 시스템을 조립하는 엔지니어의 역할을 수행합니다.

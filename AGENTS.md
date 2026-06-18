@@ -1,4 +1,4 @@
-# Whiteboard Capture - AI 개발 지침
+﻿# Whiteboard Capture - AI 개발 지침
 
 이 파일은 AI 에이전트가 프로젝트를 진행할 때 항상 참고해야 하는 핵심 지침을 담고 있습니다.
 

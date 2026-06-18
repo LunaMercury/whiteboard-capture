@@ -241,6 +241,12 @@ cd orchestrator
 # 적용된 변경의 로컬 품질 게이트만 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:quality -- <run-id> --roles frontend
 
+# Markdown 문서 인코딩과 한글 깨짐을 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:docs-encoding -- --compact
+
+# 문서 인코딩 게이트가 깨진 문서를 차단하는지 비용 없이 확인
+"C:\Program Files\nodejs\npm.cmd" run runner:docs-encoding:smoke
+
 # 품질 게이트가 나쁜 패턴을 실제로 차단하는지 비용 없이 확인
 "C:\Program Files\nodejs\npm.cmd" run runner:quality:smoke
 

@@ -1,4 +1,4 @@
-# Whiteboard Capture - Troubleshooting Guide
+﻿# Whiteboard Capture - Troubleshooting Guide
 
 이 문서는 개발 환경에서 자주 반복되던 실행 오류와 그 근본 원인을 정리합니다.
 

@@ -1,4 +1,4 @@
-# Mobile Release Network Configuration
+﻿# Mobile Release Network Configuration
 
 모바일 앱은 개발 빌드와 운영 빌드의 네트워크 정책을 분리합니다.
 

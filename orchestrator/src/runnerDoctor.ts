@@ -152,6 +152,8 @@ function checkPackageScripts(orchestratorRoot: string): CheckResult {
     "runner:argument-guard:smoke",
     "runner:accept-guard:smoke",
     "runner:accept-unlock:smoke",
+    "runner:docs-encoding",
+    "runner:docs-encoding:smoke",
     "runner:help",
     "runner:quality",
     "runner:quality:smoke",

@@ -1189,3 +1189,23 @@ HTML report: ...\report.html
 - 참고:
   - Codex 샌드박스 기본 쓰기 범위 밖인 `D:\개발\boilerplate-test`에 쓰기 때문에, Codex 내부 실행 시에는 권한 승인이 필요합니다.
   - 원본 프로젝트에 `project:validate-package`를 직접 실행하면 `.env`와 `orchestrator/PIPELINE_STATUS.md` 때문에 실패하는 것이 정상이며, 새 안내 메시지로 올바른 사용법을 표시합니다.
+
+## 2026-06-18 문서 인코딩 품질 게이트 추가
+
+- 추가 명령:
+  - `runner:docs-encoding`
+  - `runner:docs-encoding:smoke`
+- 목적:
+  - Markdown 문서에 한글 깨짐(mojibake) 흔적이 남은 상태로 커밋되거나 보일러플레이트에 포함되는 것을 차단합니다.
+  - Windows PowerShell 5.1 환경에서도 한글 문서가 안정적으로 읽히도록, 한글/비ASCII 문서에는 UTF-8 BOM을 요구합니다.
+- 검사 항목:
+  - Unicode replacement character(`U+FFFD`)
+  - 대표적인 깨진 한글 토큰 패턴과 CP949/UTF-8 혼선으로 생긴 CJK 토큰 패턴
+  - 비ASCII Markdown의 UTF-8 BOM 누락
+- 연결 범위:
+  - `ci:dry-run`
+  - `runner:doctor`
+  - `project:validate-package`
+  - `runner:help`
+  - README / 운영 가이드
+- API 비용: 없음. 로컬 파일 검사와 smoke fixture만 사용합니다.

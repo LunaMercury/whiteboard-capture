@@ -1,4 +1,4 @@
-# 전체 시스템 아키텍처 (System Architecture)
+﻿# 전체 시스템 아키텍처 (System Architecture)
 
 ## 1. 시스템 컴포넌트
 

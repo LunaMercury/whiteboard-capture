@@ -1,4 +1,4 @@
-# 보안 원칙 (Security Guidelines)
+﻿# 보안 원칙 (Security Guidelines)
 
 이 프로젝트는 학생들의 필기와 개인 정보가 오가는 만큼, 철저한 보안이 필수적입니다.
 

@@ -33,6 +33,8 @@
 | `runner:argument-guard:smoke` | npm 옵션 구분자 누락 감지 가드 자체 점검 | 없음 |
 | `runner:accept-guard:smoke` | 리허설 전 accept 잠금 자체 점검 | 없음 |
 | `runner:accept-unlock:smoke` | 리허설 성공 후 accept 해제 자체 점검 | 검증 후 롤백 |
+| `runner:docs-encoding` | Markdown 문서의 한글 깨짐과 BOM 누락 확인 | 없음 |
+| `runner:docs-encoding:smoke` | 문서 인코딩 게이트가 깨진 문서를 차단하는지 자체 점검 | 임시 파일 생성 후 삭제 |
 | `runner:goal` | 적용 가능성을 검증하고 자동 롤백 | 검증 후 롤백 |
 | `runner:quick` | 최신 live run의 상태와 다음 선택지 확인 | 없음 |
 | `runner:rehearse` | 실제 적용 가능성을 검증하고 자동 롤백 | 검증 후 롤백 |
@@ -67,6 +69,12 @@ cd "D:\개발\whiteboard capture\orchestrator"
 
 # 안전 리허설 후 accept가 열리는지 확인
 & "C:\Program Files\nodejs\npm.cmd" run runner:accept-unlock:smoke
+
+# Markdown 문서 인코딩과 한글 깨짐 확인
+& "C:\Program Files\nodejs\npm.cmd" run runner:docs-encoding -- --compact
+
+# 문서 인코딩 게이트 자체 점검
+& "C:\Program Files\nodejs\npm.cmd" run runner:docs-encoding:smoke
 
 # 비용 없이 plan/worker 흐름만 점검
 & "C:\Program Files\nodejs\npm.cmd" run runner:plan:mock -- --roles frontend,java "요청 내용"

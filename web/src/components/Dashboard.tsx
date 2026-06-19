@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import ImageEditor from './ImageEditor';
 import styles from './Dashboard.module.css';
 import { getRealtimeWsUrl, getFastApiUrl } from '../config';
@@ -15,6 +15,8 @@ interface DashboardProps {
   onLogout: () => void;
 }
 
+type CopyFeedback = 'copying' | 'success' | 'error';
+
 const formatDateOnly = (d: Date): string => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -27,6 +29,29 @@ export default function Dashboard({ token, onLogout }: DashboardProps) {
   const [isConnected, setIsConnected] = useState(false);
   const [editingImageUrl, setEditingImageUrl] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [copyFeedbackById, setCopyFeedbackById] = useState<Record<number, CopyFeedback>>({});
+  const copyFeedbackTimers = useRef<Record<number, number>>({});
+
+  useEffect(() => () => {
+    Object.values(copyFeedbackTimers.current).forEach((timerId) => {
+      window.clearTimeout(timerId);
+    });
+  }, []);
+
+  const setCopyFeedback = (imageId: number, feedback: CopyFeedback) => {
+    window.clearTimeout(copyFeedbackTimers.current[imageId]);
+    setCopyFeedbackById((prev) => ({ ...prev, [imageId]: feedback }));
+
+    if (feedback !== 'copying') {
+      copyFeedbackTimers.current[imageId] = window.setTimeout(() => {
+        setCopyFeedbackById((prev) => {
+          const next = { ...prev };
+          delete next[imageId];
+          return next;
+        });
+      }, 1400);
+    }
+  };
 
   // 1. Fetch images history on mount
   useEffect(() => {
@@ -133,8 +158,9 @@ export default function Dashboard({ token, onLogout }: DashboardProps) {
   const activeDate = selectedDate && dates.includes(selectedDate) ? selectedDate : (dates[0] || null);
   const activeImages = activeDate ? imagesByDate[activeDate] : [];
 
-  const handleCopy = async (imageUrl: string, event?: MouseEvent<HTMLButtonElement>) => {
+  const handleCopy = async (imageId: number, imageUrl: string, event?: MouseEvent<HTMLButtonElement>) => {
     event?.stopPropagation();
+    setCopyFeedback(imageId, 'copying');
 
     try {
       const img = new Image();
@@ -157,24 +183,22 @@ export default function Dashboard({ token, onLogout }: DashboardProps) {
 
       ctx.drawImage(img, 0, 0);
 
-      canvas.toBlob(async (blob) => {
-        if (!blob) {
-          alert('이미지를 변환하지 못했습니다.');
-          return;
-        }
+      const copiedBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((nextBlob) => {
+          if (nextBlob) {
+            resolve(nextBlob);
+          } else {
+            reject(new Error('Canvas blob conversion failed'));
+          }
+        }, 'image/png');
+      });
 
-        try {
-          const clipboardItem = new ClipboardItem({ 'image/png': blob });
-          await navigator.clipboard.write([clipboardItem]);
-          alert('이미지를 클립보드에 복사했습니다. 원하는 곳에 붙여넣어 보세요.');
-        } catch (error) {
-          console.error('Clipboard write failed', error);
-          alert('클립보드 복사에 실패했습니다. 브라우저 권한을 확인해주세요.');
-        }
-      }, 'image/png');
+      const clipboardItem = new ClipboardItem({ 'image/png': copiedBlob });
+      await navigator.clipboard.write([clipboardItem]);
+      setCopyFeedback(imageId, 'success');
     } catch (error) {
-      console.error('Image load failed', error);
-      alert('이미지를 불러오지 못해 복사할 수 없습니다.');
+      console.error('Image copy failed', error);
+      setCopyFeedback(imageId, 'error');
     }
   };
 
@@ -265,8 +289,17 @@ export default function Dashboard({ token, onLogout }: DashboardProps) {
               </div>
             ) : (
               <div className={styles.grid}>
-                {activeImages.map((img) => (
-                  <div key={img.id} className={styles.card}>
+                {activeImages.map((img) => {
+                  const copyFeedback = copyFeedbackById[img.id];
+                  const cardClassName = [
+                    styles.card,
+                    copyFeedback === 'copying' ? styles.cardCopying : '',
+                    copyFeedback === 'success' ? styles.cardCopied : '',
+                    copyFeedback === 'error' ? styles.cardCopyFailed : '',
+                  ].filter(Boolean).join(' ');
+
+                  return (
+                  <div key={img.id} className={cardClassName}>
                     <div className={styles.imageWrapper}>
                       <img
                         src={img.url}
@@ -274,6 +307,18 @@ export default function Dashboard({ token, onLogout }: DashboardProps) {
                         className={styles.image}
                         crossOrigin="anonymous"
                       />
+
+                      {copyFeedback && (
+                        <div
+                          className={`${styles.copyStatusBadge} ${
+                            copyFeedback === 'error' ? styles.copyStatusBadgeError : ''
+                          }`}
+                        >
+                          {copyFeedback === 'copying' && '복사 중'}
+                          {copyFeedback === 'success' && '복사 완료'}
+                          {copyFeedback === 'error' && '복사 실패'}
+                        </div>
+                      )}
 
                       <div className={styles.actionOverlay}>
                         <button
@@ -284,7 +329,8 @@ export default function Dashboard({ token, onLogout }: DashboardProps) {
                         </button>
                         <button
                           className={`${styles.actionButton} ${styles.copyButton}`}
-                          onClick={(event) => handleCopy(img.url, event)}
+                          onClick={(event) => handleCopy(img.id, img.url, event)}
+                          disabled={copyFeedback === 'copying'}
                         >
                           복사
                         </button>
@@ -309,7 +355,8 @@ export default function Dashboard({ token, onLogout }: DashboardProps) {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>

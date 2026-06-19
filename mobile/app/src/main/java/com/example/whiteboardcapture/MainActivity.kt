@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -253,6 +255,12 @@ fun CameraScreen(tokenProvider: () -> String?, onLogout: () -> Unit) {
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
     var isUploading by remember { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    fun selectMenuItem(label: String) {
+        menuExpanded = false
+        Toast.makeText(context, "$label 메뉴를 선택했습니다.", Toast.LENGTH_SHORT).show()
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         // 상단 메뉴바 (Top Menu Bar) - 웹 테마 스타일 리팩토링
@@ -264,13 +272,31 @@ fun CameraScreen(tokenProvider: () -> String?, onLogout: () -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 좌측 햄버거 메뉴 아이콘
-            IconButton(onClick = { /* 메뉴 확장 등 향후 기능 연동 */ }) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "메뉴",
-                    tint = Color(0xFFAA3BFF) // 브랜드 보라색 강조 컬러
-                )
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "메뉴",
+                        tint = Color(0xFFAA3BFF)
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("캡쳐한 사진") },
+                        onClick = { selectMenuItem("캡쳐한 사진") }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("프로필") },
+                        onClick = { selectMenuItem("프로필") }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("설정") },
+                        onClick = { selectMenuItem("설정") }
+                    )
+                }
             }
 
             // 중앙 타이틀 (Whiteboard + Capture 보라색 포인트)

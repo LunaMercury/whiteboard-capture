@@ -23,6 +23,7 @@ if not defined VITE_REALTIME_WS_URL if defined VITE_WS_FAST_URL set "VITE_REALTI
 if not defined PUBLIC_BASE_URL set "PUBLIC_BASE_URL=http://localhost:3000"
 if not defined ALLOWED_WEB_ORIGINS set "ALLOWED_WEB_ORIGINS=http://localhost:5173"
 if not defined VITE_REALTIME_WS_URL set "VITE_REALTIME_WS_URL=ws://localhost:3000/ws"
+if not defined UPLOAD_DIR set "UPLOAD_DIR=%CD%\uploads"
 
 :: For local testing, force every service to use ports that are not commonly reserved by Windows.
 set "VITE_API_BASE_URL=http://localhost:18080"
@@ -80,6 +81,7 @@ echo All services are starting in separate windows.
 echo Core API:    http://localhost:18080
 echo Fast API:    http://localhost:3000
 echo Web App:     http://localhost:5173
+echo Uploads:     %UPLOAD_DIR%
 echo ==========================================
 pause
 exit /b 0

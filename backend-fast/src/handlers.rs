@@ -6,6 +6,7 @@ use axum::{
 };
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use serde::Deserialize;
+use std::path::{Path as FsPath, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::fs::File;
@@ -33,7 +34,7 @@ pub async fn upload_image(
         Err(status) => return status.into_response(),
     };
 
-    let mut file_path = String::new();
+    let mut file_path: Option<PathBuf> = None;
     let mut filename = String::new();
 
     while let Ok(Some(field)) = multipart.next_field().await {
@@ -47,19 +48,47 @@ pub async fn upload_image(
             .as_millis();
 
         filename = format!("{}.jpg", timestamp);
-        let user_dir = format!("uploads/{}", user_id);
-        let _ = tokio::fs::create_dir_all(&user_dir).await;
-        file_path = format!("{}/{}", user_dir, filename);
-
-        if let Ok(data) = field.bytes().await {
-            if let Ok(mut file) = File::create(&file_path).await {
-                let _ = file.write_all(&data).await;
-            }
+        let user_dir = FsPath::new(&state.upload_dir).join(user_id.to_string());
+        if let Err(error) = tokio::fs::create_dir_all(&user_dir).await {
+            eprintln!("Failed to create upload directory {:?}: {:?}", user_dir, error);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
+
+        let next_file_path = user_dir.join(&filename);
+
+        let data = match field.bytes().await {
+            Ok(data) => data,
+            Err(error) => {
+                eprintln!("Failed to read multipart image bytes: {:?}", error);
+                return StatusCode::BAD_REQUEST.into_response();
+            }
+        };
+
+        let mut file = match File::create(&next_file_path).await {
+            Ok(file) => file,
+            Err(error) => {
+                eprintln!("Failed to create upload file {:?}: {:?}", next_file_path, error);
+                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+            }
+        };
+
+        if let Err(error) = file.write_all(&data).await {
+            eprintln!("Failed to write upload file {:?}: {:?}", next_file_path, error);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+
+        file_path = Some(next_file_path);
         break;
     }
 
-    if file_path.is_empty() {
+    let file_path = match file_path {
+        Some(path) => path,
+        None => {
+            return StatusCode::BAD_REQUEST.into_response();
+        }
+    };
+
+    if filename.is_empty() {
         return StatusCode::BAD_REQUEST.into_response();
     }
 
@@ -69,7 +98,7 @@ pub async fn upload_image(
         Ok(deleted_url) => {
             // When FIFO evicts an old record, delete the matching local file in the same request flow.
             if let Some(old_url) = deleted_url {
-                let _ = delete_local_file_from_url(&old_url).await;
+                let _ = delete_local_file_from_url(&state.upload_dir, &old_url).await;
             }
 
             let _ = state.tx.send(ImageEvent {
@@ -81,6 +110,7 @@ pub async fn upload_image(
         }
         Err(error) => {
             eprintln!("DB Error during upload: {:?}", error);
+            let _ = tokio::fs::remove_file(&file_path).await;
             StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     }
@@ -155,9 +185,9 @@ async fn authenticate_token(token: &str, state: &AppState) -> Result<i64, Status
     Ok(user_id)
 }
 
-async fn delete_local_file_from_url(url: &str) -> std::io::Result<()> {
+async fn delete_local_file_from_url(upload_dir: &str, url: &str) -> std::io::Result<()> {
     if let Some(filename) = url.rsplit("/uploads/").next() {
-        let path = format!("uploads/{}", filename);
+        let path = FsPath::new(upload_dir).join(filename);
         tokio::fs::remove_file(path).await?;
     }
 
@@ -181,7 +211,7 @@ pub async fn get_images(
             let mut orphan_ids: Vec<i64> = Vec::new();
 
             for record in records {
-                let local_path = url_to_local_path(&record.url);
+                let local_path = url_to_local_path(&state.upload_dir, &record.url);
                 if tokio::fs::metadata(&local_path).await.is_ok() {
                     valid.push(record);
                 } else {
@@ -208,11 +238,11 @@ pub async fn get_images(
 }
 
 /// Converts a stored public URL like `http://host/uploads/1/file.jpg`
-/// into the local relative path `uploads/1/file.jpg`.
-fn url_to_local_path(url: &str) -> String {
+/// into the local relative path `{upload_dir}/1/file.jpg`.
+fn url_to_local_path(upload_dir: &str, url: &str) -> String {
     url.splitn(2, "/uploads/")
         .nth(1)
-        .map(|rest| format!("uploads/{}", rest))
+        .map(|rest| FsPath::new(upload_dir).join(rest).to_string_lossy().into_owned())
         .unwrap_or_else(|| url.to_string())
 }
 
@@ -230,7 +260,7 @@ pub async fn delete_image(
     match services::get_image_url_if_owner(&state.db, image_id, user_id).await {
         Ok(Some(url)) => {
             // Remove file from disk (best-effort).
-            let path = url_to_local_path(&url);
+            let path = url_to_local_path(&state.upload_dir, &url);
             let _ = tokio::fs::remove_file(&path).await;
 
             // Remove DB record.

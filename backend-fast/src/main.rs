@@ -7,6 +7,7 @@ use axum::{
     Router,
 };
 use sqlx::postgres::PgPoolOptions;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
@@ -22,14 +23,22 @@ pub struct AppState {
     pub db: sqlx::PgPool,
     pub jwt_secret: String,
     pub public_base_url: String,
+    pub upload_dir: String,
     pub tx: broadcast::Sender<ImageEvent>,
 }
 
 #[tokio::main]
 async fn main() {
+    if dotenvy::dotenv().is_err() {
+        let _ = dotenvy::from_path(PathBuf::from("..").join(".env"));
+    }
+
     println!("Starting Whiteboard Capture Rust Fast Backend...");
 
-    let _ = tokio::fs::create_dir_all("uploads").await;
+    let upload_dir = std::env::var("UPLOAD_DIR")
+        .unwrap_or_else(|_| "../uploads".to_string());
+
+    let _ = tokio::fs::create_dir_all(&upload_dir).await;
 
     let db_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5433/whiteboard_db".to_string());
@@ -57,6 +66,7 @@ async fn main() {
         db: pool,
         jwt_secret,
         public_base_url,
+        upload_dir: upload_dir.clone(),
         tx,
     });
 
@@ -78,7 +88,7 @@ async fn main() {
         .route("/images", get(handlers::get_images))
         .route("/images/{id}", axum::routing::delete(handlers::delete_image))
         .route("/ws", get(handlers::ws_handler))
-        .nest_service("/uploads", ServeDir::new("uploads"))
+        .nest_service("/uploads", ServeDir::new(&upload_dir))
         .with_state(state)
         .layer(cors);
 

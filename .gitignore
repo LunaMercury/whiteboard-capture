@@ -51,6 +51,7 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
+mobile/gradle/gradle-daemon-jvm.properties
 
 # Uploads & User Content
 **/uploads/

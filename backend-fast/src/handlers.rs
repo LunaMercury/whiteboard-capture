@@ -279,3 +279,19 @@ pub async fn delete_image(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn jwt_decode_has_a_crypto_provider() {
+        let result = decode::<Claims>(
+            "not-a-jwt",
+            &DecodingKey::from_secret(b"local_test_secret_key_12345678901234567890"),
+            &Validation::new(Algorithm::HS256),
+        );
+
+        assert!(result.is_err());
+    }
+}

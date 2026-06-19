@@ -1,6 +1,6 @@
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:18080';
-const realtimeWsUrl = import.meta.env.VITE_REALTIME_WS_URL || 'ws://localhost:3000/ws';
-const fastApiBaseUrl = import.meta.env.VITE_FAST_API_BASE_URL || 'http://localhost:3000';
+const realtimeWsUrl = import.meta.env.VITE_REALTIME_WS_URL || 'ws://localhost:18081/ws';
+const fastApiBaseUrl = import.meta.env.VITE_FAST_API_BASE_URL || 'http://localhost:18081';
 
 // 네이버 OAuth 로그인 URL (백엔드 라우팅 기준)
 export const NAVER_OAUTH_URL = `${apiBaseUrl}/auth/naver/login`;

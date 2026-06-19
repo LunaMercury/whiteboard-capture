@@ -20,13 +20,16 @@ if exist ".env" (
 
 if not defined VITE_API_BASE_URL if defined VITE_API_CORE_URL set "VITE_API_BASE_URL=!VITE_API_CORE_URL!"
 if not defined VITE_REALTIME_WS_URL if defined VITE_WS_FAST_URL set "VITE_REALTIME_WS_URL=!VITE_WS_FAST_URL!"
-if not defined PUBLIC_BASE_URL set "PUBLIC_BASE_URL=http://localhost:3000"
 if not defined ALLOWED_WEB_ORIGINS set "ALLOWED_WEB_ORIGINS=http://localhost:5173"
-if not defined VITE_REALTIME_WS_URL set "VITE_REALTIME_WS_URL=ws://localhost:3000/ws"
 if not defined UPLOAD_DIR set "UPLOAD_DIR=%CD%\uploads"
 
 :: For local testing, force every service to use ports that are not commonly reserved by Windows.
+set "FAST_PORT=18081"
+set "FAST_BIND_ADDR=0.0.0.0:%FAST_PORT%"
+set "PUBLIC_BASE_URL=http://localhost:%FAST_PORT%"
 set "VITE_API_BASE_URL=http://localhost:18080"
+set "VITE_FAST_API_BASE_URL=http://localhost:%FAST_PORT%"
+set "VITE_REALTIME_WS_URL=ws://localhost:%FAST_PORT%/ws"
 set "SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5433/whiteboard_db"
 set "SPRING_DATASOURCE_USERNAME=postgres"
 set "SPRING_DATASOURCE_PASSWORD=postgres"
@@ -79,7 +82,7 @@ echo.
 echo ==========================================
 echo All services are starting in separate windows.
 echo Core API:    http://localhost:18080
-echo Fast API:    http://localhost:3000
+echo Fast API:    http://localhost:%FAST_PORT%
 echo Web App:     http://localhost:5173
 echo Uploads:     %UPLOAD_DIR%
 echo ==========================================

@@ -48,7 +48,10 @@ async fn main() {
 
     // The upload API can stay private while the browser still needs a public URL for copied images.
     let public_base_url = std::env::var("PUBLIC_BASE_URL")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
+        .unwrap_or_else(|_| "http://localhost:18081".to_string());
+
+    let bind_addr = std::env::var("FAST_BIND_ADDR")
+        .unwrap_or_else(|_| "0.0.0.0:18081".to_string());
 
     let allowed_origins = std::env::var("ALLOWED_WEB_ORIGINS")
         .unwrap_or_else(|_| "http://localhost:5173".to_string());
@@ -92,7 +95,7 @@ async fn main() {
         .with_state(state)
         .layer(cors);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    println!("Listening on port 3000 (Hot Path Pipeline)");
+    let listener = tokio::net::TcpListener::bind(&bind_addr).await.unwrap();
+    println!("Listening on {} (Hot Path Pipeline)", bind_addr);
     axum::serve(listener, app).await.unwrap();
 }

@@ -8,8 +8,8 @@
 
 ```text
 CORE_API_BASE_URL=http://10.0.2.2:18080
-FAST_API_BASE_URL=http://10.0.2.2:3000
-FAST_WS_BASE_URL=ws://10.0.2.2:3000/ws
+FAST_API_BASE_URL=http://10.0.2.2:18081
+FAST_WS_BASE_URL=ws://10.0.2.2:18081/ws
 ```
 
 debug 빌드에서는 `10.0.2.2`와 `localhost`에 한해 cleartext HTTP를 허용합니다.

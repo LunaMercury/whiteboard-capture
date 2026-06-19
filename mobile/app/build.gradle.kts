@@ -48,8 +48,8 @@ android {
         debug {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
             buildConfigField("String", "CORE_API_BASE_URL", "http://10.0.2.2:18080".asBuildConfigString())
-            buildConfigField("String", "FAST_API_BASE_URL", "http://10.0.2.2:3000".asBuildConfigString())
-            buildConfigField("String", "FAST_WS_BASE_URL", "ws://10.0.2.2:3000/ws".asBuildConfigString())
+            buildConfigField("String", "FAST_API_BASE_URL", "http://10.0.2.2:18081".asBuildConfigString())
+            buildConfigField("String", "FAST_WS_BASE_URL", "ws://10.0.2.2:18081/ws".asBuildConfigString())
         }
         release {
             manifestPlaceholders["usesCleartextTraffic"] = "false"

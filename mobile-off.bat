@@ -1,2 +1,2 @@
 @echo off
-call "%~dp0mobile-stop.bat"
+call "%~dp0mobile-stop.bat" %*
